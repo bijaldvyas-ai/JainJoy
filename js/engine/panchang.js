@@ -146,6 +146,24 @@ JJ.dayRules = function (p, prof) {
   return r;
 };
 
+/* Choghadiya: day (sunrise to sunset) and night (sunset to next sunrise) are each split
+   into 8 equal parts. The first part of the day is ruled by the weekday; each next part
+   steps forward one place in the cycle Udveg, Char, Labh, Amrit, Kaal, Shubh, Rog.
+   Night parts step back two places, starting from the weekday's night ruler. */
+var CHOG = ['udveg', 'char', 'labh', 'amrit', 'kaal', 'shubh', 'rog'];
+var CHOG_Q = {amrit: 'good', shubh: 'good', labh: 'good', char: 'ok', udveg: 'bad', rog: 'bad', kaal: 'bad'};
+var DAY_START = [0, 3, 6, 2, 5, 1, 4];   // Sun..Sat: Udveg, Amrit, Rog, Labh, Shubh, Char, Kaal
+var NIGHT_START = [5, 1, 4, 0, 3, 6, 2]; // Sun..Sat: Shubh, Char, Kaal, Udveg, Amrit, Rog, Labh
+JJ.CHOG_NAMES = CHOG;
+JJ.choghadiya = function (iso, c) {
+  var today = sunDay(iso, c), next = sunDay(addDays(iso, 1), c);
+  var wd = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))).getUTCDay();
+  var out = [], dl = (today.set - today.rise) / 8, nl = (next.rise - today.set) / 8;
+  for (var i = 0; i < 8; i++) { var k = CHOG[(DAY_START[wd] + i) % 7]; out.push({part: 'day', i: i, k: k, q: CHOG_Q[k], start: today.rise + i * dl, end: today.rise + (i + 1) * dl}); }
+  for (var j = 0; j < 8; j++) { var kn = CHOG[mod(NIGHT_START[wd] - 2 * j, 7)]; out.push({part: 'night', i: j, k: kn, q: CHOG_Q[kn], start: today.set + j * nl, end: today.set + (j + 1) * nl}); }
+  return out;
+};
+
 /* Navkarsi / Chauvihar timings. conv.navkarsi minutes after sunrise (48 = 1 muhurta),
    conv.chauvihar minutes before sunset (0 = at sunset). */
 JJ.timings = function (p, conv) {

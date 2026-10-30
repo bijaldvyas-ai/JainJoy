@@ -128,7 +128,7 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var stepMiss = Object.keys(JJ.STEP_T).filter(function (k) { return JJ.STEP_T[k].length !== 3 || JJ.STEP_T[k].some(function (s) { return !s; }); }).length;
     var stateMiss = Object.keys(JJ.STATES.IN).filter(function (k) { return !JJ.STATES.IN[k].hi || !JJ.STATES.IN[k].gu; }).length;
     // render every main screen in each language and look for untranslated keys
-    var leaks = [], screens = ['today', 'cal', 'pan', 'shop', 'more'];
+    var leaks = [], screens = ['today', 'cal', 'pan', 'chog', 'shop', 'prof'];
     JJ.app.profile = Object.assign({created: today}, Pg);
     ['hi', 'gu'].forEach(function (l) {
       JJ.app.setLang(l);
@@ -241,6 +241,30 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var zero = approved.filter(function (x) { return JJ.recipeNutrition(x, [])[0] <= 0; }).length;
     return {ok: !missing.length && recOk && !sumBad && !zero && range[0] > 900 && range[1] < 4000,
       details: 'Ingredients without values: ' + (missing.join(', ') || 'none') + '; Jain Poha per serving ' + got.join('/') + ' (kcal/protein/carbs/fat), hand-computed ' + exp.map(function (v) { return Math.round(v * 10) / 10; }).join('/') + '; day total equals sum of 4 meals on 30/30 days: ' + !sumBad + '; daily range per person ' + range[0] + '–' + range[1] + ' kcal; recipes with zero energy: ' + zero};
+  });
+
+  test(19, 'Choghadiya follows sunrise, sunset and the weekday', function () {
+    var bad = [], firsts = {};
+    for (var k = 0; k < 7; k++) {
+      var d = addDays('2026-11-01', k), L = JJ.choghadiya(d, city), p = JJ.panchang(d, city, Pg), pn = JJ.panchang(addDays(d, 1), city, Pg);
+      if (L.length !== 16) bad.push(d + ' count');
+      if (Math.abs(L[0].start - p.rise) > 1 || Math.abs(L[7].end - p.set) > 1 || Math.abs(L[8].start - p.set) > 1 || Math.abs(L[15].end - pn.rise) > 1) bad.push(d + ' bounds');
+      for (var i = 1; i < 16; i++) if (Math.abs(L[i].start - L[i - 1].end) > 1) bad.push(d + ' gap ' + i);
+      if (L[0].k !== L[7].k) bad.push(d + ' day first/last differ');
+      firsts[new Date(d + 'T12:00:00Z').getUTCDay()] = L[0].k + '/' + L[8].k;
+    }
+    var want = {0: 'udveg/shubh', 1: 'amrit/char', 2: 'rog/kaal', 3: 'labh/udveg', 4: 'shubh/amrit', 5: 'char/rog', 6: 'kaal/labh'};
+    Object.keys(want).forEach(function (w) { if (firsts[w] !== want[w]) bad.push('weekday ' + w + ' starts ' + firsts[w]); });
+    var mon = JJ.choghadiya('2026-11-02', city).slice(8).map(function (c) { return c.k; }).join(',');
+    return {ok: !bad.length && mon === 'char,rog,kaal,labh,udveg,shubh,amrit,char', details: '7 days checked: 16 parts each, day parts span sunrise→sunset and night parts sunset→next sunrise with no gaps; weekday starts (day/night) ' + JSON.stringify(firsts) + '; Monday night ' + mon + (bad.length ? ' | ' + bad.join('; ') : '')};
+  });
+  test(20, 'Every screen shows the Made by BiNaiSa signature', function () {
+    JJ.app.profile = Object.assign({created: today}, Pg); JJ.app.setLang('gu');
+    var miss = [];
+    ['today', 'cal', 'pan', 'chog', 'shop', 'prof'].forEach(function (s) { document.querySelector('[data-a="tab"][data-v="' + s + '"]').click(); if (!/Made by\s*BiNaiSa/.test(document.getElementById('app').innerText)) miss.push(s); });
+    JJ.app.setLang('en');
+    var tabs = Array.prototype.map.call(document.querySelectorAll('.tabbar [data-a="tab"]'), function (b) { return b.dataset.v; }).join(',');
+    return {ok: !miss.length && tabs === 'today,cal,pan,chog,shop,prof', details: 'Screens missing the signature: ' + (miss.join(', ') || 'none') + '; tab bar: ' + tabs};
   });
 
   // ---- report ----

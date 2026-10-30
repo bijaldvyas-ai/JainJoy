@@ -356,3 +356,19 @@ textarea.input{min-height:120px;font-family:ui-monospace,Consolas,monospace;font
 .nmeals div{display:flex;justify-content:space-between;gap:8px;border-top:1px dashed var(--line);padding-top:4px}
 .nmeals span{color:var(--muted);font-weight:700}
 .nmeals b{font-variant-numeric:tabular-nums;font-weight:800}
+/* signature */
+.credit{margin:22px 0 4px;text-align:center;font-family:"Dancing Script","Brush Script MT",cursive;font-size:20px;font-weight:700;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px}
+.credit span{color:var(--crimson);font-size:24px;letter-spacing:.01em}
+/* six tabs */
+.tabbar{grid-template-columns:repeat(6,1fr)}
+.tab{font-size:10.5px;letter-spacing:-.01em}
+.tab .pill{width:40px;height:28px}
+/* choghadiya */
+.chog-row{gap:10px}
+.chog-dot{width:12px;height:12px;border-radius:50%;flex:none;background:var(--line)}
+.chog-good .chog-dot{background:var(--green)}.chog-ok .chog-dot{background:var(--saffron)}.chog-bad .chog-dot{background:var(--crimson)}
+.chog-time{font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chog-row.now{border:2px solid var(--crimson);box-shadow:var(--shadow)}
+.chog-now b{font-size:20px}
+.chog-now.chog-good{background:var(--green-soft)}.chog-now.chog-ok{background:var(--saffron-soft)}.chog-now.chog-bad{background:var(--pink-soft)}
+@media (max-width:380px){.chog-row .tag{display:none}}
