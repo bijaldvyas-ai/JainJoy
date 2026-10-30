@@ -1,12 +1,12 @@
 // JainJoy offline support: the app shell, data and the astronomy library are cached so it opens without internet.
-const CACHE = 'jainjoy-v2.1.0';
-const V = '?v=2.1.0';
+const CACHE = 'jainjoy-v2.2.0';
+const V = '?v=2.2.0';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './css/app.css' + V,
   './js/data/ingredients.js' + V, './js/data/regions-india.js' + V, './js/data/regions.js' + V, './js/data/steps.js' + V,
   './js/data/recipes-breakfast.js' + V, './js/data/recipes-lunch.js' + V, './js/data/recipes-dinner.js' + V, './js/data/recipes-snacks.js' + V, './js/data/nutrition.js' + V,
   './js/data/legacy-v1.js' + V, './js/engine/astro.js' + V, './js/engine/panchang.js' + V, './js/engine/compliance.js' + V,
-  './js/engine/planner.js' + V, './js/db.js' + V, './js/i18n.js' + V, './js/app.js' + V];
-const CDN = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+  './js/engine/planner.js' + V, './js/db.js' + V, './js/i18n.js' + V, './js/config.js' + V, './js/app.js' + V];
+const CDN = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];  // visitor counter (gc.zgo.at) is never cached
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

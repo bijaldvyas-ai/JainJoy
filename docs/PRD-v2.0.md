@@ -144,6 +144,17 @@ Rules:
 - Translated: navigation, buttons, labels, calendar, month and weekday names, tithi and festival names, recipe names, ingredients, cooking steps, grocery list, notifications, timings, profile, validation and error messages
 - The original regional dish name and the English name are shown alongside the translation
 
+### 3.11 Choghadiya [v2.2]
+
+- Dedicated Choghadiya tab: 8 day parts (sunrise to sunset) and 8 night parts (sunset to next sunrise) for the user's city and any date
+- Names Amrit, Shubh, Labh, Char, Udveg, Rog, Kaal in 3 languages, marked auspicious, travel, or avoid; the running one is highlighted with a countdown and also shown on Today
+
+### 3.12 Branding, profile tab and visitors [v2.2]
+
+- "Made by BiNaiSa" signature in a script font at the end of every screen
+- Profile is a main tab (summary, edit, language, library, glossary, admin, lists, data)
+- Optional anonymous visitor statistics with country and city through GoatCounter (owner account needed; off until configured)
+
 ### 3.10 Nutrition [v2.1]
 
 - Approximate calories, protein, carbohydrate and fat per 100 g for every allowed ingredient (IFCT 2017 and USDA reference values)

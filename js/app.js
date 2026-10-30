@@ -172,13 +172,16 @@ function plate(r, size) {
 
 /* ---------------- shell ---------------- */
 function langChip() { return '<div class="lang-chip" role="group" aria-label="' + esc(t('language')) + '">' + [['en', 'EN'], ['hi', 'हि'], ['gu', 'ગુ']].map(function (l) { return '<button data-a="lang" data-v="' + l[0] + '" aria-pressed="' + (LANG === l[0]) + '">' + l[1] + '</button>'; }).join('') + '</div>'; }
-function brandBar() { return '<header class="appbar gx"><div class="brand-sm">' + lotus(30) + WORDMARK + '</div><button class="city-chip" data-a="tab" data-v="more" aria-label="' + esc(t('change_city')) + '">' + ic('pin') + '<span>' + esc(cityLabel()) + '</span></button>' + langChip() + '</header>'; }
+function brandBar() { return '<header class="appbar gx"><div class="brand-sm">' + lotus(30) + WORDMARK + '</div><button class="city-chip" data-a="tab" data-v="prof" aria-label="' + esc(t('change_city')) + '">' + ic('pin') + '<span>' + esc(cityLabel()) + '</span></button>' + langChip() + '</header>'; }
 function backBar(title, sub, extra) { return '<header class="appbar gx"><button class="icon-btn" data-a="back" aria-label="' + esc(t('back')) + '">' + ic('back') + '</button><div class="ab-title"><b>' + esc(title) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>' + (extra || '') + '</header>'; }
 function tabbar() {
   var cur = tab;
   function b(v, i, l) { return '<button class="tab" data-a="tab" data-v="' + v + '"' + (cur === v ? ' aria-current="page"' : '') + '><span class="pill">' + ic(i) + '</span>' + esc(t(l)) + '</button>'; }
-  return '<nav class="tabbar gx" aria-label="' + esc(t('main_nav')) + '">' + b('today', 'today', 'tab_today') + b('cal', 'cal', 'tab_calendar') + b('pan', 'moon', 'tab_panchang') + b('shop', 'cart', 'tab_grocery') + b('more', 'more', 'tab_more') + '</nav>';
+  return '<nav class="tabbar gx" aria-label="' + esc(t('main_nav')) + '">' + b('today', 'today', 'tab_today') + b('cal', 'cal', 'tab_calendar') + b('pan', 'moon', 'tab_panchang') + b('chog', 'clock', 'tab_choghadiya') + b('shop', 'cart', 'tab_grocery') + b('prof', 'users', 'tab_profile') + '</nav>';
 }
+/* signature shown at the end of every screen */
+var CREDIT = '<p class="credit">' + '<svg class="lotus" width="18" height="15" viewBox="0 0 64 52" aria-hidden="true"><use href="#jjLotus"/></svg> Made by <span>BiNaiSa</span></p>';
+function withCredit(html) { var i = html.lastIndexOf('</main>'); return i < 0 ? html : html.slice(0, i) + CREDIT + html.slice(i); }
 var lastKey = '';
 function render() {
   document.documentElement.lang = LANG === 'hi' ? 'hi' : LANG === 'gu' ? 'gu' : 'en';
@@ -188,9 +191,10 @@ function render() {
   if (!P) body = viewProfile(true);
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
     admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList})[top.k](top);
-  else body = tab === 'today' ? viewToday() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'shop' ? viewShop() : viewMore();
-  app.innerHTML = '<div class="phone">' + body + (P ? tabbar() : '') + sheetHTML() + '</div>';
+  else body = tab === 'today' ? viewToday() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
+  app.innerHTML = '<div class="phone">' + withCredit(body) + (P ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
+  if (top && top.k === 'about' && JJ.analytics.enabled()) JJ.analytics.total().then(function (n) { var el = document.getElementById('visitors'); if (el) el.textContent = n == null ? t('visitors_unavailable') : t('visitors_total', {n: n}); });
   tick();
 }
 var toastT = null;
@@ -203,7 +207,14 @@ function timingCard(iso, live) {
   var navOpen = live && now < tm.navkarsi, chaOpen = live && now < tm.chauvihar;
   return '<section class="card glass"><h3>' + esc(t('timings_title')) + ' · ' + esc(cityLabel()) + '</h3><div class="tgrid">' +
     cell('sunrise', tm.sunrise) + cell('navkarsi', tm.navkarsi, navOpen ? 'hi' : '', live) + cell('sunset', tm.sunset) + cell('chauvihar', tm.chauvihar, chaOpen ? 'warn' : '', live) +
-    '</div><p class="fine" style="margin-top:8px">' + esc(t('timings_note', {n: P.navkarsi, c: P.chauvihar ? t('chauvihar_before', {m: P.chauvihar}) : t('chauvihar_at')})) + '</p></section>';
+    '</div>' + (live ? chogLine() : '') + '<p class="fine" style="margin-top:8px">' + esc(t('timings_note', {n: P.navkarsi, c: P.chauvihar ? t('chauvihar_before', {m: P.chauvihar}) : t('chauvihar_at')})) + '</p></section>';
+}
+/* the choghadiya running right now (today's day/night, or last night's before sunrise) */
+function chogLine() {
+  var now = Date.now(), td = today(), list = JJ.choghadiya(td, city()).concat(JJ.choghadiya(JJ.addDays(td, -1), city()));
+  var c = list.filter(function (x) { return now >= x.start && now < x.end; })[0];
+  if (!c) return '';
+  return '<button class="lrow chog-row chog-' + c.q + '" style="margin-top:8px" data-a="tab" data-v="chog"><span class="chog-dot"></span><span class="mtxt grow"><b>' + esc(t('chog_now_line', {name: t('chog_' + c.k), q: t('chog_q_' + c.q)})) + '</b><small>' + esc(t('chog_until', {time: hm(c.end)})) + '</small></span>' + ic('next', 'chev') + '</button>';
 }
 function tithiCard(iso) {
   var p = pan(iso), r = JJ.dayRules(p, P), sp = p.aatham || p.chaudas;
@@ -448,14 +459,44 @@ function listText(groups) {
   return s;
 }
 
-/* ---------------- More ---------------- */
-function viewMore() {
+/* ---------------- Choghadiya ---------------- */
+function viewChog() {
+  var td = today(), iso = ui.chogDate || td, list = JJ.choghadiya(iso, city()), now = Date.now();
+  var nav = '<div class="cal-nav"><button class="icon-btn" data-a="chogday" data-v="-1" aria-label="' + esc(t('prev_day')) + '">' + ic('back') + '</button><h1 class="h1" style="font-size:22px">' + esc(dLong(iso)) + '</h1><button class="icon-btn" data-a="chogday" data-v="1" aria-label="' + esc(t('next_day')) + '">' + ic('next') + '</button></div>';
+  var b = '<p class="eyebrow">' + esc(t('tab_choghadiya')) + '</p>' + nav + '<p class="sub">' + esc(cityLabel()) + ' · ' + esc(t('chog_sub')) + '</p>';
+  var cur = list.filter(function (c) { return now >= c.start && now < c.end; })[0];
+  if (cur) b += '<div class="card glass chog-now chog-' + cur.q + '"><h3>' + esc(t('chog_now')) + '</h3><b>' + esc(t('chog_' + cur.k)) + '</b> · ' + esc(t('chog_q_' + cur.q)) + '<p class="fine" style="margin:4px 0 0">' + esc(hm(cur.start) + ' – ' + hm(cur.end)) + ' · <span data-until="' + cur.end + '">' + until(cur.end) + '</span></p></div>';
+  ['day', 'night'].forEach(function (part) {
+    b += '<h2 class="h2">' + esc(t('chog_' + part)) + '<span>' + esc(part === 'day' ? t('sunrise') + ' ' + hm(list[0].start) : t('sunset') + ' ' + hm(list[8].start)) + '</span></h2><div class="list">';
+    list.filter(function (c) { return c.part === part; }).forEach(function (c) {
+      var isNow = cur === c;
+      b += '<div class="lrow chog-row chog-' + c.q + (isNow ? ' now' : '') + '" style="cursor:default"><span class="chog-dot"></span><span class="mtxt grow"><b>' + esc(t('chog_' + c.k)) + '</b><small>' + esc(t('chog_use_' + c.k)) + '</small></span><span class="chog-time">' + esc(hm(c.start) + ' – ' + hm(c.end)) + '</span><span class="tag ' + (c.q === 'good' ? 'ok' : c.q === 'bad' ? 'bad' : 'warn') + '">' + esc(t('chog_q_' + c.q)) + '</span></div>';
+    });
+    b += '</div>';
+  });
+  b += '<div class="note info">' + esc(t('chog_note')) + '</div>';
+  return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
+
+/* ---------------- Profile (tab) ---------------- */
+function viewProfileHome() {
   function row(a, v, i, l, s) { return '<button class="lrow" data-a="' + a + '" data-v="' + v + '"><span class="ficon">' + ic(i) + '</span><span class="mtxt grow"><b>' + esc(t(l)) + '</b><small>' + esc(t(s)) + '</small></span>' + ic('next', 'chev') + '</button>'; }
-  var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('tab_more')) + '</h1><div class="list">' +
-    row('push', 'profile', 'users', 'edit_profile', 'edit_profile_sub') + row('push', 'library', 'book', 'recipe_library', 'recipe_library_sub') +
+  var c = city(), st = P.country === 'IN' && JJ.STATES.IN[P.state] ? nm(JJ.STATES.IN[P.state]) : nm(JJ.COUNTRIES[P.country] || {en: ''});
+  var ex = (P.allergies || []).map(function (a) { return nm(JJ.ALLERGENS[a]); }).concat((P.exclude || []).map(ingName)).join(', ') || t('none');
+  var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('tab_profile')) + '</h1>' +
+    '<div class="card glass"><div class="kv">' +
+    '<b>' + esc(t('tradition')) + '</b><span>' + esc(t('trad_' + P.tradition) + ' · ' + t('sub_' + P.subsect)) + '</span>' +
+    '<b>' + esc(t('location')) + '</b><span>' + esc(cityLabel(c) + (st ? ', ' + st : '')) + '</span>' +
+    '<b>' + esc(t('cuisine')) + '</b><span>' + esc(nm(JJ.CUISINES[P.cuisine] || JJ.CUISINES.gen)) + '</span>' +
+    '<b>' + esc(t('household')) + '</b><span>' + esc(t('for_members', {n: P.hh})) + '</span>' +
+    '<b>' + esc(t('allergies_ex')) + '</b><span>' + esc(ex) + '</span>' +
+    '<b>' + esc(t('observances')) + '</b><span>' + esc(t('green_' + (P.greenRule || 'none'))) + '</span>' +
+    '<b>' + esc(t('chauvihar')) + '</b><span>' + esc(P.chauvihar ? t('chauvihar_before', {m: P.chauvihar}) : t('chauvihar_at')) + '</span>' +
+    '</div><button class="btn primary" style="margin-top:12px;width:100%" data-a="push" data-v="profile">' + esc(t('edit_profile_btn')) + '</button></div>';
+  b += '<div class="card glass"><h3>' + esc(t('language')) + '</h3>' + langChip() + '</div><div class="list">' +
+    row('push', 'library', 'book', 'recipe_library', 'recipe_library_sub') +
     row('push', 'glossary', 'leaf', 'glossary', 'glossary_sub') + row('push', 'admin', 'edit', 'admin', 'admin_sub') +
     row('push', 'glists', 'cart', 'saved_lists', 'saved_lists_sub') + row('push', 'about', 'db', 'about', 'about_sub') + '</div>';
-  b += '<div class="card glass"><h3>' + esc(t('language')) + '</h3>' + langChip() + '</div>';
   b += '<button class="btn-danger" data-a="resetask">' + esc(t('reset')) + '</button>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
@@ -492,6 +533,8 @@ function viewAbout() {
     '<b>' + esc(t('history_days')) + '</b><span>' + JJ.db.count('menu_history') + '</span>' +
     '<b>' + esc(t('storage')) + '</b><span>' + esc(t('storage_' + JJ.db.mode())) + '</span>' +
     '<b>' + esc(t('engine')) + '</b><span>' + esc(JJ.astro.name()) + '</span></div></div>';
+  b += '<div class="card glass"><h3>' + esc(t('visitors')) + '</h3><p style="margin:0;font-size:14px" id="visitors">' + esc(JJ.analytics.enabled() ? t('visitors_loading') : t('visitors_off')) + '</p>' +
+    (JJ.analytics.enabled() ? '<p class="fine"><a href="https://' + esc(JJ.CONFIG.goatcounter) + '.goatcounter.com" target="_blank" rel="noopener">' + esc(t('visitors_dashboard')) + '</a></p>' : '') + '</div>';
   b += '<div class="card glass"><h3>' + esc(t('dependencies')) + '</h3><p style="margin:0;font-size:13.5px">' + esc(t('dependencies_text')) + '</p></div>';
   b += '<div class="row" style="margin-top:12px"><button class="btn" data-a="export">' + esc(t('export_data')) + '</button></div>';
   b += '<div class="card glass"><h3>' + esc(t('install')) + '</h3><p style="margin:0;font-size:13.5px">' + esc(t('install_text')) + '</p></div>';
@@ -665,6 +708,7 @@ app.addEventListener('click', function (e) {
     case 'thali': stack.push({k: 'thali', date: el.dataset.d}); render(); break;
     case 'librecipe': stack.push({k: 'recipe', id: v}); render(); break;
     case 'libmeal': ui.lib.meal = v; render(); break;
+    case 'chogday': ui.chogDate = JJ.addDays(ui.chogDate || today(), +v); render(); break;
     case 'calm': ui.calMonth = addMonth(ui.calMonth || ym(today()), +v); render(); break;
     case 'genmonth': generateMonth(v); toast(t('month_saved_toast')); render(); break;
     case 'grange': ui.gRange = v; render(); break;
