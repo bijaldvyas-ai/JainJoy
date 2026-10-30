@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JainJoy tests</title>
+<style>
+body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;padding:16px;background:#f6f3fb;color:#1d1b40}
+h1{font-size:22px;margin:0 0 4px}.sum{font-weight:700;margin:4px 0 14px}
+table{border-collapse:collapse;width:100%;background:#fff;border-radius:12px;overflow:hidden}
+td,th{padding:8px 10px;border-bottom:1px solid #ebe6f4;text-align:left;vertical-align:top}
+.pass{color:#1e9b56;font-weight:800}.fail{color:#e5195b;font-weight:800}
+td small{color:#6c6890}
+#app{position:absolute;left:-9999px;width:400px;height:800px;overflow:hidden}
+</style>
+</head>
+<body>
+<h1>JainJoy test suite</h1>
+<div class="sum" id="sum">Running…</div>
+<table><thead><tr><th>#</th><th>Test</th><th>Result</th><th>Details</th></tr></thead><tbody id="rows"></tbody></table>
+<div id="app"></div><div id="toast"></div>
+<svg width="0" height="0" style="position:absolute"><symbol id="jjLotus" viewBox="0 0 64 52"></symbol></svg>
+<script>window.JJ_DB_NAME = 'jainjoy-test';</script>
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+<script src="../js/data/ingredients.js"></script>
+<script src="../js/data/regions-india.js"></script>
+<script src="../js/data/regions.js"></script>
+<script src="../js/data/steps.js"></script>
+<script src="../js/data/recipes-breakfast.js"></script>
+<script src="../js/data/recipes-lunch.js"></script>
+<script src="../js/data/recipes-dinner.js"></script>
+<script src="../js/data/recipes-snacks.js"></script>
+<script src="../js/data/legacy-v1.js"></script>
+<script src="../js/engine/astro.js"></script>
+<script src="../js/engine/panchang.js"></script>
+<script src="../js/engine/compliance.js"></script>
+<script src="../js/engine/planner.js"></script>
+<script src="../js/db.js"></script>
+<script src="../js/i18n.js"></script>
+<script src="../js/app.js"></script>
+<script src="tests.js"></script>
+</body>
+</html>
