@@ -372,3 +372,15 @@ textarea.input{min-height:120px;font-family:ui-monospace,Consolas,monospace;font
 .chog-now b{font-size:20px}
 .chog-now.chog-good{background:var(--green-soft)}.chog-now.chog-ok{background:var(--saffron-soft)}.chog-now.chog-bad{background:var(--pink-soft)}
 @media (max-width:380px){.chog-row .tag{display:none}}
+/* simpler Today: quick links and folding sections */
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.quick button{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:64px;padding:10px 4px;border-radius:18px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 82%,transparent);font:inherit;font-size:12.5px;font-weight:800;color:var(--fg);cursor:pointer;text-align:center}
+.quick .ic{color:var(--crimson)}
+details.fold{padding:4px 14px}
+details.fold summary{display:flex;align-items:center;gap:12px;list-style:none;cursor:pointer;padding:8px 0;min-height:48px}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary .mtxt b{font-size:14.5px}
+details.fold[open] summary{margin-bottom:8px}
+details.fold .fold-chev{transition:transform .2s}
+details.fold[open] .fold-chev{transform:rotate(90deg)}
+.meals{margin-top:12px}

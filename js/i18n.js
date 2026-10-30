@@ -23,7 +23,7 @@ no_green_today:['No green vegetables today.','आज हरी सब्ज़�
 no_leafy_today:['{day} today: no leafy vegetables in any meal.','आज {day}: किसी भी भोजन में पत्तेदार सब्ज़ी नहीं।','આજે {day}: કોઈ ભોજનમાં લીલી ભાજી નહીં.'], always_on:['This rule is always on.','यह नियम हमेशा लागू है।','આ નિયમ હંમેશાં લાગુ છે.'],
 base_rules:['Jain rules applied.','जैन नियम लागू।','જૈન નિયમો લાગુ.'], base_rules_text:['No onion, garlic, root vegetables, Kaddu or Alavi.','प्याज़, लहसुन, कंदमूल, कद्दू या अळवी नहीं।','ડુંગળી, લસણ, કંદમૂળ, કોળું કે અળવી નહીં.'],
 meal_b:['Breakfast','नाश्ता','નાસ્તો'], meal_l:['Lunch','दोपहर का भोजन','બપોરનું જમણ'], meal_s:['Snack','अल्पाहार','સાંજનો નાસ્તો'], meal_d:['Dinner','रात का भोजन','સાંજનું જમણ'],
-thali_items:['{n} items · tap to see the thali','{n} व्यंजन · थाली देखें','{n} વાનગી · થાળી જુઓ'], min_total:['{n} min','{n} मिनट','{n} મિનિટ'],
+thali_items:['Thali of {n} items','{n} व्यंजन की थाली','{n} વાનગીની થાળી'], min_total:['{n} min','{n} मिनट','{n} મિનિટ'],
 adjusted_today:['adjusted for today','आज के लिए बदला','આજ માટે બદલ્યું'], finish_before:['Finish before {time} (Chauvihar)','{time} से पहले पूरा करें (चौविहार)','{time} પહેલાં પૂરું કરો (ચોવિહાર)'],
 legacy_menu:['From JainJoy v1','जैनजॉय v1 से','જૈનજોય v1 માંથી'], no_match:['No recipe fits all your exclusions','आपके सभी परहेज़ के अनुसार कोई रेसिपी नहीं','તમારા બધા પરહેજ પ્રમાણે કોઈ વાનગી નથી'],
 no_match_hint:['Remove an exclusion in your profile to fill this slot.','यह खाली जगह भरने के लिए प्रोफ़ाइल से कोई परहेज़ हटाएँ।','આ જગ્યા ભરવા પ્રોફાઇલમાંથી કોઈ પરહેજ દૂર કરો.'],
@@ -135,6 +135,7 @@ chog_use_amrit:['Best for all good work','सभी शुभ कार्यो
 chog_use_labh:['Good for business and starting new work','व्यापार और नए काम के लिए अच्छा','વેપાર અને નવા કામ માટે સારું'], chog_use_char:['Good for travel and moving things','यात्रा और आवाजाही के लिए अच्छा','મુસાફરી અને હેરફેર માટે સારું'],
 chog_use_udveg:['Avoid starting new work','नया काम शुरू करने से बचें','નવું કામ શરૂ કરવાનું ટાળો'], chog_use_rog:['Avoid important work','महत्वपूर्ण काम से बचें','મહત્ત્વનું કામ ટાળો'], chog_use_kaal:['Avoid new beginnings','नई शुरुआत से बचें','નવી શરૂઆત ટાળો'],
 chog_note:['Day choghadiya divide sunrise to sunset into 8 equal parts, and night choghadiya sunset to the next sunrise, for your city and date. The first part follows the weekday.','दिन के चौघड़िया सूर्योदय से सूर्यास्त तक के 8 बराबर भाग हैं, और रात के चौघड़िया सूर्यास्त से अगले सूर्योदय तक, आपके शहर और तारीख के अनुसार। पहला भाग वार के अनुसार होता है।','દિવસનાં ચોઘડિયાં સૂર્યોદયથી સૂર્યાસ્ત સુધીના 8 સરખા ભાગ છે, અને રાતનાં ચોઘડિયાં સૂર્યાસ્તથી બીજા સૂર્યોદય સુધી, તમારા શહેર અને તારીખ પ્રમાણે. પહેલો ભાગ વાર પ્રમાણે હોય છે.'],
+quick_grocery:['Grocery list','किराना सूची','કરિયાણા યાદી'], quick_month:['This month','यह महीना','આ મહિનો'], more_details:['More details','अधिक जानकारी','વધુ વિગત'],
 // visitors
 visitors:['Visitors','आगंतुक','મુલાકાતીઓ'], visitors_loading:['Loading…','लोड हो रहा है…','લોડ થાય છે…'], visitors_total:['{n} visits so far','अब तक {n} विज़िट','અત્યાર સુધી {n} મુલાકાત'],
 visitors_unavailable:['Visitor count is not available right now.','अभी आगंतुक संख्या उपलब्ध नहीं।','હમણાં મુલાકાતીઓની સંખ્યા ઉપલબ્ધ નથી.'], visitors_dashboard:['See visitors by country and city','देश और शहर के अनुसार आगंतुक देखें','દેશ અને શહેર પ્રમાણે મુલાકાતીઓ જુઓ'],
