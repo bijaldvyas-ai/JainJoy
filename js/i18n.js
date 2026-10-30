@@ -124,7 +124,13 @@ obs_help:['Practices differ between Sanghs. Choose what your family follows; Jai
 timing_conv:['Timing convention','समय की पद्धति','સમયની પદ્ધતિ'], month_system:['Month naming','मास नाम पद्धति','માસ નામ પદ્ધતિ'], navkarsi_fixed:['Navkarsi is 48 minutes (one muhurta) after sunrise.','नवकारसी सूर्योदय के 48 मिनट (एक मुहूर्त) बाद है।','નવકારસી સૂર્યોદય પછી 48 મિનિટ (એક મુહૂર્ત) છે.'],
 get_plan:['Get My Meal Plan','मेरी भोजन योजना पाएँ','મારી ભોજન યોજના મેળવો'], plan_starts_today:['Your plan starts today.','आपकी योजना आज से शुरू।','તમારી યોજના આજથી શરૂ.'], complete_fields:['Choose tradition, sub-sect, city and cuisine to continue.','आगे बढ़ने के लिए परंपरा, संप्रदाय, शहर और भोजन शैली चुनें।','આગળ વધવા પરંપરા, સંપ્રદાય, શહેર અને ભોજન શૈલી પસંદ કરો.'],
 changes_from_tomorrow:['Changes apply from tomorrow','बदलाव कल से लागू','ફેરફાર આવતીકાલથી લાગુ'], save_changes:['Save Changes','बदलाव सहेजें','ફેરફાર સાચવો'], history_kept:['Today and past menus stay exactly as they are. Future menus are rebuilt.','आज और पिछले मेनू वैसे ही रहेंगे। आगे के मेनू फिर से बनेंगे।','આજનાં અને જૂનાં મેનૂ એવાં જ રહેશે. આગળનાં મેનૂ ફરી બનશે.'],
-saved_from_tomorrow:['Saved. Your new plan starts tomorrow.','सहेजा गया। नई योजना कल से।','સાચવ્યું. નવી યોજના આવતીકાલથી.']
+saved_from_tomorrow:['Saved. Your new plan starts tomorrow.','सहेजा गया। नई योजना कल से।','સાચવ્યું. નવી યોજના આવતીકાલથી.'],
+// nutrition
+nutrition_title:['Nutrition today · per person','आज का पोषण · प्रति व्यक्ति','આજનું પોષણ · વ્યક્તિ દીઠ'], thali_nutrition:['Whole thali · per person','पूरी थाली · प्रति व्यक्ति','આખી થાળી · વ્યક્તિ દીઠ'],
+per_serving:['Nutrition per serving','प्रति सर्विंग पोषण','એક પીરસણ દીઠ પોષણ'], kcal:['kcal','कैलोरी','કેલરી'], protein:['Protein','प्रोटीन','પ્રોટીન'], carbs:['Carbs','कार्ब्स','કાર્બ્સ'], fat:['Fat','वसा','ચરબી'],
+kcal_p:['{k} kcal · {p} g protein','{k} कैलोरी · {p} ग्रा प्रोटीन','{k} કેલરી · {p} ગ્રા પ્રોટીન'],
+energy_split_aria:['Energy from protein {p}%, carbs {c}%, fat {f}%','ऊर्जा: प्रोटीन {p}%, कार्ब्स {c}%, वसा {f}%','ઊર્જા: પ્રોટીન {p}%, કાર્બ્સ {c}%, ચરબી {f}%'],
+nutrition_note:['Approximate, from standard food composition tables (IFCT 2017, USDA), for one serving of each dish. A guide for everyday eating, not medical advice.','अनुमानित, मानक खाद्य संरचना तालिकाओं (IFCT 2017, USDA) से, हर व्यंजन की एक सर्विंग के लिए। रोज़मर्रा के भोजन के लिए मार्गदर्शन, चिकित्सा सलाह नहीं।','અંદાજિત, પ્રમાણભૂત ખોરાક ઘટક કોષ્ટકો (IFCT 2017, USDA) પરથી, દરેક વાનગીના એક પીરસણ માટે. રોજિંદા ભોજન માટે માર્ગદર્શન, તબીબી સલાહ નહીં.']
 };
 JJ.I18N = {en: {}, hi: {}, gu: {}};
 Object.keys(K).forEach(function (k) { JJ.I18N.en[k] = K[k][0]; JJ.I18N.hi[k] = K[k][1]; JJ.I18N.gu[k] = K[k][2]; });

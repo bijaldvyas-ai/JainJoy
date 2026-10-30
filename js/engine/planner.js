@@ -178,3 +178,38 @@ JJ.buyAmount = function (amt, unit) {
   return {v: v, u: unit};
 };
 })(window.JJ = window.JJ || {});
+
+/* ---------------- nutrition (approximate, per person) ---------------- */
+(function (JJ) {
+'use strict';
+function grams(id, q) { var g = JJ.ING[id]; if (!g) return 0; return g.unit === 'pc' ? q * g.pg : (g.unit === 'tsp' || g.unit === 'tbsp') ? q * g.tg : q; }
+function addTo(t, id, q) { var n = JJ.NUTRITION[id]; if (!n) return; var w = grams(id, q) / 100; for (var i = 0; i < 4; i++) t[i] += n[i] * w; }
+function round(t) { return [Math.round(t[0]), Math.round(t[1] * 10) / 10, Math.round(t[2] * 10) / 10, Math.round(t[3] * 10) / 10]; }
+/* one serving of a recipe, leaving out ingredients dropped that day: [kcal, protein, carbs, fat] */
+JJ.recipeNutrition = function (r, drop) {
+  var t = [0, 0, 0, 0]; if (!r) return t;
+  r.ings.forEach(function (x) { if ((drop || []).indexOf(x.id) < 0) addTo(t, x.id, x.q / (r.serves || 4)); });
+  return round(t);
+};
+JJ.accNutrition = function (key) { var t = [0, 0, 0, 0]; JJ.parseIngs(JJ.ACCOMP[key].ings).forEach(function (x) { addTo(t, x.id, x.q); }); return round(t); };
+/* a whole day for one person: {b, l, s, d, total} */
+JJ.dayNutrition = function (menu) {
+  var out = {}, tot = [0, 0, 0, 0];
+  function acc(k, v) { out[k] = v; for (var i = 0; i < 4; i++) tot[i] += v[i]; }
+  ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; acc(m, x && x.id ? JJ.recipeNutrition(JJ.recipeFor(menu, x.id), x.drop) : [0, 0, 0, 0]); });
+  var l = [0, 0, 0, 0];
+  (menu.meals.l.items || []).forEach(function (it) {
+    var v = it.id ? JJ.recipeNutrition(JJ.recipeFor(menu, it.id), it.drop) : it.acc ? JJ.accNutrition(it.acc) : [0, 0, 0, 0];
+    for (var i = 0; i < 4; i++) l[i] += v[i];
+  });
+  acc('l', round(l));
+  out.total = round(tot);
+  out.legacy = !!menu.legacy;
+  return out;
+};
+/* share of energy from protein, carbs and fat (4 / 4 / 9 kcal per gram) */
+JJ.energySplit = function (n) {
+  var p = n[1] * 4, c = n[2] * 4, f = n[3] * 9, s = p + c + f || 1;
+  return [Math.round(p * 100 / s), Math.round(c * 100 / s), Math.round(f * 100 / s)];
+};
+})(window.JJ = window.JJ || {});
