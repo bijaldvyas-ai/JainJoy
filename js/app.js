@@ -240,23 +240,28 @@ function mealCard(iso, k, menu) {
     var names = items.map(function (it) { return it.legacy ? it.legacy : it.acc ? nm(JJ.ACCOMP[it.acc]) : rName(JJ.recipeFor(menu, it.id)); });
     var main = items.filter(function (it) { return it.id; })[1] || items[0];
     var r0 = main && main.id ? JJ.recipeFor(menu, main.id) : null;
-    return '<button class="meal" data-a="thali" data-d="' + iso + '">' + plate(r0, 64) + '<span class="mtxt"><span class="mtag mt-l">' + esc(t('meal_l')) + ' · ' + esc(nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)) + '</span><b>' + esc(names.slice(0, 3).join(' · ')) + '</b><small>' + esc(t('thali_items', {n: items.length})) + (menu.legacy ? '' : ' · ' + esc(t('kcal_p', {k: JJ.dayNutrition(menu).l[0], p: JJ.dayNutrition(menu).l[1]}))) + '</small></span>' + ic('next', 'chev') + '</button>';
+    return '<button class="meal" data-a="thali" data-d="' + iso + '">' + plate(r0, 64) + '<span class="mtxt"><span class="mtag mt-l">' + esc(t('meal_l')) + ' · ' + esc(nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)) + '</span><b>' + esc(names.slice(0, 3).join(' · ')) + '</b><small>' + esc(t('thali_items', {n: items.length})) + (menu.legacy ? '' : ' · ' + JJ.dayNutrition(menu).l[0] + ' ' + esc(t('kcal'))) + '</small></span>' + ic('next', 'chev') + '</button>';
   }
   if (!x || x.legacy) return '<div class="meal"><span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(x ? x.legacy : '—') + '</b><small>' + esc(t('legacy_menu')) + '</small></span></div>';
   if (!x.id) return '<div class="meal"><span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(t('no_match')) + '</b><small>' + esc(t('no_match_hint')) + '</small></span></div>';
   var r = JJ.recipeFor(menu, x.id);
   var extra = k === 'd' ? '<span class="warn-line" style="color:var(--saffron)">' + esc(t('finish_before', {time: hm(JJ.timings(pan(iso), {navkarsi: P.navkarsi, chauvihar: P.chauvihar}).chauvihar)})) + '</span>' : '';
-  return '<button class="meal" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(t('min_total', {n: (r.prep || 0) + (r.cook || 0)})) + ' · ' + esc(t('kcal_p', {k: JJ.recipeNutrition(r, x.drop)[0], p: JJ.recipeNutrition(r, x.drop)[1]})) + (x.drop && x.drop.length ? ' · ' + esc(t('adjusted_today')) : '') + '</small>' + extra + '</span>' + ic('next', 'chev') + '</button>';
+  return '<button class="meal" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(t('min_total', {n: (r.prep || 0) + (r.cook || 0)})) + ' · ' + JJ.recipeNutrition(r, x.drop)[0] + ' ' + esc(t('kcal')) + (x.drop && x.drop.length ? ' · ' + esc(t('adjusted_today')) : '') + '</small>' + extra + '</span>' + ic('next', 'chev') + '</button>';
 }
 function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hist">' + ic('lock') + esc(t('status_hist')) + '</span>' : st === 'plan' ? '<span class="status-pill st-plan">' + ic('check') + esc(t('status_plan')) + '</span>' : st === 'prev' ? '<span class="status-pill st-prev">' + esc(t('status_prev')) + '</span>' : ''; }
 function dayBody(iso, isToday) {
+  // simple order: what to cook first, then quick links, then timings and nutrition in short form
   var menu = menuFor(iso), b = '';
-  b += isToday ? timingCard(iso, true) : timingCard(iso, false);
   b += tithiCard(iso);
-  if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
-  b += '<div class="row" style="margin-top:14px">' + statusPill(menuStatus(iso, menu)) + '</div>';
-  b += '<div class="meals" style="margin-top:8px">' + MEALS.map(function (k) { return mealCard(iso, k, menu); }).join('') + '</div>';
+  if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b + compactTimings(iso, isToday); }
+  b += '<div class="meals">' + MEALS.map(function (k) { return mealCard(iso, k, menu); }).join('') + '</div>';
+  if (isToday) b += '<div class="quick">' +
+    '<button data-a="tab" data-v="shop">' + ic('cart') + '<span>' + esc(t('quick_grocery')) + '</span></button>' +
+    '<button data-a="tab" data-v="chog">' + ic('clock') + '<span>' + esc(t('tab_choghadiya')) + '</span></button>' +
+    '<button data-a="tab" data-v="cal">' + ic('cal') + '<span>' + esc(t('quick_month')) + '</span></button></div>';
+  b += compactTimings(iso, isToday);
   if (!menu.legacy) b += nutritionCard(menu);
+  b += '<div class="row" style="margin-top:12px">' + statusPill(menuStatus(iso, menu)) + '</div>';
   b += '<p class="fine">' + esc(menu.status === 'history' ? t('hist_note') : menu.status === 'planned' ? t('plan_note') : t('prev_note')) + '</p>';
   return b;
 }
@@ -271,14 +276,21 @@ function splitBar(n) {
 }
 function nutritionCard(menu) {
   var n = JJ.dayNutrition(menu);
-  return '<section class="card glass"><h3>' + esc(t('nutrition_title')) + '</h3>' + nutriGrid(n.total) + splitBar(n.total) +
+  return '<details class="card glass fold"><summary><span class="ficon">' + ic('leaf') + '</span><span class="mtxt grow"><b>' + esc(t('nutrition_title')) + '</b><small>' + esc(t('kcal_p', {k: n.total[0], p: Math.round(n.total[1])})) + '</small></span>' + ic('next', 'chev fold-chev') + '</summary>' + nutriGrid(n.total) + splitBar(n.total) +
     '<div class="nmeals">' + MEALS.map(function (k) { return '<div><span>' + esc(t('meal_' + k)) + '</span><b>' + esc(t('kcal_p', {k: n[k][0], p: n[k][1]})) + '</b></div>'; }).join('') + '</div>' +
-    '<p class="fine" style="margin-top:8px">' + esc(t('nutrition_note')) + '</p></section>';
+    '<p class="fine" style="margin-top:8px">' + esc(t('nutrition_note')) + '</p></details>';
+}
+/* one-line timings with the running choghadiya; full details live on the Panchang tab */
+function compactTimings(iso, live) {
+  var p = pan(iso), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar}), now = Date.now();
+  function cell(lbl, ms, cls, showUntil) { return '<div class="tcell ' + (cls || '') + '"><small>' + esc(t(lbl)) + '</small><b>' + hm(ms) + '</b>' + (showUntil ? '<em data-until="' + ms + '">' + until(ms) + '</em>' : '') + '</div>'; }
+  return '<section class="card glass"><h3>' + esc(t('timings_title')) + '</h3><div class="tgrid">' +
+    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '', live) + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '', live) +
+    '</div>' + (live ? chogLine() : '') + '<p class="fine" style="margin-top:8px">' + esc(t('sunrise') + ' ' + hm(tm.sunrise) + ' · ' + t('sunset') + ' ' + hm(tm.sunset)) + ' · <button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></p></section>';
 }
 function viewToday() {
   var td = today();
   var b = '<p class="eyebrow">' + esc(t('greeting')) + '</p><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub">' + esc(dLong(td)) + ' · ' + esc(t('for_members', {n: P.hh})) + '</p>' + dayBody(td, true);
-  b += '<p class="fine" style="text-align:center"><button class="linkbtn" data-a="tab" data-v="cal">' + esc(t('see_month')) + '</button></p>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
 function viewDayPushed(top) {
