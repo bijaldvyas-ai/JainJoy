@@ -27,6 +27,8 @@ if (-not $NoBrowser) { Start-Process "http://localhost:$Port/" }
 
 while ($true) {
   $client = $listener.AcceptTcpClient()
+  # browsers open spare connections that may never send a request; never wait on them for long
+  $client.ReceiveTimeout = 2000; $client.SendTimeout = 5000
   try {
     $stream = $client.GetStream()
     $reader = New-Object System.IO.StreamReader($stream, [System.Text.Encoding]::ASCII, $false, 4096, $true)

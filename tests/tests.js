@@ -227,6 +227,22 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
       details: 'Vriddhi ' + vr[0] + ' (tithi ' + vr[1].t + ') observed on the second day; kshaya tithi ' + ks[1].skipped + ' observed on ' + ks[0] + ' (the day before).'};
   });
 
+  test(18, 'Nutrition is calculated for every recipe, meal and day', function () {
+    var missing = Object.keys(JJ.ING).filter(function (id) { return !JJ.ING[id].banned && !JJ.NUTRITION[id]; });
+    var r = cat.byId.b009, exp = [0, 0, 0, 0];
+    r.ings.forEach(function (x) { var g = JJ.ING[x.id], w = (g.unit === 'pc' ? x.q * g.pg : (g.unit === 'tsp' || g.unit === 'tbsp') ? x.q * g.tg : x.q) / r.serves / 100; for (var i = 0; i < 4; i++) exp[i] += JJ.NUTRITION[x.id][i] * w; });
+    var got = JJ.recipeNutrition(r, []), recOk = Math.abs(got[0] - exp[0]) <= 1 && Math.abs(got[1] - exp[1]) <= 0.1;
+    var days = genRange(Pg, today, 30), sumBad = 0, range = [1e9, 0];
+    days.forEach(function (m) {
+      var n = JJ.dayNutrition(m), s = n.b[0] + n.l[0] + n.s[0] + n.d[0];
+      if (Math.abs(s - n.total[0]) > 2) sumBad++;
+      range[0] = Math.min(range[0], n.total[0]); range[1] = Math.max(range[1], n.total[0]);
+    });
+    var zero = approved.filter(function (x) { return JJ.recipeNutrition(x, [])[0] <= 0; }).length;
+    return {ok: !missing.length && recOk && !sumBad && !zero && range[0] > 900 && range[1] < 4000,
+      details: 'Ingredients without values: ' + (missing.join(', ') || 'none') + '; Jain Poha per serving ' + got.join('/') + ' (kcal/protein/carbs/fat), hand-computed ' + exp.map(function (v) { return Math.round(v * 10) / 10; }).join('/') + '; day total equals sum of 4 meals on 30/30 days: ' + !sumBad + '; daily range per person ' + range[0] + '–' + range[1] + ' kcal; recipes with zero energy: ' + zero};
+  });
+
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();

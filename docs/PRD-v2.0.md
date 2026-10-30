@@ -144,6 +144,14 @@ Rules:
 - Translated: navigation, buttons, labels, calendar, month and weekday names, tithi and festival names, recipe names, ingredients, cooking steps, grocery list, notifications, timings, profile, validation and error messages
 - The original regional dish name and the English name are shown alongside the translation
 
+### 3.10 Nutrition [v2.1]
+
+- Approximate calories, protein, carbohydrate and fat per 100 g for every allowed ingredient (IFCT 2017 and USDA reference values)
+- Per recipe: one serving, leaving out ingredients dropped that day for tithi or household rules
+- Per meal and per day: one serving of each dish per person; the lunch thali includes every component and accompaniment
+- Shown on Today and each calendar day (daily total, energy split from protein, carbs and fat, and each meal), on the lunch thali and on every recipe page
+- Labelled as approximate guidance, not medical advice
+
 ## 4. Screens
 
 | Screen | Content |

@@ -342,3 +342,17 @@ textarea.input{min-height:120px;font-family:ui-monospace,Consolas,monospace;font
 .origname{font-size:14px;color:var(--muted);font-weight:700;margin:0 2px}
 .pill-lock{font-size:11px;font-weight:800;color:var(--navy)}
 @media (min-width:640px){.phone{max-width:430px}}
+/* nutrition */
+.nutri{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.nutri div{border-radius:14px;padding:8px 6px;text-align:center;background:var(--surface-2);border:1px solid var(--line)}
+.nutri b{display:block;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}
+.nutri small{font-size:11px;font-weight:700;color:var(--muted)}
+.nbar{display:flex;height:10px;border-radius:999px;overflow:hidden;margin:10px 0 4px;background:var(--line)}
+.nbar i{display:block;height:100%}
+.nbar .p{background:var(--green)}.nbar .c{background:var(--saffron)}.nbar .f{background:var(--indigo)}
+.nlegend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;font-weight:700;color:var(--muted)}
+.nlegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.nmeals{display:grid;gap:4px;margin-top:10px;font-size:12.5px}
+.nmeals div{display:flex;justify-content:space-between;gap:8px;border-top:1px dashed var(--line);padding-top:4px}
+.nmeals span{color:var(--muted);font-weight:700}
+.nmeals b{font-variant-numeric:tabular-nums;font-weight:800}

@@ -1,6 +1,6 @@
 # JainJoy 2.0 – Test Report
 
-**Run:** 30 Oct 2026, Chrome (desktop app browser), local server · **Result: 20 of 20 passed**
+**Run:** 30 Oct 2026, Chrome (desktop app browser), local server · **Result: 21 of 21 passed** (re-run 30 Oct 2026 after adding nutrition)
 **Astronomy:** Astronomy Engine 2.1.19 · **Reference city:** Ahmedabad unless stated
 **How to rerun:** open `tests/index.html` from any web server (for example `https://bijaldvyas-ai.github.io/JainJoy/tests/`). The tests use a separate database (`jainjoy-test`) and never touch real app data.
 
@@ -33,6 +33,7 @@
 | 15 | Steps, sources and dwidal | PASS | Every recipe has a source record, no dwidal, and every step renders in Gujarati |
 | 16 | All states and union territories | PASS | 36 states and UTs, 580 Indian cities and towns; every state has at least one city |
 | 17 | Kshaya and vriddhi rule | PASS | Repeated tithi observed on the second day; skipped tithi observed on the day before |
+| 18 | Nutrition per recipe, meal and day | PASS | All 141 allowed ingredients have values; Jain Poha 416 kcal / 9.3 g protein / 60.6 g carbs / 15.8 g fat per serving, equal to the hand calculation; day total = sum of 4 meals on 30 of 30 days; 1,936–2,945 kcal per person per day |
 
 ## Manual checks done in the browser
 
