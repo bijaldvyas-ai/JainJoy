@@ -250,16 +250,16 @@ function mealCard(iso, k, menu) {
 }
 function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hist">' + ic('lock') + esc(t('status_hist')) + '</span>' : st === 'plan' ? '<span class="status-pill st-plan">' + ic('check') + esc(t('status_plan')) + '</span>' : st === 'prev' ? '<span class="status-pill st-prev">' + esc(t('status_prev')) + '</span>' : ''; }
 function dayBody(iso, isToday) {
-  // simple order: what to cook first, then quick links, then timings and nutrition in short form
+  // simple order: timings, tithi, the 4 meals, quick links, then nutrition in short form
   var menu = menuFor(iso), b = '';
+  b += compactTimings(iso, isToday);
   b += tithiCard(iso);
-  if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b + compactTimings(iso, isToday); }
+  if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   b += '<div class="meals">' + MEALS.map(function (k) { return mealCard(iso, k, menu); }).join('') + '</div>';
   if (isToday) b += '<div class="quick">' +
     '<button data-a="tab" data-v="shop">' + ic('cart') + '<span>' + esc(t('quick_grocery')) + '</span></button>' +
     '<button data-a="tab" data-v="chog">' + ic('clock') + '<span>' + esc(t('tab_choghadiya')) + '</span></button>' +
     '<button data-a="tab" data-v="cal">' + ic('cal') + '<span>' + esc(t('quick_month')) + '</span></button></div>';
-  b += compactTimings(iso, isToday);
   if (!menu.legacy) b += nutritionCard(menu);
   b += '<div class="row" style="margin-top:12px">' + statusPill(menuStatus(iso, menu)) + '</div>';
   b += '<p class="fine">' + esc(menu.status === 'history' ? t('hist_note') : menu.status === 'planned' ? t('plan_note') : t('prev_note')) + '</p>';
