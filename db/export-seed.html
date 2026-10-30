@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><title>JainJoy seed SQL</title>
+<style>body{font:14px system-ui;margin:16px}textarea{width:100%;height:80vh;font:12px ui-monospace,Consolas,monospace}</style>
+<h1>JainJoy seed SQL (migration 002)</h1><p id="n"></p><textarea id="o" readonly></textarea>
+<script src="../js/data/ingredients.js"></script><script src="../js/data/regions-india.js"></script><script src="../js/data/regions.js"></script>
+<script src="../js/data/steps.js"></script><script src="../js/data/recipes-breakfast.js"></script><script src="../js/data/recipes-lunch.js"></script>
+<script src="../js/data/recipes-dinner.js"></script><script src="../js/data/recipes-snacks.js"></script>
+<script src="../js/engine/astro.js"></script><script src="../js/engine/panchang.js"></script><script src="../js/engine/compliance.js"></script><script src="../js/engine/planner.js"></script>
+<script>
+function q(v){ if(v==null) return 'NULL'; if(typeof v==='number') return String(v); if(typeof v==='boolean') return v?'true':'false'; return "'"+String(v).replace(/'/g,"''")+"'"; }
+function arr(a){ return "ARRAY["+(a||[]).map(q).join(',')+"]::text[]"; }
+var out=['BEGIN;'];
+Object.keys(JJ.ING).forEach(function(id){var g=JJ.ING[id];out.push('INSERT INTO ingredients VALUES ('+[q(id),q(g.en),q(g.hi),q(g.gu),q(g.cat),q(g.unit),q(g.L),q(g.G),q(g.P),q(g.RC),q(g.C),arr(g.alg),g.season?'ARRAY['+g.season.join(',')+']::smallint[]':'NULL',q(g.pg),q(g.tg),q(!g.banned),q(g.banned)].join(',')+');');});
+Object.keys(JJ.CITIES).forEach(function(id){var c=JJ.CITIES[id];out.push('INSERT INTO cities VALUES ('+[q(id),q(c.country),q(c.state||null),q(c.en),q(c.hi),q(c.gu),q(c.lat),q(c.lon),q(c.tz)].join(',')+');');});
+var cat=JJ.loadCatalog(JJ.RECIPE_SEED);
+cat.list.forEach(function(r){
+  out.push('INSERT INTO recipes VALUES ('+[q(r.id),q(r.meal),q(r.comp),arr(r.cu),q(r.orig||null),q(r.serves),q(r.prep),q(r.cook),q(JSON.stringify(r.steps))+'::jsonb',q(r.flags.indexOf('ch')>=0),q(r.valid?'approved':'pending'),q('seed'),q('auto-validator'),'now()'].join(',')+');');
+  r.ings.forEach(function(x){out.push('INSERT INTO recipe_ingredients VALUES ('+[q(r.id),q(x.id),q(x.q),q(x.opt)].join(',')+');');});
+  ['en','hi','gu'].forEach(function(l){out.push('INSERT INTO recipe_translations VALUES ('+[q(r.id),q(l),q(r[l])].join(',')+');');});
+  out.push('INSERT INTO recipe_sources VALUES ('+[q(r.id),q('JainJoy Kitchen – original Jain adaptation'),'NULL','false',q('Automatically validated; human review pending')].join(',')+');');
+});
+out.push('COMMIT;');
+document.getElementById('o').value=out.join('\n');
+document.getElementById('n').textContent=cat.list.length+' recipes, '+Object.keys(JJ.ING).length+' ingredients, '+Object.keys(JJ.CITIES).length+' cities, '+out.length+' statements';
+</script>

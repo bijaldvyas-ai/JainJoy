@@ -1,8 +1,8 @@
 # JainJoy local server for Windows. Uses only built-in Windows PowerShell; nothing to install.
-param([int]$Port = 8080)
+param([int]$Port = 8080, [switch]$NoBrowser)
 $ErrorActionPreference = 'Continue'
 $root = [System.IO.Path]::GetFullPath($PSScriptRoot)
-$types = @{ '.html'='text/html; charset=utf-8'; '.js'='application/javascript; charset=utf-8'; '.webmanifest'='application/manifest+json'; '.json'='application/json'; '.png'='image/png'; '.svg'='image/svg+xml'; '.css'='text/css'; '.txt'='text/plain; charset=utf-8' }
+$types = @{ '.html'='text/html; charset=utf-8'; '.js'='application/javascript; charset=utf-8'; '.webmanifest'='application/manifest+json'; '.json'='application/json'; '.png'='image/png'; '.svg'='image/svg+xml'; '.css'='text/css'; '.txt'='text/plain; charset=utf-8'; '.jpg'='image/jpeg'; '.md'='text/plain; charset=utf-8'; '.sql'='text/plain; charset=utf-8' }
 
 $listener = $null
 foreach ($p in @($Port, 8081, 8090, 5500)) {
@@ -23,7 +23,7 @@ Write-Host ''
 Write-Host '  If Windows asks about the firewall, choose Allow (Private networks) so your phone can connect.'
 Write-Host '  Keep this window open while you use the app. Close it to stop JainJoy.'
 Write-Host ''
-Start-Process "http://localhost:$Port/"
+if (-not $NoBrowser) { Start-Process "http://localhost:$Port/" }
 
 while ($true) {
   $client = $listener.AcceptTcpClient()
