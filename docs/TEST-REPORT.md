@@ -1,6 +1,6 @@
 # JainJoy 2.0 – Test Report
 
-**Run:** 2 Nov 2026, Chrome (desktop app browser), local server and live site · **Result: 42 of 42 passed** (Parva rules made mandatory; stored menus re-checked)
+**Run:** 2 Nov 2026, Chrome (desktop app browser), local server and live site · **Result: 47 of 47 passed** (v2.6.0: home-kitchen limits added)
 **Astronomy:** Astronomy Engine 2.1.19 · **Reference city:** Ahmedabad unless stated
 **How to rerun:** open `tests/index.html` from any web server (for example `https://bijaldvyas-ai.github.io/JainJoy/tests/`). The tests use a separate database (`jainjoy-test`) and never touch real app data.
 
@@ -80,3 +80,29 @@ Strict profile, Ahmedabad, 9 regional cuisines × 150 days from 1 Nov 2026 (234 
 | P19 | Old saved menu re-checked | PASS | A menu saved before the rule with Gavar nu Shaak on Sud Aatham (17 Nov 2026) was found (2 problems) and rebuilt with 0 problems before display; the same was confirmed for today's saved menu on Vad Aatham (2 Nov 2026) |
 
 Reference dates are the sunrise-tithi dates published for Gujarat. A Sangh whose printed Panchang uses a different convention may differ by a day on some dates; the app tells users to follow their Sangh for parva days.
+
+## Home-kitchen tests (v2.6.0)
+
+Gujarati family of 4, 28 days starting on a Monday, strict Parva rules.
+
+| # | Test | Result | Evidence |
+|---|---|---|---|
+| H1 | Weekday cooking time stays short (breakfast 30, snack 15, dinner 45 min) | PASS | 59 of 60 weekday breakfasts, snacks and dinners within the limit (one snack at 18 min) |
+| H2 | At most 1 fried and 2 sweet dishes a week | PASS | Fried 0 / 0 / 1 / 0, sweet 1 / 0 / 2 / 1 per week; about 2,200–2,280 kcal per person per day |
+| H3 | About 7 fresh vegetables to buy per week | PASS | 7, 7, 7, 7 distinct vegetables (everyday tomato, chilli, lemon, coriander, curry leaves and mint not counted) |
+| H4 | Soak-tonight reminder lists every overnight soak | PASS | 9 of 9 overnight-soak dishes appear in the reminder |
+| H5 | Katori measure and rotli count | PASS | 250 g toor dal = 2 katori; 300 g atta phulka dough makes 12 rotlis; salt shows no katori |
+
+### Before and after (same household, 28 days)
+
+| Measure | Before (v2.5.1) | After (v2.6.0) |
+|---|---|---|
+| Active cooking minutes per day (all dishes added up) | ≈ 262 | ≈ 221 (breakfast 28, lunch 135, snack 14, dinner 44) |
+| Calories per person per day | ≈ 2,500 | ≈ 2,220 |
+| Days with a fried dish | 9 of 28 | 0–1 per week, kept for the weekend |
+| Sweet dishes | 9 days of 28 | at most 2 per week |
+| Distinct fresh vegetables per week | 16–17 | 6–7 |
+| Overnight-soak reminders | none | Tomorrow card and evening notification |
+| Measures | grams only | grams + katori; breads show piece count |
+
+Note: the lunch minutes add up every bowl separately; in a real kitchen dal, rice and sabzi cook side by side, so time at the stove is shorter.

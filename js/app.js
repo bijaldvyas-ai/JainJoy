@@ -31,6 +31,8 @@ function qtyText(id, q) {
   if (v >= 1000) return (Math.round(v / 100) / 10) + ' ' + t(g.unit === 'ml' ? 'u_l' : 'u_kg');
   return v + ' ' + t('u_' + g.unit);
 }
+/* the same amount in katori, for cooks who measure by bowl: " ≈ 2½ katori" */
+function kitchenQty(id, q) { var k = JJ.katori(id, q); return k ? '<span class="kq">≈ ' + esc(fracStr(k)) + ' ' + esc(t('u_katori')) + '</span>' : ''; }
 function hm(ms) { return JJ.tz.hm(ms, city().tz, LANG); }
 function until(ms) {
   var d = ms - Date.now();
@@ -65,7 +67,13 @@ function recentFor(iso) {
   }
   return rec;
 }
-function generate(iso) { return JJ.genDay(iso, P, {recent: recentFor(iso)}); }
+/* what this week (from Monday) has already used: vegetables, fried and sweet dishes */
+function weekFor(iso) {
+  var dn = JJ.dayNum(iso), wd = (new Date(dn * 864e5).getUTCDay() + 6) % 7, w = JJ.newWeek(dn - wd);
+  for (var k = wd; k >= 1; k--) { var d = JJ.addDays(iso, -k), m = getStored(d) || previewCache.get(d); if (m) JJ.noteWeek(w, m); }
+  return w;
+}
+function generate(iso) { return JJ.genDay(iso, P, {recent: recentFor(iso), week: weekFor(iso)}); }
 function panSummary(iso) {
   var p = pan(iso), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar});
   return {t: p.t, paksha: p.paksha, month: p.month, adhik: p.adhik, obs: p.observances.map(function (o) { return o.k; }), aatham: p.aatham, chaudas: p.chaudas,
@@ -259,12 +267,32 @@ function tomorrowSummary() {
     if (k === 'l') return t('meal_l') + ': ' + JJ.chosenItems(m).filter(function (it) { return it.id; }).slice(0, 3).map(function (it) { return rName(JJ.recipeFor(m, it.id)); }).join(', ');
     var x = JJ.chosenMeal(m, k); return t('meal_' + k) + ': ' + (x && x.id ? rName(JJ.recipeFor(m, x.id)) : '—');
   }) : [];
-  return {date: d, p: p, r: r, names: names};
+  return {date: d, p: p, r: r, names: names, soak: m ? soakTonight(m) : []};
 }
+/* what must go into water tonight for tomorrow's chosen dishes: overnight soaks, long soaks (6 h+),
+   and any soak for breakfast (there is no time in the morning). [{ings:'Moong, Rice', dish:'Moong Dal Chilla'}] */
+function soakTonight(m) {
+  var out = [];
+  function scan(id, meal) {
+    var r = id && JJ.recipeFor(m, id); if (!r) return;
+    var ings = [];
+    (r.steps || []).forEach(function (st) {
+      if (!Array.isArray(st) || (st[0] !== 'soakn' && st[0] !== 'soakh')) return;
+      if (st[0] === 'soakh' && !(meal === 'b' || (st[2] || 0) >= 6)) return;
+      String(st[1] || '').split('+').forEach(function (k) { if (k && ings.indexOf(k) < 0) ings.push(k); });
+    });
+    if (ings.length) out.push({ings: ings.map(ingName).join(', '), dish: rName(r)});
+  }
+  ['b', 's', 'd'].forEach(function (k) { var x = JJ.chosenMeal(m, k); if (x) scan(x.id, k); });
+  JJ.chosenItems(m).forEach(function (it) { scan(it.id, 'l'); });
+  return out;
+}
+function soakLines(s) { return s.soak.map(function (x) { return x.ings + ' (' + t('soak_for') + ' ' + x.dish + ')'; }); }
 function tomorrowCard() {
   var s = tomorrowSummary(), head = s.r.parva ? s.r.parvaKeys.map(function (k) { return t(k); }).join(' · ') + ' · ' + t('parva_no_veg') : JJ.tithiName(s.p.t, LANG) + ' · ' + t(s.p.paksha === 'S' ? 'shukla' : 'krishna');
   return '<section class="card glass tomorrow' + (s.r.parva ? ' is-parva' : '') + '"><h3>' + esc(t('tomorrow')) + ' · ' + esc(dShort(s.date)) + '</h3><b>' + esc(head) + '</b>' +
     '<ul class="tlist">' + s.names.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' +
+    (s.soak.length ? '<div class="soak"><b>💧 ' + esc(t('soak_tonight')) + '</b><ul class="tlist">' + soakLines(s).map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>' : '') +
     (s.r.parva ? '<p class="fine" style="margin:6px 0 0">' + esc(t('tomorrow_parva_tip')) + '</p>' : '') +
     '<div class="row" style="flex-wrap:wrap;margin-top:10px"><button class="btn small" data-a="day" data-v="' + s.date + '">' + esc(t('see_tomorrow')) + '</button><button class="btn small" data-a="ics">' + esc(t('add_reminders')) + '</button><button class="btn small" data-a="notify">' + esc(t(notifyState() === 'on' ? 'evening_on' : 'evening_reminder')) + '</button></div></section>';
 }
@@ -276,7 +304,7 @@ function maybeEveningReminder() {
   if (now.getHours() < 17) return;
   try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) { return; }
   var s = tomorrowSummary(), title = t('tomorrow') + ': ' + (s.r.parva ? s.r.parvaKeys.map(function (k) { return t(k); }).join(', ') + ' – ' + t('parva_no_veg') : JJ.tithiName(s.p.t, LANG));
-  try { new Notification(title, {body: s.names.join('\n'), icon: 'icon-192.png', tag: 'jainjoy-tomorrow'}); } catch (e) {}
+  try { new Notification(title, {body: (s.soak.length ? '💧 ' + t('soak_tonight') + ': ' + soakLines(s).join('; ') + '\n' : '') + s.names.join('\n'), icon: 'icon-192.png', tag: 'jainjoy-tomorrow'}); } catch (e) {}
 }
 /* .ics file: an all-day event on each Parva Tithi in the next 60 days, with an alarm at 7 pm the evening before */
 function parvaIcs() {
@@ -454,7 +482,9 @@ function viewRecipe(top) {
   var alg = Object.keys(comp.tags.alg).filter(function (a) { return (P.allergies || []).indexOf(a) >= 0; });
   if (alg.length) b += '<div class="alert">' + esc(t('allergy_alert', {list: alg.map(function (a) { return nm(JJ.ALLERGENS[a]); }).join(', ')})) + '</div>';
   b += '<h2 class="h2">' + esc(t('ingredients')) + '<span>' + esc(t('for_members', {n: hh})) + '</span></h2><ul class="ings">' +
-    r.ings.filter(function (x) { return !skip[x.id]; }).map(function (x) { var g = JJ.ING[x.id] || {}; return '<li><span>' + esc(ingName(x.id)) + (g.L ? '<span class="leafy-tag">' + esc(t('leafy')) + '</span>' : '') + (x.opt ? ' <span class="tag">' + esc(t('optional')) + '</span>' : '') + '</span><b>' + esc(qtyText(x.id, x.q * f)) + '</b></li>'; }).join('') + '</ul>';
+    r.ings.filter(function (x) { return !skip[x.id]; }).map(function (x) { var g = JJ.ING[x.id] || {}; return '<li><span>' + esc(ingName(x.id)) + (g.L ? '<span class="leafy-tag">' + esc(t('leafy')) + '</span>' : '') + (x.opt ? ' <span class="tag">' + esc(t('optional')) + '</span>' : '') + '</span><b>' + esc(qtyText(x.id, x.q * f)) + kitchenQty(x.id, x.q * f) + '</b></li>'; }).join('') + '</ul>';
+  var pcs = JJ.breadPieces(r, f);
+  if (pcs) b += '<p class="note info">' + esc(t('makes_n', {n: pcs})) + '</p>';
   var steps = r.steps.map(function (st) { return JJ.renderStep(st, LANG, JJ.ING, skip); }).filter(Boolean);
   b += '<h2 class="h2">' + esc(t('method')) + '</h2><ol class="steps">' + steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>';
   var src = r.src || JJ.db.get('recipe_sources', r.id);
@@ -574,9 +604,22 @@ function viewShop() {
   var listId = ui.gRange + ':' + r[0];
   if (ui.gRange === 'week') JJ.db.put('grocery_lists', {id: 'week:' + r[0], from: r[0], to: r[1], createdAt: Date.now(), hh: P.hh, groups: groups});
   var seg = '<div class="seg" role="group">' + [['week', 'g_week'], ['month', 'g_month'], ['next', 'g_next']].map(function (x) { return '<button data-a="grange" data-v="' + x[0] + '" aria-pressed="' + (ui.gRange === x[0]) + '">' + esc(t(x[1])) + '</button>'; }).join('') + '</div>';
-  var b = seg + parvaShopping(menus) + groceryView(groups, listId, t('grocery_title'), dShort(r[0]) + ' – ' + dShort(r[1]) + ' · ' + t('for_members', {n: P.hh}) + ' · ' + t('days_n', {n: menus.length}));
+  var b = seg + parvaShopping(menus) + (ui.gRange === 'week' ? vegTrips(menus) : '') + groceryView(groups, listId, t('grocery_title'), dShort(r[0]) + ' – ' + dShort(r[1]) + ' · ' + t('for_members', {n: P.hh}) + ' · ' + t('days_n', {n: menus.length}));
   b += '<p class="fine" style="text-align:center"><button class="linkbtn" data-a="push" data-v="glists">' + esc(t('saved_lists')) + '</button></p>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
+/* Fresh vegetables stay fresh for 3–4 days, so the week's vegetables and fruit are split into two market trips. */
+function vegTrips(menus) {
+  if (menus.length < 5) return '';
+  var cut = Math.ceil(menus.length * 3 / 7), parts = [menus.slice(0, cut), menus.slice(cut)];
+  var body = parts.map(function (ms, i) {
+    var items = [];
+    JJ.grocery(ms).forEach(function (g) { if (g.group === 'veg' || g.group === 'fruit') items = items.concat(g.items); });
+    if (!items.length) return '';
+    return '<h3>' + esc(t('trip_n', {n: i + 1, from: dShort(ms[0].date), to: dShort(ms[ms.length - 1].date)})) + '</h3>' +
+      items.map(function (it) { var a = JJ.buyAmount(it.amt, it.unit); return '<div class="gi" style="cursor:default"><span class="gn">' + esc(ingName(it.id)) + '</span><span class="gq">' + a.v + ' ' + esc(t('u_' + a.u)) + '</span></div>'; }).join('');
+  }).join('');
+  return body ? '<details class="fold card glass"><summary>🧺 ' + esc(t('veg_trips')) + '</summary>' + body + '</details>' : '';
 }
 function viewSavedLists() {
   var lists = JJ.db.all('grocery_lists').sort(function (a, b) { return a.from < b.from ? 1 : -1; });
@@ -1013,7 +1056,7 @@ setInterval(function () {
 }, 30000);
 
 /* ---------------- boot ---------------- */
-JJ.app = {render: render, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
+JJ.app = {render: render, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
   get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache};
 JJ.boot = function () {
   return JJ.db.open().then(function () {

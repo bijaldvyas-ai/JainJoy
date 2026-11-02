@@ -400,6 +400,51 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     return {ok: before.length > 0 && !after.length && !hasGavar && shown.rules.parva, details: d + ' (' + f[1].t + '): stale menu problems found ' + before.length + ' (' + before.slice(0, 3).join(', ') + '); menu shown after re-check: ' + after.length + ' problems, Gavar present: ' + hasGavar};
   });
 
+  // ---- home kitchen: practical days for the person cooking (Gujarati family of 4, 28 days) ----
+  var HK = (function () {
+    var prof = Object.assign({}, STRICT(), {cuisine: 'guj', hh: 4}), ctx = {recent: {}}, out = [];
+    var mon = addDays(today, -((new Date(JJ.dayNum(today) * 864e5).getUTCDay() + 6) % 7));
+    for (var i = 0; i < 28; i++) { var d = addDays(mon, i), m = JJ.genDay(d, prof, ctx); out.push(m); }
+    return out;
+  })();
+  function hkIds(m) { var ids = []; ['b', 's', 'd'].forEach(function (k) { var x = JJ.chosenMeal(m, k); if (x && x.id) ids.push([k, x.id]); }); JJ.chosenItems(m).forEach(function (it) { if (it.id) ids.push(['l', it.id]); }); return ids; }
+  function meta(id) { return JJ.recipeMeta(JJ.catalog.byId[id]); }
+  test('H1', 'Weekday cooking time stays short (breakfast 30, snack 15, dinner 45 min)', function () {
+    var lim = {b: 30, s: 15, d: 45}, n = 0, okc = 0, over = [];
+    HK.forEach(function (m) {
+      var wd = (new Date(JJ.dayNum(m.date) * 864e5).getUTCDay() + 6) % 7; if (wd >= 5) return;
+      hkIds(m).forEach(function (x) { if (!lim[x[0]]) return; n++; if (meta(x[1]).active <= lim[x[0]]) okc++; else over.push(m.date + ' ' + x[0] + ' ' + meta(x[1]).active); });
+    });
+    return {ok: okc / n >= 0.9, details: okc + ' of ' + n + ' weekday breakfasts, snacks and dinners within the time limit' + (over.length ? '; over: ' + over.slice(0, 4).join(', ') : '')};
+  });
+  test('H2', 'Lighter food: at most 1 fried and 2 sweet dishes a week', function () {
+    var weeks = [];
+    for (var w = 0; w < 4; w++) {
+      var f = 0, s = 0, kc = 0;
+      HK.slice(w * 7, w * 7 + 7).forEach(function (m) { hkIds(m).forEach(function (x) { if (meta(x[1]).fried) f++; if (meta(x[1]).sweet) s++; }); kc += JJ.dayNutrition(m).total[0]; });
+      weeks.push({f: f, s: s, kcal: Math.round(kc / 7)});
+    }
+    return {ok: weeks.every(function (w) { return w.f <= 1 && w.s <= 2; }), details: weeks.map(function (w, i) { return 'week ' + (i + 1) + ': fried ' + w.f + ', sweet ' + w.s + ', ' + w.kcal + ' kcal/person/day'; }).join('; ')};
+  });
+  test('H3', 'About 7 fresh vegetables to buy per week', function () {
+    var weeks = [];
+    for (var w = 0; w < 4; w++) { var v = {}; HK.slice(w * 7, w * 7 + 7).forEach(function (m) { hkIds(m).forEach(function (x) { meta(x[1]).veg.forEach(function (id) { v[id] = 1; }); }); }); weeks.push(Object.keys(v).length); }
+    return {ok: weeks.every(function (n) { return n <= 7; }), details: 'distinct fresh vegetables per week: ' + weeks.join(', ') + ' (tomato, chilli, lemon, coriander, curry leaves and mint are everyday staples)'};
+  });
+  test('H4', 'Soak-tonight reminder lists every overnight soak', function () {
+    var need = 0, found = 0, sample = '';
+    HK.forEach(function (m) {
+      var list = JJ.app.soakTonight(m), names = list.map(function (x) { return x.dish; }).join('|');
+      hkIds(m).forEach(function (x) { var r = JJ.catalog.byId[x[1]]; if (r.steps.some(function (st) { return Array.isArray(st) && st[0] === 'soakn'; })) { need++; if (names.indexOf(r.en) >= 0) found++; } });
+      if (!sample && list.length) sample = m.date + ': ' + list.map(function (x) { return x.ings + ' for ' + x.dish; }).join('; ');
+    });
+    return {ok: found === need && !!sample, details: need + ' overnight-soak dishes in 28 days, ' + found + ' in the reminder; e.g. ' + sample};
+  });
+  test('H5', 'Kitchen measures: katori next to grams, rotli count', function () {
+    var k = JJ.katori('toor', 250), pc = JJ.breadPieces(JJ.catalog.byId.l001, 1), none = JJ.katori('salt', 5);
+    return {ok: Math.abs(k - 2) < 0.01 && pc === 12 && none === null, details: '250 g toor dal = ' + k + ' katori; Phulka dough (300 g atta) makes ' + pc + ' rotlis; salt has no katori measure: ' + (none === null)};
+  });
+
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();

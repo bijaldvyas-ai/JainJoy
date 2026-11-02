@@ -42,6 +42,59 @@ function cuScore(r, order) {
   for (var i = 0; i < order.length; i++) if (r.cu.indexOf(order[i]) >= 0) return i * 12;
   return 70;
 }
+/* Kitchen facts about a recipe, used to keep days practical for the person cooking:
+   active minutes (an overnight soak counts as 10 minutes of work), fried, sweet,
+   calories per serving and the fresh vegetables it needs (everyday staples excluded). */
+var FRIED_NAME = /\b(puri|pakoda|pakode|bhajia|bhajiya|vada|kachori|samosa|bhatura|mathri|fafda|gota|ganthia)\b/i;
+var STAPLE_VEG ={tomato: 1, chilli: 1, lemon: 1, coriander: 1, curry: 1, mint: 1};
+JJ.recipeMeta = function (r) {
+  if (r._meta) return r._meta;
+  var sweetG = 0;
+  r.ings.forEach(function (x) { if (['sugar', 'jaggery', 'dates', 'khoya'].indexOf(x.id) >= 0) sweetG += x.q; });
+  r._meta = {
+    active: ((r.prep || 0) >= 120 ? 10 : (r.prep || 0)) + (r.cook || 0),
+    fried: FRIED_NAME.test(r.en) || r.steps.some(function (st) { return Array.isArray(st) ? st[0] === 'fry' : st && /deep[- ]?fry/i.test(st.en || ''); }),
+    sweet: sweetG / (r.serves || 4) >= 18,
+    kcal: JJ.recipeNutrition ? JJ.recipeNutrition(r, [])[0] : 0,
+    veg: r.ings.filter(function (x) { var g = JJ.ING[x.id]; return !x.opt && g && (g.cat === 'veg' || g.cat === 'leafy') && !STAPLE_VEG[x.id]; }).map(function (x) { return x.id; })
+  };
+  return r._meta;
+};
+/* Practical limits for a home kitchen. Weekdays: quick breakfast, very quick snack, simple dinner;
+   weekends allow more. Calories are per serving. */
+var BUDGET = {l: {time: 25, wkend: 45, kcal: 400}, b: {time: 30, wkend: 50, kcal: 420}, s: {time: 15, wkend: 40, kcal: 280}, d: {time: 45, wkend: 70, kcal: 650}};
+var WEEK_VEG = 7, WEEK_FRIED = 1, WEEK_SWEET = 2;
+function weekKey(dn) { var wd = (new Date(dn * 864e5).getUTCDay() + 6) % 7; return dn - wd; } // Monday
+JJ.newWeek = function (key) { return {key: key, veg: {}, fried: 0, sweet: 0}; };
+/* add one day's chosen dishes to the week's running totals */
+JJ.noteWeek = function (week, menu) {
+  if (!menu || menu.legacy) return;
+  var ids = [];
+  ['b', 's', 'd'].forEach(function (m) { var x = JJ.chosenMeal(menu, m); if (x && x.id) ids.push(x.id); });
+  JJ.chosenItems(menu).forEach(function (it) { if (it.id) ids.push(it.id); });
+  ids.forEach(function (id) {
+    var r = JJ.catalog.byId[id]; if (!r) return; var m = JJ.recipeMeta(r);
+    m.veg.forEach(function (v) { week.veg[v] = 1; });
+    if (m.fried) week.fried++; if (m.sweet) week.sweet++;
+  });
+};
+function kitchenScore(r, ctx) {
+  var m = JJ.recipeMeta(r), s = 0, w = ctx.week;
+  if (ctx.budget) {
+    var lim = ctx.weekend ? ctx.budget.wkend : ctx.budget.time;
+    if (m.active > lim) s += 40 + (m.active - lim) * 8;
+    if (m.kcal > ctx.budget.kcal) s += (m.kcal - ctx.budget.kcal) * 0.4;
+  }
+  if (w) {
+    // the one fried treat of the week is kept for the weekend
+    if (m.fried) s += w.fried >= WEEK_FRIED ? 400 : ctx.weekend ? 0 : 60;
+    if (m.sweet) s += w.sweet >= WEEK_SWEET ? 400 : 40;
+    var fresh = m.veg.filter(function (v) { return !w.veg[v]; }), have = Object.keys(w.veg).length;
+    var over = Math.max(0, have + fresh.length - WEEK_VEG);
+    s += over * 90 + fresh.length * 4;
+  }
+  return s;
+}
 function pick(cands, ctx, iso, salt) {
   var best = null, bs = Infinity;
   cands.forEach(function (c) {
@@ -50,6 +103,7 @@ function pick(cands, ctx, iso, salt) {
     if (last != null) { var age = ctx.dn - last; if (age < ctx.window) s += 1000 - age * 10; }
     r.ings.forEach(function (x) { if (!x.opt && !JJ.inSeason(JJ.ING[x.id], ctx.month)) s += 15; });
     ctx.todayMain.forEach(function (m) { if (m && m === mainIng(r)) s += 30; });
+    s += kitchenScore(r, ctx);
     s += hash(iso + '|' + salt + '|' + r.id + '|' + ctx.seed) % 23;
     if (s < bs) { bs = s; best = c; }
   });
@@ -83,15 +137,19 @@ JJ.genDay = function (iso, prof, ctx) {
   var cu = prof.cuisine || 'gen', order = cuisineOrder(cu), C = JJ.CUISINES[cu] || JJ.CUISINES.gen;
   ctx = ctx || {recent: {}};
   ctx.dn = dayNum(iso); ctx.month = +iso.slice(5, 7); ctx.todayMain = []; ctx.seed = prof.seed || 0;
+  var wk = weekKey(ctx.dn), wd = ctx.dn - wk;
+  if (!ctx.week || ctx.week.key !== wk) ctx.week = JJ.newWeek(wk); // a new week starts every Monday
+  ctx.weekend = wd >= 5;
+  function note(r) { var m = JJ.recipeMeta(r); m.veg.forEach(function (v) { ctx.week.veg[v] = 1; }); if (m.fried) ctx.week.fried++; if (m.sweet) ctx.week.sweet++; }
   var menu = {date: iso, status: 'planned', pv: prof.version || 1, hh: prof.hh, cuisine: cu, choice: {b: 0, l: 0, s: 0, d: 0}, shortages: [],
     rules: {noLeafy: rules.noLeafy, noGreen: rules.noGreen, parva: rules.parva, noFruit: rules.noFruit, reasons: rules.reasons, parvaKeys: rules.parvaKeys}, meals: {}};
   function single(meal, window) {
-    ctx.window = window;
-    var c = candidates(function (r) { return r.meal === meal; }, rules, prof, order);
+    ctx.window = window; ctx.budget = BUDGET[meal];
+    var c =candidates(function (r) { return r.meal === meal; }, rules, prof, order);
     // every cuisine is already a candidate (with a lower score), so an empty pool means the
     // household's own exclusions rule out every recipe; that is reported, never relaxed
     var two = pickTwo(c, ctx, iso, meal), got = two[0];
-    if (got) { ctx.todayMain.push(mainIng(got.r)); return {id: got.r.id, drop: got.drop, alt: two[1] ? {id: two[1].r.id, drop: two[1].drop} : null}; }
+    if (got) { ctx.todayMain.push(mainIng(got.r)); note(got.r); return {id: got.r.id, drop: got.drop, alt: two[1] ? {id: two[1].r.id, drop: two[1].drop} : null}; }
     menu.shortages.push(meal);
     return {id: null, missing: true};
   }
@@ -105,6 +163,8 @@ JJ.genDay = function (iso, prof, ctx) {
       return;
     }
     var comps = slot === 'dalkadhi' ? ((hash(iso + 'dk' + ctx.seed) % 3 === 0) ? ['kadhi', 'dal'] : ['dal', 'kadhi']) : [slot];
+    // bowls cook side by side, so each one gets its own short limit; rotli and rice are daily staples
+    ctx.budget = slot === 'bread' || slot === 'rice' ? null : BUDGET.l;
     var slotOrder = slot === 'bread' ? C.breads.concat(order) : order;
     // staples (roti, rice) are expected every day; sabzi and dal rotate over a week
     ctx.window = slot === 'sabzi' || slot === 'dal' || slot === 'dalkadhi' ? 6 : (slot === 'bread' || slot === 'rice') ? 0 : 3;
@@ -119,7 +179,7 @@ JJ.genDay = function (iso, prof, ctx) {
       var two = pickTwo(c, ctx, iso, 'l' + idx + comp); got = two[0];
       if (got) got.alt = two[1] || null;
     }
-    if (got) { items.push({slot: slot, id: got.r.id, drop: got.drop, alt: got.alt && slot !== 'bread' && slot !== 'rice' ? {id: got.alt.r.id, drop: got.alt.drop} : null}); ctx.todayMain.push(mainIng(got.r)); }
+    if (got) { items.push({slot: slot, id: got.r.id, drop: got.drop, alt: got.alt && slot !== 'bread' && slot !== 'rice' ? {id: got.alt.r.id, drop: got.alt.drop} : null}); ctx.todayMain.push(mainIng(got.r)); note(got.r); }
     else if (['bread', 'sabzi', 'dal', 'dalkadhi', 'rice', 'sambar'].indexOf(slot) >= 0) { items.push({slot: slot, id: null, missing: true}); menu.shortages.push('l:' + slot); }
   });
   menu.meals.l = {items: items};

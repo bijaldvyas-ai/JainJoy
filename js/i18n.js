@@ -65,6 +65,7 @@ saved_lists:['Previous grocery lists','पिछली किराना सू
 grp_veg:['Vegetables','सब्ज़ियाँ','શાકભાજી'], grp_fruit:['Fruit','फल','ફળ'], grp_grain:['Grains and flours','अनाज और आटा','અનાજ અને લોટ'], grp_pulse:['Pulses','दालें','કઠોળ'], grp_dairy:['Dairy','डेयरी','ડેરી'], grp_nuts:['Dry fruit and nuts','मेवे','સૂકો મેવો'], grp_spice:['Spices','मसाले','મસાલા'], grp_pantry:['Pantry','भंडार','ભંડાર'],
 copied:['Grocery list copied','सूची कॉपी हो गई','યાદી કૉપી થઈ'], copy_blocked:['Copy is blocked here. Long-press to select instead.','यहाँ कॉपी बंद है। चुनने के लिए देर तक दबाएँ।','અહીં કૉપી બંધ છે. પસંદ કરવા લાંબું દબાવો.'], ticks_cleared:['Ticks cleared','टिक हटा दिए','ટિક હટાવ્યાં'],
 // units
+u_katori:['katori','कटोरी','વાટકી'], makes_n:['Makes about {n} pieces with this dough.','इस आटे से लगभग {n} नग बनेंगे।','આ લોટમાંથી આશરે {n} નંગ બનશે.'],
 u_g:['g','ग्रा','ગ્રા'], u_ml:['ml','मि.ली.','મિ.લી.'], u_kg:['kg','कि.ग्रा.','કિ.ગ્રા.'], u_l:['litre','लीटर','લિટર'], u_tsp:['tsp','छोटा चम्मच','ચમચી'], u_tbsp:['tbsp','बड़ा चम्मच','મોટી ચમચી'], u_pc:['pc','नग','નંગ'],
 // more
 edit_profile:['Profile','प्रोफ़ाइल','પ્રોફાઇલ'], edit_profile_sub:['Tradition, city, cuisine, family, exclusions','परंपरा, शहर, व्यंजन, परिवार, परहेज़','પરંપરા, શહેર, ભોજન, પરિવાર, પરહેજ'],
@@ -141,6 +142,10 @@ old_rules_note:['This past menu was saved before the Parva Tithi rule and does n
 open_recipe:['Recipe','रेसिपी','રીત'], open_thali:['Thali','थाली','થાળી'], tap_to_choose:['Tap the one you will cook','जो बनाएँगे उस पर टैप करें','જે બનાવશો તેના પર ટૅપ કરો'], option_locked:['Past day · locked','बीता दिन · लॉक','ગયેલો દિવસ · લૉક'],
 min_soak:['{n} min + soak','{n} मिनट + भिगोना','{n} મિનિટ + પલાળવું'], tomorrow:['Tomorrow','कल','આવતીકાલ'], see_tomorrow:['See tomorrow','कल देखें','આવતીકાલ જુઓ'], add_reminders:['Add Parva reminders to phone calendar','पर्व रिमाइंडर फ़ोन कैलेंडर में जोड़ें','પર્વ રિમાઇન્ડર ફોન કેલેન્ડરમાં ઉમેરો'],
 tomorrow_parva_tip:['Buy and prepare dry ingredients today; no fresh vegetables are used tomorrow.','सूखी सामग्री आज ही ले लें और तैयार कर लें; कल ताज़ी सब्ज़ी नहीं।','સૂકી સામગ્રી આજે જ લઈ તૈયાર રાખો; આવતીકાલે તાજું શાક નહીં.'],
+soak_tonight:['Soak tonight','आज रात भिगोएँ','આજે રાત્રે પલાળો'],
+soak_for:['for','के लिए','માટે'],
+veg_trips:['Fresh vegetables in two trips','ताज़ी सब्ज़ी दो बार में','તાજું શાક બે વારમાં'],
+trip_n:['Trip {n} · for {from} – {to}','{n}वीं ख़रीद · {from} – {to} के लिए','{n}મી ખરીદી · {from} – {to} માટે'],
 evening_reminder:['Evening reminder','शाम का रिमाइंडर','સાંજનું રિમાઇન્ડર'], evening_on:['Evening reminder: on','शाम का रिमाइंडर: चालू','સાંજનું રિમાઇન્ડર: ચાલુ'],
 ics_done:['Open the downloaded file to add the next 60 days of Parva reminders (alert at 7 pm the evening before).','डाउनलोड फ़ाइल खोलें: अगले 60 दिनों के पर्व रिमाइंडर जुड़ेंगे (एक दिन पहले शाम 7 बजे सूचना)।','ડાઉનલોડ થયેલી ફાઇલ ખોલો: આવતા 60 દિવસના પર્વ રિમાઇન્ડર ઉમેરાશે (આગલા દિવસે સાંજે 7 વાગ્યે સૂચના).'],
 notify_unsupported:['Notifications are not supported in this browser.','इस ब्राउज़र में सूचनाएँ समर्थित नहीं।','આ બ્રાઉઝરમાં સૂચનાઓ ચાલતી નથી.'], notify_off:['Evening reminder turned off.','शाम का रिमाइंडर बंद।','સાંજનું રિમાઇન્ડર બંધ.'],
