@@ -288,8 +288,8 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
       var f = findTithi(c[0], '2026-11-01'), r = JJ.dayRules(f[1], STRICT()), m = JJ.genDay(f[0], STRICT(), {recent: {}});
       var fresh = allIngs(m, true).filter(function (id) { return JJ.ING[id].isFreshVeg || JJ.ING[id].L; });
       var std = JJ.dayRules(f[1], base({obsProfile: 'standard'}));
-      return {ok: r.parva && r.parvaKeys.indexOf(c[1]) >= 0 && m.rules.parva && !fresh.length && (c[0] === 5 ? !std.noLeafy : std.noLeafy),
-        details: f[0] + ': tithi ' + f[1].t + ' (' + (f[1].paksha === 'S' ? 'Shukla' : 'Krishna') + '), rule keys ' + r.parvaKeys.join(',') + '; menu flagged Parva: ' + m.rules.parva + '; fresh vegetables in both options: ' + fresh.length + '; standard profile on this day: ' + (std.noLeafy ? 'no leafy' : 'no extra rule')};
+      return {ok: r.parva && r.parvaKeys.indexOf(c[1]) >= 0 && m.rules.parva && !fresh.length && std.parva,
+        details: f[0] + ': tithi ' + f[1].t + ' (' + (f[1].paksha === 'S' ? 'Shukla' : 'Krishna') + '), rule keys ' + r.parvaKeys.join(',') + '; menu flagged Parva: ' + m.rules.parva + '; fresh vegetables in both options: ' + fresh.length + '; also enforced when a household had chosen another profile: ' + std.parva};
     });
   });
   test('P6', 'No leafy vegetables appear on Parva Tithis (all regions, both options)', function () {
@@ -385,6 +385,18 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     document.querySelector('[data-a="tab"][data-v="today"]').click(); var txt = document.getElementById('app').innerText;
     var ics = JJ.app.parvaIcs(), ev = (ics.match(/BEGIN:VEVENT/g) || []).length, al = (ics.match(/TRIGGER:-PT5H/g) || []).length;
     return {ok: exp >= 8 && ev === exp && al === ev && /Tomorrow/.test(txt), details: 'Parva days in the next 60 days: ' + exp + '; calendar file events: ' + ev + ' with ' + al + ' evening-before alarms; Today shows the Tomorrow card: ' + /Tomorrow/.test(txt)};
+  });
+
+  test('P19', 'A menu saved before the rule (Gavar on Aatham) is caught and rebuilt', function () {
+    var P19 = Object.assign({created: today}, STRICT(), {version: 7}); JJ.app.profile = P19; JJ.db.put('profiles', P19);
+    var f = findTithi(8, addDays(today, 1)) || findTithi(23, addDays(today, 1)), d = f[0];
+    var stale = JJ.genDay(d, Object.assign({}, P19, {obsProfile: 'custom', greenRule: 'none'}), {recent: {}});
+    stale.meals.l.items.forEach(function (it) { if (it.slot === 'sabzi') { it.id = 'l017'; it.alt = null; } }); // Gavar nu Shaak
+    stale.rules = {noLeafy: true}; stale.status = 'planned'; stale.pv = 7; stale.month = d.slice(0, 7);
+    JJ.db.put('daily_menus', stale);
+    var before = JJ.menuViolations(stale, P19), shown = JJ.app.menuFor(d), after = JJ.menuViolations(shown, P19);
+    var ids = JJ.menuRecipeIds(shown), hasGavar = ids.some(function (id) { return JJ.catalog.byId[id].ings.some(function (x) { return x.id === 'gavar'; }); });
+    return {ok: before.length > 0 && !after.length && !hasGavar && shown.rules.parva, details: d + ' (' + f[1].t + '): stale menu problems found ' + before.length + ' (' + before.slice(0, 3).join(', ') + '); menu shown after re-check: ' + after.length + ' problems, Gavar present: ' + hasGavar};
   });
 
   // ---- report ----

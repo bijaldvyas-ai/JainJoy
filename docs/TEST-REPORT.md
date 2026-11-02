@@ -1,6 +1,6 @@
 # JainJoy 2.0 – Test Report
 
-**Run:** 2 Nov 2026, Chrome (desktop app browser), local server and live site · **Result: 41 of 41 passed** (after adding the Parva Tithi engine)
+**Run:** 2 Nov 2026, Chrome (desktop app browser), local server and live site · **Result: 42 of 42 passed** (Parva rules made mandatory; stored menus re-checked)
 **Astronomy:** Astronomy Engine 2.1.19 · **Reference city:** Ahmedabad unless stated
 **How to rerun:** open `tests/index.html` from any web server (for example `https://bijaldvyas-ai.github.io/JainJoy/tests/`). The tests use a separate database (`jainjoy-test`) and never touch real app data.
 
@@ -77,5 +77,6 @@ Strict profile, Ahmedabad, 9 regional cuisines × 150 days from 1 Nov 2026 (234 
 | P16 | Panchang verified against the reference convention | PASS | Labh Pancham 26 Oct 2025 and 14 Nov 2026 (Sud 5), Durga Ashtami 30 Sep 2025 (Sud 8), Janmashtami 16 Aug 2025 (Vad 8), Kartaki Chaumasi Chaudas 4 Nov 2025 (Sud 14), Kali Chaudas 20 Oct 2025 (Vad 14) all match; 12–13 of each Parva Tithi in 2026; dates recomputed every year |
 | P17 | Two options for every meal | PASS | Option 2 differs for breakfast, lunch, snack and dinner; grocery list follows the chosen option; all 234 Parva menus have two compliant options |
 | P18 | Next-day reminder | PASS | 10 Parva days in the next 60 days → 10 calendar events, each with a 7 pm evening-before alarm; Today shows the Tomorrow card |
+| P19 | Old saved menu re-checked | PASS | A menu saved before the rule with Gavar nu Shaak on Sud Aatham (17 Nov 2026) was found (2 problems) and rebuilt with 0 problems before display; the same was confirmed for today's saved menu on Vad Aatham (2 Nov 2026) |
 
 Reference dates are the sunrise-tithi dates published for Gujarat. A Sangh whose printed Panchang uses a different convention may differ by a day on some dates; the app tells users to follow their Sangh for parva days.
