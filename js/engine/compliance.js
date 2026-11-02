@@ -24,7 +24,7 @@ JJ.ALLERGENS = {
   peanuts: {en:'Peanuts', hi:'मूंगफली', gu:'સીંગદાણા'}, nuts: {en:'Tree nuts', hi:'मेवे', gu:'સૂકો મેવો'}, sesame: {en:'Sesame', hi:'तिल', gu:'તલ'},
   mustard: {en:'Mustard', hi:'राई', gu:'રાઈ'}, coconut: {en:'Coconut', hi:'नारियल', gu:'નાળિયેર'}
 };
-var MEALS = ['b', 'l', 's', 'd'], COMPS = ['main', 'bread', 'sabzi', 'dal', 'kadhi', 'rice', 'salad', 'raita', 'sambar', 'rasam'];
+var MEALS = ['b', 'l', 's', 'd', 'a'], COMPS = ['main', 'bread', 'sabzi', 'dal', 'kadhi', 'rice', 'salad', 'raita', 'sambar', 'rasam', 'extra']; // 'a' = Ayambil
 
 function parseIngs(str) {
   return String(str || '').trim().split(/\s+/).filter(Boolean).map(function (tok) {

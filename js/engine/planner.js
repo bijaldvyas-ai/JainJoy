@@ -189,6 +189,21 @@ JJ.genDay = function (iso, prof, ctx) {
   return menu;
 };
 
+/* An Ayambil dish uses only grains, pulses, salt, black pepper, hing and dry ginger. */
+JJ.ayambilOk = function (r) { return !!r && r.ings.every(function (x) { return JJ.AYAMBIL_OK[x.id]; }); };
+/* Ayambil thali for a date: two options, each a bread, a dal, a rice and one more dish,
+   rotating day by day so the nine days of an Oli do not repeat the same plate. */
+JJ.ayambilDay = function (iso, prof) {
+  var by = {};
+  JJ.catalog.list.forEach(function (r) { if (r.meal === 'a' && r.status === 'approved' && r.valid !== false && JJ.ayambilOk(r) && JJ.allowed(r, {}, prof || {})) (by[r.comp] = by[r.comp] || []).push(r); });
+  var dn = dayNum(iso), seed = (prof && prof.seed) || 0;
+  return [0, 1].map(function (opt) {
+    return ['bread', 'dal', 'rice', 'extra'].map(function (c) {
+      var l = by[c] || []; if (!l.length) return null;
+      return {slot: c, id: l[(dn + seed + opt * Math.ceil(l.length / 2) + (c === 'dal' ? 1 : 0)) % l.length].id};
+    }).filter(Boolean);
+  });
+};
 /* Snapshot of a recipe for history (immutable copy of what was served). */
 JJ.snapshot = function (id) {
   var r = JJ.catalog.byId[id]; if (!r) return null;

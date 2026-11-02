@@ -445,6 +445,53 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     return {ok: Math.abs(k - 2) < 0.01 && pc === 12 && none === null, details: '250 g toor dal = ' + k + ' katori; Phulka dough (300 g atta) makes ' + pc + ' rotlis; salt has no katori measure: ' + (none === null)};
   });
 
+  // ---- v2.7: Ayambil, Paryushan, dinner reminder, pantry, WhatsApp, auto refresh ----
+  test('A1', 'Ayambil dishes use only grains, pulses, salt, pepper, hing and sonth', function () {
+    var ay = JJ.catalog.list.filter(function (r) { return r.meal === 'a'; }), bad = ay.filter(function (r) { return !JJ.ayambilOk(r) || !r.valid; });
+    var oli = null; for (var d = '2026-01-01'; d <= '2026-12-31' && !oli; d = addDays(d, 1)) if (JJ.panchang(d, city, Pg).observances.some(function (o) { return o.k === 'oli_aso'; })) oli = d;
+    var opts = JJ.ayambilDay(oli, Pg), o2 = JJ.ayambilDay(addDays(oli, 1), Pg), diff = JSON.stringify(opts[0]) !== JSON.stringify(opts[1]) && JSON.stringify(opts[0]) !== JSON.stringify(o2[0]);
+    var inMenus = PARVA_RUN.guj.some(function (m) { return JJ.menuRecipeIds(m).some(function (id) { return /^a\d/.test(id); }); });
+    return {ok: ay.length >= 12 && !bad.length && opts[0].length === 4 && opts[1].length === 4 && diff && !inMenus,
+      details: ay.length + ' Ayambil recipes, ' + bad.length + ' with other ingredients or errors; Aso Oli starts ' + oli + ': option 1 = ' + opts[0].map(function (x) { return JJ.catalog.byId[x.id].en; }).join(', ') + '; options and days differ: ' + diff + '; never in everyday menus: ' + !inMenus};
+  });
+  test('A2', 'Paryushan: 8 days ending with Samvatsari, no green vegetables', function () {
+    var days = [], bad = [];
+    for (var d = '2026-08-01'; d <= '2026-09-30'; d = addDays(d, 1)) {
+      var p = JJ.panchang(d, city, Pg), r = JJ.dayRules(p, STRICT());
+      if (r.parvaKeys.indexOf('paryushan') >= 0 || r.parvaKeys.indexOf('samvatsari') >= 0) {
+        days.push(d + (r.parvaKeys.indexOf('samvatsari') >= 0 ? ' (Samvatsari)' : ''));
+        var m = JJ.genDay(d, STRICT(), {recent: {}}), v = JJ.menuViolations(m, STRICT());
+        if (!r.parva || v.length) bad.push(d + ': ' + v.join(','));
+      }
+    }
+    var last = days[days.length - 1] || '';
+    return {ok: days.length === 8 && /Samvatsari/.test(last) && !bad.length, details: days.length + ' days: ' + days.join(', ') + (bad.length ? '; problems: ' + bad.join('; ') : '; all menus follow Parva rules')};
+  });
+  test('A3', 'Dinner start time leaves time to cook and eat before Chauvihar', function () {
+    JJ.app.profile = Object.assign({created: today}, STRICT()); JJ.db.put('profiles', JJ.app.profile);
+    var s = JJ.app.dinnerStart(addDays(today, 2)); if (!s) return {ok: false, details: 'no dinner'};
+    var gap = (s.chauvihar - s.at) / 6e4;
+    return {ok: gap >= s.mins && gap < s.mins + 5 && s.mins >= 20, details: 'start ' + new Date(s.at).toISOString().slice(11, 16) + ' UTC for ' + s.dish + ' (' + s.mins + ' min); ' + Math.round(gap) + ' min before Chauvihar'};
+  });
+  test('A4', 'Pantry items leave the shopping list', function () {
+    var g = JJ.grocery([PARVA_RUN.guj[0], PARVA_RUN.guj[1]]);
+    JJ.db.put('meta', {key: 'pantry', have: {atta: 1, salt: 1}});
+    var sp = JJ.app.splitPantry(g), txt = JJ.app.listText(g), home = sp.home.map(function (x) { return x.id; });
+    JJ.db.put('meta', {key: 'pantry', have: {}});
+    var inBuy = sp.buy.some(function (gr) { return gr.items.some(function (it) { return it.id === 'atta' || it.id === 'salt'; }); });
+    return {ok: home.indexOf('atta') >= 0 && home.indexOf('salt') >= 0 && !inBuy && txt.indexOf('Wheat flour') < 0, details: 'at home: ' + home.join(', ') + '; still in list to buy: ' + inBuy + '; shared text mentions atta: ' + (txt.indexOf('Wheat flour') >= 0)};
+  });
+  test('A5', 'WhatsApp menu text', function () {
+    var d = addDays(today, 3), txt = JJ.app.menuText(d);
+    var ok = ['Breakfast', 'Lunch', 'Snack', 'Dinner', 'Navkarsi', 'Chauvihar', 'bijaldvyas-ai.github.io/JainJoy'].every(function (w) { return txt.indexOf(w) >= 0; });
+    return {ok: ok && txt.length < 1500, details: txt.replace(/\n/g, ' | ').slice(0, 300)};
+  });
+  test('A6', 'Auto refresh is switched on', function () {
+    var x = new XMLHttpRequest(); x.open('GET', '../index.html?nc=' + Date.now(), false); x.send();
+    var h = x.responseText, ok = /controllerchange/.test(h) && /reg\.update\(\)/.test(h) && /visibilitychange/.test(h) && /updateViaCache: 'none'/.test(h);
+    return {ok: ok, details: 'reloads on a new version: ' + /controllerchange/.test(h) + '; checks on open, on return to the app and every 30 min: ' + (/visibilitychange/.test(h) && /30 \* 60/.test(h))};
+  });
+
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();
