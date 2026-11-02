@@ -44,6 +44,10 @@ JJ.OBSERVANCES = [
   {k:'oli_chaitra', m:0, p:'S', from:7, to:15, trad:'swt', en:'Ayambil Oli (Chaitra)', hi:'आयंबिल ओली (चैत्र)', gu:'આયંબિલ ઓળી (ચૈત્ર)'},
   {k:'akshaya_tritiya', m:1, p:'S', n:3, trad:'all', en:'Akshaya Tritiya (Varshitap Parna)', hi:'अक्षय तृतीया (वर्षीतप पारणा)', gu:'અક્ષય તૃતીયા (વર્ષીતપ પારણાં)'},
   {k:'chaumasi_ashadh', m:3, p:'S', n:14, trad:'all', en:'Ashadhi Chaumasi Chaudas (Chaturmas begins)', hi:'आषाढ़ी चौमासी चौदस (चातुर्मास आरंभ)', gu:'અષાઢી ચોમાસી ચૌદસ (ચાતુર્માસ પ્રારંભ)'},
+  {k:'paryushan', m:4, p:'K', from:12, to:15, trad:'swt', en:'Paryushan Parva', hi:'पर्युषण पर्व', gu:'પર્યુષણ પર્વ'},
+  {k:'paryushan', m:5, p:'S', from:1, to:3, trad:'swt', en:'Paryushan Parva', hi:'पर्युषण पर्व', gu:'પર્યુષણ પર્વ'},
+  {k:'paryushan', m:4, p:'K', from:12, to:15, trad:'swt', en:'Paryushan Parva', hi:'पर्युषण पर्व', gu:'પર્યુષણ પર્વ'},
+  {k:'paryushan', m:5, p:'S', from:1, to:3, trad:'swt', en:'Paryushan Parva', hi:'पर्युषण पर्व', gu:'પર્યુષણ પર્વ'},
   {k:'samvatsari', m:5, p:'S', n:4, trad:'swt', en:'Samvatsari (end of Paryushan)', hi:'संवत्सरी (पर्युषण का अंतिम दिन)', gu:'સંવત્સરી (પર્યુષણનો છેલ્લો દિવસ)'},
   {k:'das_lakshan', m:5, p:'S', from:5, to:14, trad:'dig', en:'Das Lakshan Parva', hi:'दशलक्षण पर्व', gu:'દશલક્ષણ પર્વ'},
   {k:'anant_chaudas', m:5, p:'S', n:14, trad:'dig', en:'Anant Chaturdashi', hi:'अनंत चतुर्दशी', gu:'અનંત ચતુર્દશી'},
@@ -116,6 +120,8 @@ JJ.panchang = function (iso, c, prof) {
       if (o.trad === 'swt' && !swt) return; if (o.trad === 'dig' && !dig) return;
       var hit = o.n ? o.n === nn : (nn >= o.from && nn <= o.to);
       if (o.k === 'samvatsari' && /Sthanakvasi|Terapanth/.test(prof.subsect || '')) hit = nn === 5;
+      // the 7 days before Samvatsari (one day later where Samvatsari is on Bhadarva Sud 5)
+      if (o.k === 'paryushan' && /Sthanakvasi|Terapanth/.test(prof.subsect || '')) hit = o.p === 'K' ? nn >= 13 : nn <= 4;
       if (hit && obs.indexOf(o) < 0) obs.push(o);
     });
   });
@@ -144,11 +150,14 @@ JJ.parvaKeys = function (p) { return p.observed.filter(function (t) { return JJ.
    standard - Aatham and Chaudas (both pakshas): no leafy vegetables
    custom   - standard plus the household's own green-vegetable days (greenRule, shuklaPanchamGreen)
    Onion, garlic, roots, Kaddu, Alavi and other everyday prohibitions apply on every day in every profile. */
+var FEST_NO_GREEN = {paryushan: 1, samvatsari: 1, das_lakshan: 1};
 JJ.dayRules = function (p, prof) {
   var r = {noLeafy: false, noGreen: false, parva: false, noFruit: false, reasons: [], parvaKeys: JJ.parvaKeys(p)};
   // The five Parva Tithis are mandatory for every household: no leafy or fresh vegetables, herbs or sprouts.
   // No profile setting can weaken them; a household can only add extra days (greenRule) or also avoid fruit.
   if (p.aatham || p.chaudas) { r.noLeafy = true; r.reasons.push(p.aatham ? 'aatham' : 'chaudas'); }
+  // Paryushan (8 days ending with Samvatsari) and Das Lakshan: no green or fresh vegetables, like a Parva Tithi
+  (p.observances || []).forEach(function (o) { if (FEST_NO_GREEN[o.k] && r.parvaKeys.indexOf(o.k) < 0) r.parvaKeys.push(o.k); });
   if (r.parvaKeys.length) { r.parva = true; r.noLeafy = true; r.noFruit = !!prof.parvaFruit; r.reasons = r.parvaKeys.slice(); }
   var profile = prof.obsProfile || 'strict';
   if (profile !== 'custom') return r;

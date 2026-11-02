@@ -332,3 +332,12 @@ From the housewife audit, the top five fixes:
 5. **Kitchen measures.** Recipe ingredients show katori (about 150 ml bowl) next to grams where it makes sense; bread recipes say how many pieces the dough makes.
 
 Acceptance: tests H1–H5 (see TEST-REPORT.md).
+
+## 13. Change log – v2.7.0 (2 Nov 2026)
+
+1. **Ayambil.** 14 Ayambil recipes (meal type "a": breads, dals, rice, one more dish) made only from grains, pulses, salt, black pepper, hing and sonth, with no oil, ghee, milk, sugar, vegetables or fruit. During Ayambil Oli (Chaitra and Aso Sud 7–15) the day shows an Ayambil thali with two options; on any other day the "Ayambil thali" button shows it. Ayambil dishes never enter the everyday menu.
+2. **Paryushan.** The 8 days of Paryushan (Shravan Vad 12 to Bhadarva Sud 4 for Murtipujak; one day later for Sthanakvasi and Terapanth), and Das Lakshan for Digambar, follow the Parva rules: no green or fresh vegetables, herbs or sprouts.
+3. **Dinner start reminder.** The timings card says "Start dinner by …": Chauvihar minus the chosen dinner's cooking time and 20 minutes to eat. An alert comes 15 minutes before while the app is open, and "Add dinner-time alarms" adds 30 days of phone-calendar alarms.
+4. **Pantry.** Shopping → Pantry: tick the staples at home; they leave the list to buy and are shown under "Already at home".
+5. **WhatsApp sharing.** Each day's menu and the shopping list can be shared on WhatsApp (the phone's share sheet, or a WhatsApp link).
+6. **Auto refresh.** The app checks for a new version when opened, when brought back to the screen and every 30 minutes, and reloads itself once with a short "updated" message.

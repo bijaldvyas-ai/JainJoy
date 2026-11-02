@@ -209,7 +209,7 @@ function render() {
   var body;
   if (!P) body = viewProfile(true);
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
-    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList})[top.k](top);
+    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry})[top.k](top);
   else body = tab === 'today' ? viewToday() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
   app.innerHTML = '<div class="phone">' + withCredit(body) + (P ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
@@ -390,6 +390,10 @@ function dayBody(iso, isToday) {
   b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + (hasOptions(menu, k) ? optionPair(iso, k, menu) : mealCard(iso, k, menu)) + '</div>'; }).join('') + '</div>';
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
+  var oli = isOli(iso);
+  if (oli || ui.ayambil === iso) b += ayambilCard(iso);
+  b += '<div class="row share-row"><button class="btn small wa" data-a="wa" data-v="' + iso + '">' + esc(t('share_whatsapp')) + '</button>' +
+    (oli ? '' : '<button class="btn small" data-a="ayambil" data-v="' + iso + '">' + esc(t(ui.ayambil === iso ? 'ayambil_hide' : 'ayambil_show')) + '</button>') + '</div>';
   if (isToday) b += '<div class="quick">' +
     '<button data-a="tab" data-v="shop">' + ic('cart') + '<span>' + esc(t('quick_grocery')) + '</span></button>' +
     '<button data-a="tab" data-v="chog">' + ic('clock') + '<span>' + esc(t('tab_choghadiya')) + '</span></button>' +
@@ -421,7 +425,76 @@ function compactTimings(iso, live) {
   function cell(lbl, ms, cls, showUntil) { return '<div class="tcell ' + (cls || '') + '"><small>' + esc(t(lbl)) + '</small><b>' + hm(ms) + '</b>' + (showUntil ? '<em data-until="' + ms + '">' + until(ms) + '</em>' : '') + '</div>'; }
   return '<section class="card glass"><h3>' + esc(t('timings_title')) + '</h3><div class="tgrid">' +
     cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '', live) + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '', live) +
-    '</div>' + (live ? chogLine() : '') + '<p class="fine" style="margin-top:8px">' + esc(t('sunrise') + ' ' + hm(tm.sunrise) + ' · ' + t('sunset') + ' ' + hm(tm.sunset)) + ' · <button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></p></section>';
+    '</div>' + dinnerLine(iso, live) + (live ? chogLine() : '') + '<p class="fine" style="margin-top:8px">' + esc(t('sunrise') + ' ' + hm(tm.sunrise) + ' · ' + t('sunset') + ' ' + hm(tm.sunset)) + ' · <button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></p></section>';
+}
+/* When to start cooking so dinner is eaten before Chauvihar: the chosen dinner's cooking time
+   (an overnight soak is done the night before, so it does not count) plus 20 minutes to eat, rounded down to 5 minutes. */
+function dinnerStart(iso) {
+  var m = menuFor(iso); if (!m) return null;
+  var x = chosen(m, 'd'), r = x && x.id && JJ.recipeFor(m, x.id); if (!r) return null;
+  var p = pan(iso), cha = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar}).chauvihar;
+  var mins = ((r.prep || 0) >= 120 ? 10 : (r.prep || 0)) + (r.cook || 0) + 20, at = cha - mins * 6e4;
+  return {at: Math.floor(at / 3e5) * 3e5, dish: rName(r), mins: mins, chauvihar: cha};
+}
+function dinnerLine(iso, live) {
+  var s = dinnerStart(iso); if (!s) return '';
+  return '<div class="dinner-start"><b>🍳 ' + esc(t('dinner_start', {time: hm(s.at)})) + '</b>' + (live && Date.now() < s.at ? ' <em data-until="' + s.at + '">' + until(s.at) + '</em>' : '') +
+    '<small>' + esc(t('dinner_start_why', {dish: s.dish, n: s.mins})) + '</small>' +
+    (live ? '<button class="linkbtn" data-a="dinnerics" style="padding:0">' + esc(t('dinner_alarms')) + '</button>' : '') + '</div>';
+}
+/* Ayambil thali: shown by itself during Ayambil Oli, and on any day with the "Ayambil thali" button */
+function isOli(iso) { return pan(iso).observances.some(function (o) { return o.k === 'oli_chaitra' || o.k === 'oli_aso'; }); }
+function ayambilCard(iso) {
+  var opts = JJ.ayambilDay(iso, P); if (!opts[0].length) return '';
+  return '<section class="card glass ayambil"><h3>' + esc(t('ayambil_title')) + '</h3><p class="fine" style="margin:0 0 8px">' + esc(t('ayambil_note')) + '</p><div class="opt-pair">' +
+    opts.map(function (items, i) {
+      return '<div class="opt-card"><b>' + esc(t('option_n', {n: i + 1})) + '</b><ul class="tlist">' + items.map(function (it) {
+        return '<li><button class="linkbtn" style="padding:0;text-align:left" data-a="librecipe" data-v="' + it.id + '">' + esc(rName(JJ.catalog.byId[it.id])) + '</button></li>';
+      }).join('') + '</ul></div>';
+    }).join('') + '</div></section>';
+}
+/* plain-text menu of a day, for WhatsApp */
+function menuText(iso) {
+  var m = menuFor(iso), p = pan(iso), r = JJ.dayRules(p, P); if (!m) return '';
+  var s = '🪷 JainJoy · ' + dLong(iso) + '\n' + JJ.tithiName(p.t, LANG) + ' · ' + t(p.paksha === 'S' ? 'shukla' : 'krishna') + (r.parva ? ' · ' + r.parvaKeys.map(function (k) { return t(k); }).join(', ') : '') + '\n\n';
+  MEALS.forEach(function (k) {
+    if (k === 'l') s += '🍛 ' + t('meal_l') + ': ' + (m.legacy ? m.meals.l.items : JJ.chosenItems(m)).filter(function (it) { return it.id; }).map(function (it) { return rName(JJ.recipeFor(m, it.id)); }).join(', ') + '\n';
+    else { var x = chosen(m, k); s += ({b: '🌅 ', s: '☕ ', d: '🌇 '})[k] + t('meal_' + k) + ': ' + (x && x.id ? rName(JJ.recipeFor(m, x.id)) : '—') + '\n'; }
+  });
+  var tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar});
+  s += '\n' + t('navkarsi') + ' ' + hm(tm.navkarsi) + ' · ' + t('chauvihar') + ' ' + hm(tm.chauvihar) + '\n\nhttps://bijaldvyas-ai.github.io/JainJoy/';
+  return s;
+}
+/* WhatsApp: the phone's share sheet where available, otherwise WhatsApp's own link */
+function shareText(txt) {
+  if (!txt) return;
+  if (navigator.share) { navigator.share({text: txt}).catch(function () {}); return; }
+  window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank', 'noopener');
+}
+function currentGroups(listId) {
+  if (listId && listId.indexOf('saved:') === 0) return JJ.db.get('grocery_lists', listId.slice(6)).groups;
+  var r = rangeFor(ui.gRange); return JJ.grocery(menusIn(r[0], r[1]));
+}
+/* in-app alert 15 minutes before it is time to start dinner (only while the app is open) */
+function maybeDinnerReminder() {
+  if (!P || notifyState() !== 'on') return;
+  var s = dinnerStart(today()), now = Date.now(), key = 'jainjoy.dinner.' + today();
+  if (!s || now < s.at - 15 * 6e4 || now > s.at) return;
+  try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) { return; }
+  try { new Notification(t('dinner_start', {time: hm(s.at)}), {body: t('dinner_start_why', {dish: s.dish, n: s.mins}), icon: 'icon-192.png', tag: 'jainjoy-dinner'}); } catch (e) {}
+}
+/* .ics file: a daily "start dinner" alarm for the next 30 days, at each day's own time */
+function dinnerIcs() {
+  var td = today(), lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//JainJoy//Dinner//EN', 'CALSCALE:GREGORIAN'];
+  function utc(ms) { return new Date(ms).toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z'; }
+  for (var k = 0; k < 30; k++) {
+    var d = JJ.addDays(td, k), s = dinnerStart(d); if (!s) continue;
+    var title = t('dinner_start', {time: hm(s.at)}) + ' – ' + s.dish;
+    lines.push('BEGIN:VEVENT', 'UID:jainjoy-dinner-' + d.replace(/-/g, '') + '@bijaldvyas-ai.github.io', 'DTSTAMP:' + utc(Date.now()), 'DTSTART:' + utc(s.at), 'DTEND:' + utc(s.chauvihar),
+      'SUMMARY:' + title.replace(/[\\;,]/g, function (c) { return '\\' + c; }), 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + title.replace(/[\\;,]/g, function (c) { return '\\' + c; }), 'TRIGGER:-PT10M', 'END:VALARM', 'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
 }
 function viewToday() {
   var td = today();
@@ -574,21 +647,48 @@ function rangeFor(key) {
 }
 function menusIn(a, b) { var out = []; for (var d = a; d <= b; d = JJ.addDays(d, 1)) { var m = menuFor(d); if (m && !m.legacy) out.push(m); } return out; }
 function ticks() { return (JJ.db.get('meta', 'ticks') || {key: 'ticks', v: {}}); }
-function groceryView(groups, listId, title, sub, saved) {
+/* Pantry: staples the household already has at home (dals, flours, spices, oil...). They are kept out of
+   the list to buy and shown apart as "Already at home", until unticked in the pantry. */
+var PANTRY_GROUPS = ['grain', 'pulse', 'spice', 'nuts', 'pantry', 'dairy'];
+function pantry() { return JJ.db.get('meta', 'pantry') || {key: 'pantry', have: {}}; }
+function splitPantry(groups) {
+  var have = pantry().have, home = [];
+  var buy = groups.map(function (g) { return {group: g.group, items: g.items.filter(function (it) { if (have[it.id]) { home.push(it); return false; } return true; })}; })
+    .filter(function (g) { return g.items.length; });
+  return {buy: buy, home: home};
+}
+function groceryView(allGroups, listId, title, sub, saved) {
+  var sp = splitPantry(allGroups), groups = sp.buy;
   var tk = ticks().v[listId] || {}, total = 0, done = 0;
   groups.forEach(function (g) { g.items.forEach(function (it) { total++; if (tk[it.id]) done++; }); });
   var pct = total ? Math.round(done * 100 / total) : 0;
   var b = '<h1 class="h1" style="margin-top:6px">' + esc(title) + '</h1><p class="sub">' + esc(sub) + '</p>';
   b += '<div class="gtop"><div class="ring" id="ring" style="--p:' + pct + '"><span id="ringtxt">' + pct + '%</span></div><div class="tinfo"><b id="gcount">' + esc(t('items_done', {d: done, n: total})) + '</b><small>' + esc(t('grocery_note')) + '</small></div></div>';
-  b += '<div class="gactions"><button class="gbtn" data-a="copy" data-v="' + esc(listId) + '">' + ic('copy') + esc(t('copy_list')) + '</button><button class="gbtn" data-a="clearticks" data-v="' + esc(listId) + '">' + ic('undo') + esc(t('clear_ticks')) + '</button></div>';
+  b += '<div class="gactions"><button class="gbtn" data-a="copy" data-v="' + esc(listId) + '">' + ic('copy') + esc(t('copy_list')) + '</button><button class="gbtn wa" data-a="wa" data-v="list" data-list="' + esc(listId) + '">' + esc(t('share_whatsapp')) + '</button><button class="gbtn" data-a="clearticks" data-v="' + esc(listId) + '">' + ic('undo') + esc(t('clear_ticks')) + '</button><button class="gbtn" data-a="push" data-v="pantry">🏠 ' + esc(t('pantry_title')) + '</button></div>';
   groups.forEach(function (g) {
     b += '<section class="gsec"><h3>' + esc(t('grp_' + g.group)) + '</h3>' + g.items.map(function (it) {
       var a = JJ.buyAmount(it.amt, it.unit);
       return '<label class="gi"><input type="checkbox" data-tick="' + it.id + '" data-list="' + esc(listId) + '"' + (tk[it.id] ? ' checked' : '') + '><span class="gn">' + esc(ingName(it.id)) + '</span><span class="gq">' + a.v + ' ' + esc(t('u_' + a.u)) + '</span></label>';
     }).join('') + '</section>';
   });
+  if (sp.home.length) b += '<details class="card glass fold"><summary>🏠 ' + esc(t('pantry_at_home', {n: sp.home.length})) + '</summary><p class="fine" style="margin:0 0 6px">' + esc(t('pantry_at_home_note')) + '</p>' +
+    sp.home.map(function (it) { var a = JJ.buyAmount(it.amt, it.unit); return '<div class="gi" style="cursor:default"><span class="gn">' + esc(ingName(it.id)) + '</span><span class="gq">' + a.v + ' ' + esc(t('u_' + a.u)) + '</span></div>'; }).join('') + '</details>';
   b += '<p class="fine">' + esc(t('rounded_note')) + '</p>';
   return b;
+}
+/* Pantry screen: tick the staples you already have; they leave the shopping list. */
+function viewPantry() {
+  var have = pantry().have, by = {};
+  JJ.ING_ROWS.forEach(function (row) { var g = JJ.ING[row[0]]; if (!g || g.banned || g.id === 'water' || PANTRY_GROUPS.indexOf(g.cat) < 0) return; (by[g.cat] = by[g.cat] || []).push(g); });
+  var n = Object.keys(have).length;
+  var b = '<p class="sub" style="margin-top:8px">' + esc(t('pantry_sub')) + '</p><p class="fine">' + esc(t('pantry_count', {n: n})) + (n ? ' · <button class="linkbtn" data-a="pantryclear" style="padding:0">' + esc(t('pantry_clear')) + '</button>' : '') + '</p>';
+  PANTRY_GROUPS.forEach(function (c) {
+    var list = (by[c] || []).sort(function (a, b2) { return ingName(a.id).localeCompare(ingName(b2.id)); }); if (!list.length) return;
+    b += '<section class="gsec"><h3>' + esc(t('grp_' + c)) + '</h3>' + list.map(function (g) {
+      return '<label class="gi"><input type="checkbox" data-pantry="' + g.id + '"' + (have[g.id] ? ' checked' : '') + '><span class="gn">' + esc(ingName(g.id)) + '</span></label>';
+    }).join('') + '</section>';
+  });
+  return backBar(t('pantry_title')) + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
 /* Separate guidance for Parva Tithi days: which dates, and exactly what those days need (never fresh vegetables) */
 function parvaShopping(menus) {
@@ -634,8 +734,8 @@ function viewSavedList(top) {
   return backBar(t('saved_lists')) + '<main class="scroll gx" id="scroll">' + groceryView(l.groups, 'saved:' + l.id, t('grocery_title'), dShort(l.from) + ' – ' + dShort(l.to)) + '</main>';
 }
 function listText(groups) {
-  var s = 'JainJoy\n';
-  groups.forEach(function (g) { s += '\n' + t('grp_' + g.group) + '\n'; g.items.forEach(function (it) { var a = JJ.buyAmount(it.amt, it.unit); s += '- ' + ingName(it.id) + ': ' + a.v + ' ' + t('u_' + a.u) + '\n'; }); });
+  var s = '🪷 JainJoy\n';
+  splitPantry(groups).buy.forEach(function (g) { s += '\n' + t('grp_' + g.group) + '\n'; g.items.forEach(function (it) { var a = JJ.buyAmount(it.amt, it.unit); s += '- ' + ingName(it.id) + ': ' + a.v + ' ' + t('u_' + a.u) + '\n'; }); });
   return s;
 }
 
@@ -917,6 +1017,14 @@ app.addEventListener('click', function (e) {
       a2.href = URL.createObjectURL(blob); a2.download = 'jainjoy-parva-reminders.ics'; document.body.appendChild(a2); a2.click(); a2.remove();
       toast(t('ics_done')); break;
     }
+    case 'dinnerics': {
+      var blob2 = new Blob([dinnerIcs()], {type: 'text/calendar'}), a3 = document.createElement('a');
+      a3.href = URL.createObjectURL(blob2); a3.download = 'jainjoy-dinner-reminders.ics'; document.body.appendChild(a3); a3.click(); a3.remove();
+      toast(t('ics_done')); break;
+    }
+    case 'wa': shareText(v === 'list' ? listText(currentGroups(el.dataset.list)) : menuText(v)); break;
+    case 'pantryclear': JJ.db.put('meta', {key: 'pantry', have: {}}); render(); break;
+    case 'ayambil': ui.ayambil = ui.ayambil === v ? null : v; render(); break;
     case 'notify': {
       if (!window.Notification) { toast(t('notify_unsupported')); break; }
       if (notifyState() === 'on') { try { localStorage.removeItem('jainjoy.notify'); } catch (e) {} render(); toast(t('notify_off')); break; }
@@ -980,6 +1088,7 @@ app.addEventListener('change', function (e) {
   else if (el.id === 'pf-cha') { draft.chauvihar = +el.value; render(); }
   else if (el.id === 'pf-cal') { draft.calendar = el.value; render(); }
   else if (el.dataset.pf) { draft[el.dataset.pf] = el.checked; render(); }
+  else if (el.dataset.pantry) { var pt = pantry(); if (el.checked) pt.have[el.dataset.pantry] = 1; else delete pt.have[el.dataset.pantry]; JJ.db.put('meta', pt); render(); }
   else if (el.dataset.tick) { var tk = ticks(), l = el.dataset.list; tk.v[l] = tk.v[l] || {}; if (el.checked) tk.v[l][el.dataset.tick] = true; else delete tk.v[l][el.dataset.tick]; JJ.db.put('meta', tk); refreshCounts(); }
   else if (el.dataset.ed === 'flags') { stack[stack.length - 1].form.flags = el.checked ? 'ch' : ''; render(); }
   else if (el.dataset.ed) { stack[stack.length - 1].form[el.dataset.ed] = el.value; render(); }
@@ -1051,12 +1160,12 @@ var lastDay = null;
 setInterval(function () {
   tick();
   if (!P) return;
-  maybeEveningReminder();
+  maybeEveningReminder(); maybeDinnerReminder();
   var td = today(); if (lastDay && td !== lastDay) { freezeHistory(); if (!stack.length) render(); } lastDay = td;
 }, 30000);
 
 /* ---------------- boot ---------------- */
-JJ.app = {render: render, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
+JJ.app = {render: render, toast: toast, dinnerStart: dinnerStart, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
   get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache};
 JJ.boot = function () {
   return JJ.db.open().then(function () {

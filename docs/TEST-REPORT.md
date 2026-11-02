@@ -1,6 +1,6 @@
 # JainJoy 2.0 – Test Report
 
-**Run:** 2 Nov 2026, Chrome (desktop app browser), local server and live site · **Result: 47 of 47 passed** (v2.6.0: home-kitchen limits added)
+**Run:** 2 Nov 2026, Chrome (desktop app browser), local server · **Result: 53 of 53 passed** (v2.7.0: Ayambil, Paryushan, dinner reminder, pantry, WhatsApp, auto refresh)
 **Astronomy:** Astronomy Engine 2.1.19 · **Reference city:** Ahmedabad unless stated
 **How to rerun:** open `tests/index.html` from any web server (for example `https://bijaldvyas-ai.github.io/JainJoy/tests/`). The tests use a separate database (`jainjoy-test`) and never touch real app data.
 
@@ -106,3 +106,14 @@ Gujarati family of 4, 28 days starting on a Monday, strict Parva rules.
 | Measures | grams only | grams + katori; breads show piece count |
 
 Note: the lunch minutes add up every bowl separately; in a real kitchen dal, rice and sabzi cook side by side, so time at the stove is shorter.
+
+## v2.7.0 tests
+
+| # | Test | Result | Evidence |
+|---|---|---|---|
+| A1 | Ayambil dishes use only grains, pulses, salt, pepper, hing and sonth | PASS | 14 Ayambil recipes, all valid; Aso Oli 2026 starts 18 Oct; two different thalis per day, changing daily; never in everyday menus |
+| A2 | Paryushan: 8 days ending with Samvatsari, no green vegetables | PASS | 8 Sep – 15 Sep 2026 (Samvatsari 15 Sep, Murtipujak); every menu passes the Parva rules |
+| A3 | Dinner start time | PASS | Start time = Chauvihar − (dinner cooking time + 20 min to eat) |
+| A4 | Pantry items leave the shopping list | PASS | Atta and salt moved to "Already at home" and left out of the shared list |
+| A5 | WhatsApp menu text | PASS | Date, tithi, 4 meals, Navkarsi, Chauvihar and the app link |
+| A6 | Auto refresh | PASS | Checks for a new version on open, on return to the app and every 30 minutes; reloads itself once when one is installed |
