@@ -494,6 +494,34 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     return {ok: ok, details: 'reloads on a new version: ' + /controllerchange/.test(h) + '; checks on open, on return to the app and every 30 min: ' + (/visibilitychange/.test(h) && /30 \* 60/.test(h))};
   });
 
+  // ---- v2.8: Diwali festive menu ----
+  function festDays(from, to) {
+    var out = {};
+    for (var d = from; d <= to; d = addDays(d, 1)) JJ.panchang(d, city, Pg).observances.forEach(function (o) { if (JJ.FESTIVE[o.k]) (out[o.k] = out[o.k] || []).push(d); });
+    return out;
+  }
+  test('D1', 'Diwali festival days (evening festivals by sunset tithi, Jain days by sunrise)', function () {
+    var f26 = festDays('2026-10-25', '2026-11-20'), f25 = festDays('2025-10-10', '2025-11-05');
+    var want26 = {vagh_baras: '2026-11-05', dhanteras: '2026-11-06', kali_chaudas: '2026-11-07', lakshmi_pujan: '2026-11-08', diwali: '2026-11-09', new_year: '2026-11-10', bhai_beej: '2026-11-11', gyan_pancham: '2026-11-14'};
+    var want25 = {dhanteras: '2025-10-18', lakshmi_pujan: '2025-10-20', diwali: '2025-10-21', new_year: '2025-10-22', bhai_beej: '2025-10-23'};
+    var bad = [];
+    Object.keys(want26).forEach(function (k) { if ((f26[k] || []).join() !== want26[k]) bad.push('2026 ' + k + ' = ' + (f26[k] || []).join()); });
+    Object.keys(want25).forEach(function (k) { if ((f25[k] || []).join() !== want25[k]) bad.push('2025 ' + k + ' = ' + (f25[k] || []).join()); });
+    return {ok: !bad.length, details: bad.length ? 'mismatch: ' + bad.join('; ') : '2026: ' + Object.keys(want26).map(function (k) { return k + ' ' + want26[k].slice(5); }).join(', ') + '; 2025 reference (Dhanteras 18 Oct, Lakshmi Pujan 20 Oct, Jain Diwali 21 Oct, New Year 22 Oct, Bhai Beej 23 Oct): all match'};
+  });
+  test('D2', 'Festive dishes are Jain compliant and shown on the right days', function () {
+    var fr = JJ.catalog.list.filter(function (r) { return r.meal === 'f'; }), bad = fr.filter(function (r) { return !r.valid || !JJ.levelB(r); }).map(function (r) { return r.id; });
+    var missing = []; Object.keys(JJ.FESTIVE).forEach(function (k) { JJ.FESTIVE[k].special.concat(JJ.FESTIVE[k].nasto).forEach(function (id) { if (!JJ.catalog.byId[id]) missing.push(id); }); });
+    JJ.app.profile = Object.assign({created: '2026-10-01'}, STRICT()); JJ.db.put('profiles', JJ.app.profile);
+    var shown = ['2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08', '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-14'].map(function (d) { var f = JJ.app.festiveFor(d); return d.slice(5) + ':' + f.map(function (x) { return x.special.length + x.nasto.length; }).join('+'); });
+    var empty = shown.filter(function (s) { return /:0?$/.test(s); });
+    var pancham = JJ.app.festiveFor('2026-11-14')[0], panchamOk = pancham && pancham.special.length === JJ.FESTIVE.gyan_pancham.special.length;
+    var plain = JJ.app.festiveFor('2026-11-20').length === 0;
+    var inMenus = PARVA_RUN.guj.some(function (m) { return JJ.menuRecipeIds(m).some(function (id) { return /^f\d/.test(id); }); });
+    return {ok: fr.length >= 14 && !bad.length && !missing.length && !empty.length && panchamOk && plain && !inMenus,
+      details: fr.length + ' festive recipes; not Parva-safe or invalid: ' + (bad.join(',') || 'none') + '; missing ids: ' + (missing.join(',') || 'none') + '; dishes per day: ' + shown.join(' ') + '; Labh Pancham (Parva) keeps all dishes: ' + panchamOk + '; none on an ordinary day: ' + plain + '; never in everyday menus: ' + !inMenus};
+  });
+
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();

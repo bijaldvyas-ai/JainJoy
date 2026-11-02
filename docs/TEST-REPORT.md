@@ -1,6 +1,6 @@
 # JainJoy 2.0 – Test Report
 
-**Run:** 2 Nov 2026, Chrome (desktop app browser), local server · **Result: 53 of 53 passed** (v2.7.0: Ayambil, Paryushan, dinner reminder, pantry, WhatsApp, auto refresh)
+**Run:** 2 Nov 2026, Chrome (desktop app browser), local server · **Result: 55 of 55 passed** (v2.8.0: Diwali festive menu)
 **Astronomy:** Astronomy Engine 2.1.19 · **Reference city:** Ahmedabad unless stated
 **How to rerun:** open `tests/index.html` from any web server (for example `https://bijaldvyas-ai.github.io/JainJoy/tests/`). The tests use a separate database (`jainjoy-test`) and never touch real app data.
 
@@ -117,3 +117,10 @@ Note: the lunch minutes add up every bowl separately; in a real kitchen dal, ric
 | A4 | Pantry items leave the shopping list | PASS | Atta and salt moved to "Already at home" and left out of the shared list |
 | A5 | WhatsApp menu text | PASS | Date, tithi, 4 meals, Navkarsi, Chauvihar and the app link |
 | A6 | Auto refresh | PASS | Checks for a new version on open, on return to the app and every 30 minutes; reloads itself once when one is installed |
+
+## v2.8.0 tests – Diwali festive menu
+
+| # | Test | Result | Evidence |
+|---|---|---|---|
+| D1 | Diwali festival days | PASS | 2026 (Ahmedabad): Vagh Baras 5 Nov, Dhanteras 6 Nov, Kali Chaudas 7 Nov, Lakshmi Pujan 8 Nov, Jain Diwali (Mahavir Nirvan) 9 Nov, Nutan Varsh 10 Nov, Bhai Beej 11 Nov, Labh/Gyan Pancham 14 Nov. 2025 reference dates (Dhanteras 18 Oct, Lakshmi Pujan 20 Oct, Jain Diwali 21 Oct, New Year 22 Oct, Bhai Beej 23 Oct) all match |
+| D2 | Festive dishes are Jain compliant and shown on the right days | PASS | 14 festive recipes, all valid and Parva-safe; every festival day has dishes; Labh Pancham (a Parva day) keeps all its dishes; none on ordinary days; never in the everyday menu |

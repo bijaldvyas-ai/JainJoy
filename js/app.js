@@ -392,6 +392,7 @@ function dayBody(iso, isToday) {
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
   var oli = isOli(iso);
+  b += festiveCard(iso);
   if (oli || ui.ayambil === iso) b += ayambilCard(iso);
   b += '<div class="row share-row">' + (isToday ? '' : '<button class="btn small wa" data-a="wa" data-v="' + iso + '">' + esc(t('share_whatsapp')) + '</button>') +
     (oli ? '' : '<button class="btn small" data-a="ayambil" data-v="' + iso + '">' + esc(t(ui.ayambil === iso ? 'ayambil_hide' : 'ayambil_show')) + '</button>') + '</div>';
@@ -454,6 +455,34 @@ function ayambilCard(iso) {
       }).join('') + '</ul></div>';
     }).join('') + '</div></section>';
 }
+/* Diwali festive menu: the festival days of a date and the festive dishes that pass today's rules */
+function festiveFor(iso) {
+  var p = pan(iso), rules = JJ.dayRules(p, P), out = [];
+  p.observances.forEach(function (o) {
+    var f = JJ.FESTIVE && JJ.FESTIVE[o.k]; if (!f) return;
+    function ok(id) { var r = JJ.catalog.byId[id]; return r && r.valid !== false && !!JJ.allowed(r, rules, P); }
+    out.push({k: o.k, special: f.special.filter(ok), nasto: f.nasto.filter(ok), note: f.note});
+  });
+  return out;
+}
+function festiveCard(iso) {
+  var fs = festiveFor(iso); if (!fs.length) return '';
+  function links(ids) { return ids.map(function (id) { return '<li><button class="linkbtn" style="padding:0;text-align:left" data-a="librecipe" data-v="' + id + '">' + esc(rName(JJ.catalog.byId[id])) + '</button></li>'; }).join(''); }
+  return fs.map(function (f) {
+    return '<section class="card glass festive"><h3>🪔 ' + esc(t('festive_title')) + ' · ' + esc(t(f.k)) + '</h3><p class="fine" style="margin:0 0 8px">' + esc(nm(f.note)) + '</p><div class="opt-pair">' +
+      (f.special.length ? '<div class="opt-card"><b>' + esc(t('festive_special')) + '</b><ul class="tlist">' + links(f.special) + '</ul></div>' : '') +
+      (f.nasto.length ? '<div class="opt-card"><b>' + esc(t('festive_nasto')) + '</b><ul class="tlist">' + links(f.nasto) + '</ul></div>' : '') + '</div></section>';
+  }).join('');
+}
+/* shopping for the festive dishes of the days in a range, kept apart from the daily list */
+function festiveShopping(menus) {
+  var days = [], ids = [];
+  menus.forEach(function (m) { festiveFor(m.date).forEach(function (f) { days.push(dShort(m.date) + ' ' + t(f.k)); f.special.concat(f.nasto).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); }); }); });
+  if (!ids.length) return '';
+  var g = JJ.grocery([{date: menus[0].date, hh: P.hh, choice: {}, meals: {l: {items: ids.map(function (id) { return {slot: 'f', id: id}; })}}}]);
+  return '<details class="card glass fold"><summary>🪔 ' + esc(t('festive_shop', {n: days.length})) + '</summary><p class="fine" style="margin:0 0 6px">' + esc(days.join(' · ')) + '. ' + esc(t('festive_shop_note')) + '</p>' +
+    g.map(function (gr) { return '<div class="gsec"><h3>' + esc(t('grp_' + gr.group)) + '</h3>' + gr.items.map(function (it) { var a = JJ.buyAmount(it.amt, it.unit); return '<div class="gi" style="cursor:default"><span class="gn">' + esc(ingName(it.id)) + '</span><span class="gq">' + a.v + ' ' + esc(t('u_' + a.u)) + '</span></div>'; }).join('') + '</div>'; }).join('') + '</details>';
+}
 /* plain-text menu of a day, for WhatsApp */
 function menuText(iso) {
   var m = menuFor(iso), p = pan(iso), r = JJ.dayRules(p, P); if (!m) return '';
@@ -462,6 +491,7 @@ function menuText(iso) {
     if (k === 'l') s += '🍛 ' + t('meal_l') + ': ' + (m.legacy ? m.meals.l.items : JJ.chosenItems(m)).filter(function (it) { return it.id; }).map(function (it) { return rName(JJ.recipeFor(m, it.id)); }).join(', ') + '\n';
     else { var x = chosen(m, k); s += ({b: '🌅 ', s: '☕ ', d: '🌇 '})[k] + t('meal_' + k) + ': ' + (x && x.id ? rName(JJ.recipeFor(m, x.id)) : '—') + '\n'; }
   });
+  festiveFor(iso).forEach(function (f) { s += '🪔 ' + t(f.k) + ': ' + f.special.concat(f.nasto).map(function (id) { return rName(JJ.catalog.byId[id]); }).join(', ') + '\n'; });
   var tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar});
   s += '\n' + t('navkarsi') + ' ' + hm(tm.navkarsi) + ' · ' + t('chauvihar') + ' ' + hm(tm.chauvihar) + '\n\nhttps://bijaldvyas-ai.github.io/JainJoy/';
   return s;
@@ -705,7 +735,7 @@ function viewShop() {
   var listId = ui.gRange + ':' + r[0];
   if (ui.gRange === 'week') JJ.db.put('grocery_lists', {id: 'week:' + r[0], from: r[0], to: r[1], createdAt: Date.now(), hh: P.hh, groups: groups});
   var seg = '<div class="seg" role="group">' + [['week', 'g_week'], ['month', 'g_month'], ['next', 'g_next']].map(function (x) { return '<button data-a="grange" data-v="' + x[0] + '" aria-pressed="' + (ui.gRange === x[0]) + '">' + esc(t(x[1])) + '</button>'; }).join('') + '</div>';
-  var b = seg + parvaShopping(menus) + (ui.gRange === 'week' ? vegTrips(menus) : '') + groceryView(groups, listId, t('grocery_title'), dShort(r[0]) + ' – ' + dShort(r[1]) + ' · ' + t('for_members', {n: P.hh}) + ' · ' + t('days_n', {n: menus.length}));
+  var b = seg + parvaShopping(menus) + festiveShopping(menus) + (ui.gRange === 'week' ? vegTrips(menus) : '') + groceryView(groups, listId, t('grocery_title'), dShort(r[0]) + ' – ' + dShort(r[1]) + ' · ' + t('for_members', {n: P.hh}) + ' · ' + t('days_n', {n: menus.length}));
   b += '<p class="fine" style="text-align:center"><button class="linkbtn" data-a="push" data-v="glists">' + esc(t('saved_lists')) + '</button></p>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
@@ -1169,7 +1199,7 @@ setInterval(function () {
 }, 30000);
 
 /* ---------------- boot ---------------- */
-JJ.app = {render: render, toast: toast, dinnerStart: dinnerStart, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
+JJ.app = {render: render, toast: toast, festiveFor: festiveFor, dinnerStart: dinnerStart, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
   get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache};
 JJ.boot = function () {
   return JJ.db.open().then(function () {

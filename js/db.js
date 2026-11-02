@@ -5,7 +5,7 @@
    private windows), data is kept in localStorage instead. */
 (function (JJ) {
 'use strict';
-var DB_NAME = window.JJ_DB_NAME || 'jainjoy', DB_VERSION = 1, SEED_VERSION = 5;
+var DB_NAME = window.JJ_DB_NAME || 'jainjoy', DB_VERSION = 1, SEED_VERSION = 6;
 var STORES = {
   meta: 'key', users: 'id', profiles: 'userId', traditions: 'id', regions: 'id', ingredients: 'id', ingredient_restrictions: 'id',
   recipes: 'id', recipe_translations: 'key', recipe_sources: 'recipeId', panchang: 'key', timings: 'key',
