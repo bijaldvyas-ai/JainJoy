@@ -296,15 +296,44 @@ function parvaIcs() {
 }
 /* which recipe is shown for a meal: option 1 or option 2 */
 function chosen(menu, k) { return menu.legacy ? menu.meals[k] : JJ.chosenMeal(menu, k); }
-function optionToggle(iso, k, menu) {
-  if (menu.legacy) return '';
-  var x = menu.meals[k], has = k === 'l' ? (x.items || []).some(function (it) { return it.alt; }) : x && x.alt;
-  if (!has) return '';
-  var cur = (menu.choice && menu.choice[k]) || 0, locked = menu.status === 'history' && iso !== today();
-  var name2 = k === 'l' ? t('alt_thali') : rName(JJ.recipeFor(menu, x.alt.id)), name1 = k === 'l' ? t('main_thali') : rName(JJ.recipeFor(menu, x.id));
-  return '<div class="opt-toggle" role="group" aria-label="' + esc(t('choose_option')) + '">' + [name1, name2].map(function (n, i) {
-    return '<button data-a="choose" data-d="' + iso + '" data-m="' + k + '" data-v="' + i + '" aria-pressed="' + (cur === i) + '"' + (locked ? ' disabled' : '') + '><small>' + esc(t('option_n', {n: i + 1})) + '</small><span>' + esc(n) + '</span></button>';
-  }).join('') + '</div>';
+function hasOptions(menu, k) {
+  if (menu.legacy) return false;
+  var x = menu.meals[k];
+  return k === 'l' ? (x.items || []).some(function (it) { return it.alt; }) : !!(x && x.id && x.alt);
+}
+/* lunch items for option 0 (first thali) or 1 (second thali); undefined = the chosen one */
+function itemsFor(menu, opt) {
+  if (opt == null) return JJ.chosenItems(menu);
+  return (menu.meals.l.items || []).map(function (it) { return opt === 1 && it.alt ? Object.assign({}, it, {id: it.alt.id, drop: it.alt.drop}) : it; });
+}
+/* Side-by-side: both options as two small cards. Tap a card to choose it; "Recipe ›" / "Thali ›" opens it. */
+function optionPair(iso, k, menu) {
+  var x = menu.meals[k], cur = (menu.choice && menu.choice[k]) || 0, locked = menu.status === 'history' && iso !== today();
+  var parva = menu.rules && menu.rules.parva;
+  function card(i) {
+    var r, title, sub, open;
+    if (k === 'l') {
+      var its = itemsFor(menu, i).filter(function (it) { return it.id; });
+      r = JJ.recipeFor(menu, (its[1] || its[0]).id);
+      title = t(i ? 'alt_thali' : 'main_thali');
+      sub = its.filter(function (it) { return it.slot !== 'bread' && it.slot !== 'rice'; }).map(function (it) { return rName(JJ.recipeFor(menu, it.id)); }).join(' · ');
+      var tmp = Object.assign({}, menu, {choice: Object.assign({}, menu.choice, {l: i})});
+      sub += '\n' + JJ.dayNutrition(tmp).l[0] + ' ' + t('kcal');
+      open = '<button class="opt-open" data-a="thali" data-d="' + iso + '" data-o="' + i + '">' + esc(t('open_thali')) + ' ›</button>';
+    } else {
+      var o = i ? x.alt : x; r = JJ.recipeFor(menu, o.id);
+      title = rName(r); sub = timeText(r) + '\n' + JJ.recipeNutrition(r, o.drop)[0] + ' ' + t('kcal');
+      open = '<button class="opt-open" data-a="recipe" data-d="' + iso + '" data-id="' + o.id + '">' + esc(t('open_recipe')) + ' ›</button>';
+    }
+    var on = cur === i;
+    return '<div class="opt-card' + (on ? ' on' : '') + '"><button class="opt-pick" data-a="choose" data-d="' + iso + '" data-m="' + k + '" data-v="' + i + '" aria-pressed="' + on + '"' + (locked && !on ? ' disabled' : '') + '>' +
+      '<span class="opt-top">' + plate(r, 40) + '<span class="opt-mark">' + (on ? '✓' : esc(t('option_n', {n: i + 1}))) + '</span></span>' +
+      '<b>' + esc(title) + '</b><small>' + esc(sub).replace(/\n/g, '<br>') + '</small></button>' + open + '</div>';
+  }
+  var dinner = k === 'd' ? '<p class="warn-line" style="color:var(--saffron);margin:4px 2px 0">' + esc(t('finish_before', {time: hm(JJ.timings(pan(iso), {navkarsi: P.navkarsi, chauvihar: P.chauvihar}).chauvihar)})) + '</p>' : '';
+  return '<div class="opt-head"><span class="mtag mt-' + k + '">' + esc(t('meal_' + k)) + (k === 'l' ? ' · ' + esc(nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)) : '') + '</span>' +
+    (parva ? '<span class="tag ok">' + esc(t('parva_ok')) + '</span>' : '') + '<span class="opt-hint">' + esc(t(locked ? 'option_locked' : 'tap_to_choose')) + '</span></div>' +
+    '<div class="opt-pair" role="group" aria-label="' + esc(t('choose_option')) + '">' + card(0) + card(1) + '</div>' + dinner;
 }
 function mealCard(iso, k, menu) {
   var x = chosen(menu, k), tagCls = {b: 'b', l: 'l', s: 's', d: 'd'}[k];
@@ -330,7 +359,7 @@ function dayBody(iso, isToday) {
   b += compactTimings(iso, isToday);
   b += tithiCard(iso);
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
-  b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + optionToggle(iso, k, menu) + '</div>'; }).join('') + '</div>';
+  b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + (hasOptions(menu, k) ? optionPair(iso, k, menu) : mealCard(iso, k, menu)) + '</div>'; }).join('') + '</div>';
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
   if (isToday) b += '<div class="quick">' +
@@ -380,7 +409,7 @@ function viewDayPushed(top) {
 
 /* ---------------- Thali and recipe ---------------- */
 function viewThali(top) {
-  var menu = menuFor(top.date), items = menu.legacy ? (menu.meals.l.items || []) : JJ.chosenItems(menu), cu = JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen;
+  var menu = menuFor(top.date), items = menu.legacy ? (menu.meals.l.items || []) : itemsFor(menu, top.opt), cu = JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen;
   var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('thali_title', {c: nm(cu)})) + '</h1><p class="sub">' + esc(t('thali_sub')) + '</p>';
   var hasRaw = false, hasPulse = false;
   items.forEach(function (it) {
@@ -830,7 +859,7 @@ app.addEventListener('click', function (e) {
     case 'day': stack.push({k: 'day', date: v}); render(); break;
     case 'shift': if (top) { top.date = JJ.addDays(top.date, +v); render(); } break;
     case 'recipe': stack.push({k: 'recipe', date: el.dataset.d, id: el.dataset.id}); render(); break;
-    case 'thali': stack.push({k: 'thali', date: el.dataset.d}); render(); break;
+    case 'thali': stack.push({k: 'thali', date: el.dataset.d, opt: el.dataset.o != null ? +el.dataset.o : undefined}); render(); break;
     case 'librecipe': stack.push({k: 'recipe', id: v}); render(); break;
     case 'libmeal': ui.lib.meal = v; render(); break;
     case 'choose': {
