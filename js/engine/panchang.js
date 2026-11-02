@@ -53,8 +53,13 @@ JJ.OBSERVANCES = [
   {k:'anant_chaudas', m:5, p:'S', n:14, trad:'dig', en:'Anant Chaturdashi', hi:'अनंत चतुर्दशी', gu:'અનંત ચતુર્દશી'},
   {k:'kshamavani', m:5, p:'K', n:1, trad:'dig', en:'Kshamavani Parva', hi:'क्षमावाणी पर्व', gu:'ક્ષમાવાણી પર્વ'},
   {k:'oli_aso', m:6, p:'S', from:7, to:15, trad:'swt', en:'Ayambil Oli (Aso)', hi:'आयंबिल ओली (आसो)', gu:'આયંબિલ ઓળી (આસો)'},
+  {k:'vagh_baras', m:6, p:'K', n:12, eve:1, trad:'all', en:'Vagh Baras', hi:'वाघ बारस', gu:'વાઘ બારસ'},
+  {k:'dhanteras', m:6, p:'K', n:13, eve:1, trad:'all', en:'Dhanteras', hi:'धनतेरस', gu:'ધનતેરસ'},
+  {k:'kali_chaudas', m:6, p:'K', n:14, eve:1, trad:'all', en:'Kali Chaudas', hi:'काली चौदस', gu:'કાળી ચૌદસ'},
+  {k:'lakshmi_pujan', m:6, p:'K', n:15, eve:1, trad:'all', en:'Diwali – Lakshmi Pujan (evening)', hi:'दीपावली – लक्ष्मी पूजन (शाम)', gu:'દિવાળી – લક્ષ્મી પૂજન (સાંજ)'},
   {k:'diwali', m:6, p:'K', n:15, trad:'all', en:'Diwali – Mahavir Nirvan Kalyanak', hi:'दीपावली – महावीर निर्वाण कल्याणक', gu:'દિવાળી – મહાવીર નિર્વાણ કલ્યાણક'},
   {k:'new_year', m:7, p:'S', n:1, trad:'all', en:'Jain New Year – Gautam Swami Kevalgnan', hi:'जैन नववर्ष – गौतम स्वामी केवलज्ञान', gu:'જૈન નૂતન વર્ષ – ગૌતમ સ્વામી કેવળજ્ઞાન'},
+  {k:'bhai_beej', m:7, p:'S', n:2, trad:'all', en:'Bhai Beej', hi:'भाई दूज', gu:'ભાઈબીજ'},
   {k:'gyan_pancham', m:7, p:'S', n:5, trad:'swt', en:'Gyan Pancham (Labh Pancham)', hi:'ज्ञान पंचमी (लाभ पंचमी)', gu:'જ્ઞાન પંચમી (લાભ પાંચમ)'},
   {k:'chaumasi_kartak', m:7, p:'S', n:14, trad:'all', en:'Kartaki Chaumasi Chaudas', hi:'कार्तिक चौमासी चौदस', gu:'કારતકી ચોમાસી ચૌદસ'},
   {k:'kartik_punam', m:7, p:'S', n:15, trad:'all', en:'Kartik Purnima (Siddhachal Yatra)', hi:'कार्तिक पूर्णिमा (सिद्धाचल यात्रा)', gu:'કારતક પૂનમ (સિદ્ધાચલ યાત્રા)'},
@@ -115,6 +120,7 @@ JJ.panchang = function (iso, c, prof) {
   observed.forEach(function (tt) {
     var nn = ((tt - 1) % 15) + 1, pp = tt <= 15 ? 'S' : 'K';
     JJ.OBSERVANCES.forEach(function (o) {
+      if (o.eve) return; // evening festivals are matched at sunset below
       if (lm.adhik) return; // festivals are kept in the regular (nija) month
       if (o.m !== monthIdx || o.p !== pp) return;
       if (o.trad === 'swt' && !swt) return; if (o.trad === 'dig' && !dig) return;
@@ -124,6 +130,13 @@ JJ.panchang = function (iso, c, prof) {
       if (o.k === 'paryushan' && /Sthanakvasi|Terapanth/.test(prof.subsect || '')) hit = o.p === 'K' ? nn >= 13 : nn <= 4;
       if (hit && obs.indexOf(o) < 0) obs.push(o);
     });
+  });
+  // Household festivals celebrated in the evening (Dhanteras, Lakshmi Pujan...) fall on the day
+  // whose sunset has the tithi, not the sunrise tithi used for Jain observances.
+  var te = tithiAt(today.set), lme = lunarMonth(today.set), ne = ((te - 1) % 15) + 1, pe = te <= 15 ? 'S' : 'K';
+  JJ.OBSERVANCES.forEach(function (o) {
+    if (!o.eve || lme.adhik || o.m !== lme.m || o.p !== pe || o.n !== ne) return;
+    if (obs.indexOf(o) < 0) obs.push(o);
   });
   var res = {
     iso: iso, rise: today.rise, set: today.set, mid: today.mid,

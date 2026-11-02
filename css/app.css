@@ -431,3 +431,4 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .greet-row .btn.wa{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:7px 12px;border-radius:999px;font-size:13px}
 .wa-ic{width:16px;height:16px;fill:currentColor;flex:none}
 .title-row{margin-top:6px}.title-row .h1{font-size:24px}
+.festive{border:1.5px solid #e0a020;background:color-mix(in srgb,#ffd36b 14%,transparent)}.festive .opt-card{padding:10px 12px;cursor:default}.festive .tlist{list-style:none;padding-left:0;margin:6px 0 0}.festive .tlist li{margin:3px 0}

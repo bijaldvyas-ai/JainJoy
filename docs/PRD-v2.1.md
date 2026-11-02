@@ -341,3 +341,10 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 4. **Pantry.** Shopping → Pantry: tick the staples at home; they leave the list to buy and are shown under "Already at home".
 5. **WhatsApp sharing.** Each day's menu and the shopping list can be shared on WhatsApp (the phone's share sheet, or a WhatsApp link).
 6. **Auto refresh.** The app checks for a new version when opened, when brought back to the screen and every 30 minutes, and reloads itself once with a short "updated" message.
+
+## 14. Change log – v2.8.0 Diwali festive menu (2 Nov 2026)
+
+- **Festival days.** Vagh Baras, Dhanteras, Kali Chaudas and Diwali Lakshmi Pujan are evening festivals and fall on the day whose sunset has the tithi. Jain Diwali (Mahavir Nirvan), Nutan Varsh, Bhai Beej and Labh/Gyan Pancham use the sunrise tithi.
+- **Festive recipes.** 14 traditional Gujarati Jain dishes (meal type "f"): Mohanthal, Magas, Ghughra, Kansar, Dudhpak, Basundi, Lapsi, Besan (Nirvan) Laddu, Mathiya, Chorafali, Chakri, Jain Sev, Shakkarpara and Kali Chaudas na Vada, in English, Hindi and Gujarati. None uses a vegetable, root or fresh herb, so all are Parva-safe.
+- **Festive menu card.** On each festival day the day screen shows "Diwali festive menu": what to cook that day, the nasto and sweets, and the tradition behind it. The everyday menu stays as planned; festive dishes are checked against the day's rules and the household's allergies and exclusions.
+- **Shopping and sharing.** Grocery shows a separate "Diwali festive shopping" section for the festive dishes in the chosen range; the WhatsApp day message lists the festive dishes.
