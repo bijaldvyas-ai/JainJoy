@@ -113,12 +113,14 @@ JJ.renderStep = function (st, lang, ING, skip) {
   var t = JJ.STEP_T[st[0]]; if (!t) return String(st[0]);
   var li = {en:0, hi:1, gu:2}[lang] || 0, s = t[li];
   function lst(x) {
-    if (x == null || x === '') return '';
+    if (x == null || x === '' || typeof x === 'number') return '';
     var toks = String(x).split('+').filter(function (k) { return !(skip && skip[k]); });
     return list(toks.map(function (k) { return term(k, lang, ING); }), lang);
   }
   var a = lst(st[1]), b = lst(st[2]);
-  if ((st[1] && !a) || (st[2] && !b)) return null; // every ingredient in this step was skipped today
-  return s.replace('{a}', a).replace('{b}', b).replace(/\{n\}/g, st[3] != null ? st[3] : (typeof st[1] === 'number' ? st[1] : ''));
+  if ((typeof st[1] === 'string' && st[1] && !a) || (typeof st[2] === 'string' && st[2] && !b)) return null; // every ingredient in this step was skipped today
+  // the number (minutes, whistles, ml) is the last numeric value: ['rest', 15], ['add', 'peas', 3], ['x', 'a', 'b', 8]
+  var n = typeof st[3] === 'number' ? st[3] : typeof st[2] === 'number' ? st[2] : typeof st[1] === 'number' ? st[1] : '';
+  return s.replace('{a}', a).replace('{b}', b).replace(/\{n\}/g, n);
 };
 })(window.JJ = window.JJ || {});
