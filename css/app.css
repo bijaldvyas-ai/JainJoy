@@ -426,3 +426,7 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .btn.wa,.gbtn.wa{background:#25d366;color:#fff;border-color:#25d366}
 .ayambil{border:1.5px solid #c9a227}
 .ayambil .opt-card{padding:10px 12px;cursor:default}.ayambil .tlist{list-style:none;padding-left:0;margin:6px 0 0}.ayambil .tlist li{margin:3px 0}
+.greet-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.greet-row .eyebrow{margin:0 2px}
+.greet-row .btn.wa{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:7px 12px;border-radius:999px;font-size:13px}
+.wa-ic{width:16px;height:16px;fill:currentColor;flex:none}

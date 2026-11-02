@@ -33,6 +33,7 @@ function qtyText(id, q) {
 }
 /* the same amount in katori, for cooks who measure by bowl: " ≈ 2½ katori" */
 function kitchenQty(id, q) { var k = JJ.katori(id, q); return k ? '<span class="kq">≈ ' + esc(fracStr(k)) + ' ' + esc(t('u_katori')) + '</span>' : ''; }
+var WA_ICON = '<svg class="wa-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 2a8 8 0 1 1-4.2 14.8l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 0 1 12 4zm-3 4c-.3 0-.6.1-.8.4-.3.3-.9.9-.9 2.1s.9 2.4 1 2.6c.1.2 1.8 2.8 4.4 3.8 2.2.9 2.6.7 3.1.6.5 0 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.5-.3l-1.7-.8c-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.6.1-.3-.1-1.1-.4-2-1.3-.8-.7-1.3-1.5-1.4-1.8-.2-.3 0-.4.1-.5l.4-.5.3-.4v-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4H9z"/></svg>';
 function hm(ms) { return JJ.tz.hm(ms, city().tz, LANG); }
 function until(ms) {
   var d = ms - Date.now();
@@ -392,7 +393,7 @@ function dayBody(iso, isToday) {
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
   var oli = isOli(iso);
   if (oli || ui.ayambil === iso) b += ayambilCard(iso);
-  b += '<div class="row share-row"><button class="btn small wa" data-a="wa" data-v="' + iso + '">' + esc(t('share_whatsapp')) + '</button>' +
+  b += '<div class="row share-row">' + (isToday ? '' : '<button class="btn small wa" data-a="wa" data-v="' + iso + '">' + esc(t('share_whatsapp')) + '</button>') +
     (oli ? '' : '<button class="btn small" data-a="ayambil" data-v="' + iso + '">' + esc(t(ui.ayambil === iso ? 'ayambil_hide' : 'ayambil_show')) + '</button>') + '</div>';
   if (isToday) b += '<div class="quick">' +
     '<button data-a="tab" data-v="shop">' + ic('cart') + '<span>' + esc(t('quick_grocery')) + '</span></button>' +
@@ -498,7 +499,7 @@ function dinnerIcs() {
 }
 function viewToday() {
   var td = today();
-  var b = '<p class="eyebrow">' + esc(t('greeting')) + '</p><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub">' + esc(dLong(td)) + ' · ' + esc(t('for_members', {n: P.hh})) + '</p>' + dayBody(td, true);
+  var b = '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + td + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub">' + esc(dLong(td)) + ' · ' + esc(t('for_members', {n: P.hh})) + '</p>' + dayBody(td, true);
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
 function viewDayPushed(top) {
