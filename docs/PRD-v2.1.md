@@ -1,6 +1,6 @@
-# JainJoy – Jain Meal Planner: Product Requirements Document v2.0
+# JainJoy – Jain Meal Planner: Product Requirements Document v2.1
 
-30 Oct 2026 · Bijal Vyas · Supersedes v1.0 (27 Oct 2026). All valid v1 requirements are kept; changes are marked **[v2]**.
+2 Nov 2026 · Bijal Vyas · Supersedes v2.0 (30 Oct 2026). All approved v1.0 and v2.0 requirements are kept; v2.1 adds the Jain Parva Tithi & Dietary Restriction Engine (section 3.0), two options per meal and the next-day reminder.
 
 ## 1. Overview
 
@@ -42,6 +42,54 @@ JainJoy gives every Jain household a complete, rule-compliant day of food (break
 
 ## 3. Functional requirements
 
+### 3.0 Jain Parva Tithi & Dietary Restriction Engine [v2.1]
+
+The five Parva Tithis are core, calendar-driven food rules.
+
+| # | Parva Tithi | Paksha | Tithi number used by the engine |
+|---|---|---|---|
+| 1 | Sud Pancham | Shukla | 5 |
+| 2 | Sud Aatham | Shukla | 8 |
+| 3 | Vad Aatham | Krishna | 23 (Krishna 8) |
+| 4 | Sud Chaudas | Shukla | 14 |
+| 5 | Vad Chaudas | Krishna | 29 (Krishna 14) |
+
+**Panchang integration**
+- For every date: lunar month (amanta or purnimanta, Adhik detected), paksha, tithi at local sunrise, and the Parva Tithi it carries
+- Tithis spanning two sunrises (vriddhi) are observed on the second day; skipped tithis (kshaya) on the day before, per the Jain rule
+- Calculated from Moon and Sun positions for the household's city every year; no recurring Gregorian dates are stored
+- Verified against published reference dates on the same tithis (Labh Pancham, Durga Ashtami, Janmashtami, Kartaki Chaumasi Chaudas, Kali Chaudas)
+
+**Observance profiles** (Profile → Tithi observances)
+| Profile | Parva Tithi rule |
+|---|---|
+| Strict (default) | On all five Parva Tithis: no leafy vegetables, no fresh vegetables of any kind, no green herbs, no sprouts |
+| Standard | Aatham and Chaudas of both pakshas: no leafy vegetables |
+| Custom | Standard plus the household's own green-vegetable days |
+
+Fresh-fruit avoidance on Parva Tithis is a separate household choice (off by default).
+
+**Everyday rules (every day, every profile):** no onion, no garlic, no root vegetables (kandmool), no non-vegetarian ingredients, no Kaddu, no confirmed Alavi, no honey, butter, mushrooms, brinjal, sprouts, yeast, and dwidal is checked.
+
+**Scope of checks:** breakfast, lunch (every thali component), snacks, dinner, chutneys, sauces, garnishes, side dishes and accompaniments. A prohibited ingredient is never allowed because the quantity is small. On Parva Tithis nothing is dropped from a recipe to make it fit: only recipes whose every ingredient passes are used.
+
+**Ingredient classification database** (every ingredient): id; English, Hindi and Gujarati names; regional names and synonyms (Marathi and transliterations); category; root, leafy, fresh-vegetable, herb, sprout and fruit flags; Jain restriction category; everyday restriction; Parva Tithi restriction; household restriction; verification status. Names are resolved across languages (for example arvi, taro, अरबी and અળવી all resolve to Alavi). Unknown names are queued for admin verification and block approval; they are never treated as safe.
+
+**Recipe validation levels**
+- **Level A – Everyday Jain compliant:** valid record, every ingredient known and permitted every day, dwidal-safe
+- **Level B – Parva Tithi compliant:** Level A and every ingredient (garnish included) free of fresh vegetables, leaves, herbs and sprouts
+- A recipe's name never makes it compliant; only its ingredients do. Each recipe page shows its level and, if not Level B, the ingredients that prevent it
+
+**Meal generation on Parva Tithis:** all four meals use only Level B recipes and permitted accompaniments, preserving the regional thali (Gujarati rotli, tithi dal or kadhi, bhaat; Maharashtrian bhakri, varan or amti, bhaat; Rajasthani roti, dal, rice, gatte or ker sangri; Punjabi roti, dal, dry chana or rajma; South Indian rice, paruppu sambar, rasam, kadala curry; and so on). 24 traditional tithi recipes were added for this. If approved recipes ever run short, the slot reports the shortage and asks the admin for recipes; a non-compliant recipe is never inserted.
+
+**Calendar:** the five Parva Tithis are highlighted with Sud 5, Sud 8, Vad 8, Sud 14 and Vad 14 labels; opening a date shows tithi, paksha, the full restriction list, the four meals and each meal's compliance status.
+
+**Grocery list:** totals follow the chosen menu option, scaled to the household and grouped by category; a separate "Parva Tithi days" section lists what those days need, which never includes fresh vegetables.
+
+**Two options per meal [v2.1]:** every day offers option 1 and option 2 for breakfast, lunch (a second thali), snack and dinner, both compliant with the day's rules. The chosen option is saved and drives the grocery list and nutrition; past days stay locked.
+
+**Next-day reminder [v2.1]:** Today shows a Tomorrow card (tithi, Parva rule and planned meals). "Add Parva reminders to phone calendar" downloads a calendar file with every Parva Tithi of the next 60 days and an alert at 7 pm the evening before. An optional evening reminder appears after 5 pm while the app is open (phones do not allow scheduled alarms from a website without a push server).
+
 ### 3.1 Registration and profile [v2 extended]
 
 Collected once at first launch; editable later. Changes apply from the next day.
@@ -56,7 +104,7 @@ Collected once at first launch; editable later. Changes apply from the next day.
 | Household size | 1–20 | Quantities and grocery list |
 | Allergies and exclusions **[v2]** | Allergen chips + any ingredient from the master list; optional "avoid cauliflower and cabbage" | Excluded from every plan |
 | Aatham and Chaudas | Always ON, not editable | No leafy vegetables |
-| Optional tithi observances **[v2]** | No green vegetables on: none / Aatham–Chaudas / 5 tithis / 12 tithis; Shukla Pancham | Applied only when the household chooses them |
+| Observance profile **[v2.1]** | Strict (5 Parva Tithis, default), Standard (Aatham and Chaudas), Custom; fresh fruit on Parva Tithis as a separate choice | Parva Tithi restrictions |
 | Timing convention **[v2]** | Chauvihar at sunset, or 24 / 48 min before; amanta or purnimanta month names | Timings and month display |
 
 ### 3.2 Jain dietary compliance engine [v2]
@@ -95,7 +143,7 @@ Every recipe is validated before approval: known ingredients, positive quantitie
 
 ### 3.5 Recipe database [v2]
 
-- At least 300 unique, validated recipes; delivered: **391** (breakfast 104, lunch components 141, dinner 104, snacks 42)
+- At least 300 unique, validated recipes; delivered: **415** (breakfast 104, lunch components 165 including 24 Parva Tithi recipes, dinner 104, snacks 42); 113 are Level B (Parva Tithi compliant)
 - Each record: unique id; names in English, Hindi and Gujarati; original regional name; meal; thali component; regional cuisines; ingredients with quantities; servings; prep and cook time; structured steps rendered in all 3 languages; compliance status; restricted-ingredient flags; tithi suitability (computed); source name and URL; review status
 - Recipes are original JainJoy adaptations of traditional home cooking, not copied articles. Source URL is empty and marked "human review pending" until a reviewer adds a verified source
 - Recipe admin: add, edit, validate, save as pending, approve, reject. Only approved and valid recipes enter menus. Admin edits are never overwritten by app updates
@@ -248,7 +296,12 @@ External: Open-Meteo geocoding (`GET /v1/search?name=`) for place search; Astron
 13. Profile changes rebuild future menus without changing history
 14. At least 300 unique approved recipes exist
 
-Status: all 14 pass (see `docs/TEST-REPORT.md`).
+15. Each of the five Parva Tithis triggers the strict restriction (v2.1)
+16. No leafy or fresh vegetables, herbs or sprouts on Parva Tithis; no onion, garlic, Kaddu or Alavi on any day (v2.1)
+17. Every ingredient, chutney, garnish and accompaniment is validated; grocery lists exclude restricted items (v2.1)
+18. Regional meal planning continues on Parva Tithis; all text in 3 languages; Panchang verified against reference dates (v2.1)
+
+Status: all pass (see `docs/TEST-REPORT.md`, 41 of 41).
 
 ## 10. Risks, dependencies and open questions
 

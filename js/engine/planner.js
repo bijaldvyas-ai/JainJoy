@@ -55,6 +55,13 @@ function pick(cands, ctx, iso, salt) {
   });
   return best;
 }
+/* best and second-best candidates: option 1 and option 2 for the household to choose from */
+function pickTwo(cands, ctx, iso, salt) {
+  var first = pick(cands, ctx, iso, salt);
+  if (!first) return [null, null];
+  var rest = cands.filter(function (c) { return c.r.id !== first.r.id; });
+  return [first, pick(rest, ctx, iso, salt + '#2')];
+}
 function mainIng(r) {
   var best = null, bq = 0;
   r.ings.forEach(function (x) { var g = JJ.ING[x.id]; if (!g || x.opt) return; if (['veg', 'leafy', 'pulse', 'dairy'].indexOf(g.cat) < 0 || x.id === 'ghee' || x.id === 'cream') return; var w = x.q * (g.unit === 'pc' ? g.pg : 1); if (w > bq) { bq = w; best = x.id; } });
@@ -76,14 +83,16 @@ JJ.genDay = function (iso, prof, ctx) {
   var cu = prof.cuisine || 'gen', order = cuisineOrder(cu), C = JJ.CUISINES[cu] || JJ.CUISINES.gen;
   ctx = ctx || {recent: {}};
   ctx.dn = dayNum(iso); ctx.month = +iso.slice(5, 7); ctx.todayMain = []; ctx.seed = prof.seed || 0;
-  var menu = {date: iso, status: 'planned', pv: prof.version || 1, hh: prof.hh, cuisine: cu, rules: {noLeafy: rules.noLeafy, noGreen: rules.noGreen, reasons: rules.reasons}, meals: {}};
+  var menu = {date: iso, status: 'planned', pv: prof.version || 1, hh: prof.hh, cuisine: cu, choice: {b: 0, l: 0, s: 0, d: 0}, shortages: [],
+    rules: {noLeafy: rules.noLeafy, noGreen: rules.noGreen, parva: rules.parva, noFruit: rules.noFruit, reasons: rules.reasons, parvaKeys: rules.parvaKeys}, meals: {}};
   function single(meal, window) {
     ctx.window = window;
     var c = candidates(function (r) { return r.meal === meal; }, rules, prof, order);
     // every cuisine is already a candidate (with a lower score), so an empty pool means the
     // household's own exclusions rule out every recipe; that is reported, never relaxed
-    var got = pick(c, ctx, iso, meal);
-    if (got) { ctx.todayMain.push(mainIng(got.r)); return {id: got.r.id, drop: got.drop}; }
+    var two = pickTwo(c, ctx, iso, meal), got = two[0];
+    if (got) { ctx.todayMain.push(mainIng(got.r)); return {id: got.r.id, drop: got.drop, alt: two[1] ? {id: two[1].r.id, drop: two[1].drop} : null}; }
+    menu.shortages.push(meal);
     return {id: null, missing: true};
   }
   menu.meals.b = single('b', 14);
@@ -107,16 +116,16 @@ JJ.genDay = function (iso, prof, ctx) {
       // everyday thalis mostly carry plain rice; flavoured rice is the occasional change
       if (slot === 'bread') c.forEach(function (x) { if (x.r.id === 'l001' && cu !== 'mah') x.base -= 20; if (x.r.id === 'l009') x.base += 30; });
       if (slot === 'rice' && cu !== 'sou') c.forEach(function (x) { if (x.r.id === 'l115' || x.r.id === 'l116') x.base -= 40; });
-      got = pick(c, ctx, iso, 'l' + idx + comp);
+      var two = pickTwo(c, ctx, iso, 'l' + idx + comp); got = two[0];
+      if (got) got.alt = two[1] || null;
     }
-    if (got) { items.push({slot: slot, id: got.r.id, drop: got.drop}); ctx.todayMain.push(mainIng(got.r)); }
-    else if (['bread', 'sabzi', 'dal', 'dalkadhi', 'rice', 'sambar'].indexOf(slot) >= 0) items.push({slot: slot, id: null, missing: true});
+    if (got) { items.push({slot: slot, id: got.r.id, drop: got.drop, alt: got.alt && slot !== 'bread' && slot !== 'rice' ? {id: got.alt.r.id, drop: got.alt.drop} : null}); ctx.todayMain.push(mainIng(got.r)); }
+    else if (['bread', 'sabzi', 'dal', 'dalkadhi', 'rice', 'sambar'].indexOf(slot) >= 0) { items.push({slot: slot, id: null, missing: true}); menu.shortages.push('l:' + slot); }
   });
   menu.meals.l = {items: items};
   menu.meals.s = single('s', 7);
   menu.meals.d = single('d', 14);
-  MEALS.forEach(function (m) { if (m !== 'l' && menu.meals[m]) ctx.recent[menu.meals[m].id] = ctx.dn; });
-  items.forEach(function (it) { if (it.id) ctx.recent[it.id] = ctx.dn; });
+  JJ.menuRecipeIds(menu).forEach(function (id) { ctx.recent[id] = ctx.dn; }); // both options count as used, so tomorrow differs
   return menu;
 };
 
@@ -128,9 +137,16 @@ JJ.snapshot = function (id) {
 };
 JJ.menuRecipeIds = function (menu) {
   var ids = [];
-  ['b', 's', 'd'].forEach(function (m) { if (menu.meals[m] && menu.meals[m].id) ids.push(menu.meals[m].id); });
-  (menu.meals.l.items || []).forEach(function (it) { if (it.id) ids.push(it.id); });
+  function add(id) { if (id && ids.indexOf(id) < 0) ids.push(id); }
+  ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x) { add(x.id); if (x.alt) add(x.alt.id); } });
+  (menu.meals.l.items || []).forEach(function (it) { add(it.id); if (it.alt) add(it.alt.id); });
   return ids;
+};
+/* The option the household picked for a meal (0 = option 1, 1 = option 2). */
+JJ.chosenMeal = function (menu, m) { var x = menu.meals[m]; if (!x) return null; return (menu.choice && menu.choice[m] === 1 && x.alt) ? x.alt : x; };
+JJ.chosenItems = function (menu) {
+  var two = menu.choice && menu.choice.l === 1;
+  return (menu.meals.l.items || []).map(function (it) { return two && it.alt ? Object.assign({}, it, {id: it.alt.id, drop: it.alt.drop}) : it; });
 };
 /* Resolve a recipe for display: history uses its own snapshot. */
 JJ.recipeFor = function (menu, id) {
@@ -151,8 +167,8 @@ JJ.grocery = function (menus) {
       var f = hh / (r.serves || 4);
       r.ings.forEach(function (x) { if ((drop || []).indexOf(x.id) >= 0) return; add(x.id, x.q * f); });
     }
-    ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x && x.id) addRecipe(x.id, x.drop); });
-    (menu.meals.l.items || []).forEach(function (it) {
+    ['b', 's', 'd'].forEach(function (m) { var x = menu.legacy ? menu.meals[m] : JJ.chosenMeal(menu, m); if (x && x.id) addRecipe(x.id, x.drop); });
+    (menu.legacy ? (menu.meals.l.items || []) : JJ.chosenItems(menu)).forEach(function (it) {
       if (it.id) addRecipe(it.id, it.drop);
       else if (it.acc) JJ.parseIngs(JJ.ACCOMP[it.acc].ings).forEach(function (x) { add(x.id, x.q * hh); });
     });
@@ -196,9 +212,9 @@ JJ.accNutrition = function (key) { var t = [0, 0, 0, 0]; JJ.parseIngs(JJ.ACCOMP[
 JJ.dayNutrition = function (menu) {
   var out = {}, tot = [0, 0, 0, 0];
   function acc(k, v) { out[k] = v; for (var i = 0; i < 4; i++) tot[i] += v[i]; }
-  ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; acc(m, x && x.id ? JJ.recipeNutrition(JJ.recipeFor(menu, x.id), x.drop) : [0, 0, 0, 0]); });
+  ['b', 's', 'd'].forEach(function (m) { var x = menu.legacy ? menu.meals[m] : JJ.chosenMeal(menu, m); acc(m, x && x.id ? JJ.recipeNutrition(JJ.recipeFor(menu, x.id), x.drop) : [0, 0, 0, 0]); });
   var l = [0, 0, 0, 0];
-  (menu.meals.l.items || []).forEach(function (it) {
+  (menu.legacy ? (menu.meals.l.items || []) : JJ.chosenItems(menu)).forEach(function (it) {
     var v = it.id ? JJ.recipeNutrition(JJ.recipeFor(menu, it.id), it.drop) : it.acc ? JJ.accNutrition(it.acc) : [0, 0, 0, 0];
     for (var i = 0; i < 4; i++) l[i] += v[i];
   });

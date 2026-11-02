@@ -99,28 +99,41 @@ JJ.findDuplicates = function (list) {
    or null when the recipe cannot be served at all. */
 JJ.allowed = function (r, rules, prof) {
   if (!r.valid || r.status !== 'approved') return null;
+  // Parva Tithi (strict): only Level B recipes, where every ingredient - garnish included - passes.
+  // Nothing is dropped to make a recipe fit, whatever the quantity.
+  if ((rules.parva || rules.noGreen) && !JJ.levelB(r)) return null;
+  if ((rules.noFruit || rules.noGreen) && r.ings.some(function (x) { return JJ.ING[x.id].isFruit; })) return null;
   var drop = {};
   for (var i = 0; i < r.ings.length; i++) {
     var x = r.ings[i], g = JJ.ING[x.id], bad = false;
     if (rules.noLeafy && g.L) bad = true;
-    if (rules.noGreen && g.G) bad = true;
     if (prof.avoidCrucifer && g.C) bad = true;
     if ((prof.exclude || []).indexOf(x.id) >= 0) bad = true;
     if ((prof.allergies || []).some(function (a) { return g.alg.indexOf(a) >= 0; })) bad = true;
+    // an optional garnish that is not allowed is left out; a main ingredient rules the whole dish out
     if (bad) { if (x.opt) drop[x.id] = true; else return null; }
   }
   return drop;
 };
-/* Accompaniments are checked the same way. */
+/* Accompaniments (chutney, papad, pickle, chaas, curd) are checked ingredient by ingredient too. */
 JJ.accAllowed = function (key, rules, prof) {
   var a = JJ.ACCOMP[key]; if (!a) return false;
   return parseIngs(a.ings).every(function (x) {
     var g = JJ.ING[x.id];
     if (!g || g.banned) return false;
-    if (rules.noLeafy && g.L) return false; if (rules.noGreen && g.G) return false;
+    if (rules.noLeafy && g.L) return false;
+    if ((rules.parva || rules.noGreen) && (g.isFreshVeg || g.L || g.isSprout)) return false;
+    if ((rules.noFruit || rules.noGreen) && g.isFruit) return false;
     if ((prof.exclude || []).indexOf(x.id) >= 0) return false;
     return !(prof.allergies || []).some(function (al) { return g.alg.indexOf(al) >= 0; });
   });
 };
+/* Validation levels.
+   Level A - Everyday Jain compliant: valid recipe with no prohibited ingredient.
+   Level B - Parva Tithi compliant: Level A and every ingredient (garnish included) is free of
+   fresh vegetables, leaves, herbs and sprouts. Fresh fruit is a separate household choice. */
+JJ.levelA = function (r) { return !!r.valid && r.ings.every(function (x) { var g = JJ.ING[x.id]; return g && !g.banned; }); };
+JJ.levelB = function (r) { return JJ.levelA(r) && r.ings.every(function (x) { var g = JJ.ING[x.id]; return !(g.isFreshVeg || g.L || g.isSprout); }); };
+JJ.parvaBlockers = function (r) { return r.ings.filter(function (x) { var g = JJ.ING[x.id]; return g && (g.isFreshVeg || g.L || g.isSprout || g.banned); }).map(function (x) { return x.id; }); };
 JJ.inSeason = function (g, month) { if (!g || !g.season) return true; var a = g.season[0], b = g.season[1]; return a <= b ? (month >= a && month <= b) : (month >= a || month <= b); };
 })(window.JJ = window.JJ || {});
