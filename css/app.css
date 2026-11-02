@@ -430,3 +430,4 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .greet-row .eyebrow{margin:0 2px}
 .greet-row .btn.wa{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:7px 12px;border-radius:999px;font-size:13px}
 .wa-ic{width:16px;height:16px;fill:currentColor;flex:none}
+.title-row{margin-top:6px}.title-row .h1{font-size:24px}

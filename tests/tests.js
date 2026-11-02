@@ -479,7 +479,9 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var sp = JJ.app.splitPantry(g), txt = JJ.app.listText(g), home = sp.home.map(function (x) { return x.id; });
     JJ.db.put('meta', {key: 'pantry', have: {}});
     var inBuy = sp.buy.some(function (gr) { return gr.items.some(function (it) { return it.id === 'atta' || it.id === 'salt'; }); });
-    return {ok: home.indexOf('atta') >= 0 && home.indexOf('salt') >= 0 && !inBuy && txt.indexOf('Wheat flour') < 0, details: 'at home: ' + home.join(', ') + '; still in list to buy: ' + inBuy + '; shared text mentions atta: ' + (txt.indexOf('Wheat flour') >= 0)};
+    var buyPart = txt.split('🏠')[0], homePart = txt.split('🏠')[1] || '';
+    return {ok: home.indexOf('atta') >= 0 && home.indexOf('salt') >= 0 && !inBuy && buyPart.indexOf('Wheat flour') < 0 && homePart.indexOf('Wheat flour') >= 0 && /bijaldvyas-ai\.github\.io\/JainJoy/.test(txt),
+      details: 'at home: ' + home.join(', ') + '; still in list to buy: ' + inBuy + '; shared text: atta under "Already at home": ' + (homePart.indexOf('Wheat flour') >= 0) + ', app link included: ' + /JainJoy\/$/.test(txt)};
   });
   test('A5', 'WhatsApp menu text', function () {
     var d = addDays(today, 3), txt = JJ.app.menuText(d);
