@@ -1,6 +1,6 @@
 # JainJoy 2.0 – Test Report
 
-**Run:** 30 Oct 2026, Chrome (desktop app browser), local server · **Result: 23 of 23 passed** (re-run 30 Oct 2026 after adding nutrition, Choghadiya and the Profile tab)
+**Run:** 2 Nov 2026, Chrome (desktop app browser), local server and live site · **Result: 41 of 41 passed** (after adding the Parva Tithi engine)
 **Astronomy:** Astronomy Engine 2.1.19 · **Reference city:** Ahmedabad unless stated
 **How to rerun:** open `tests/index.html` from any web server (for example `https://bijaldvyas-ai.github.io/JainJoy/tests/`). The tests use a separate database (`jainjoy-test`) and never touch real app data.
 
@@ -52,3 +52,30 @@
 - Festival dates follow the udaya-tithi rule. Some Sanghs print a parva one day earlier or later (for example Diwali 2026 is shown on 9 Nov, the Amas at sunrise, while Lakshmi Puja is on 8 Nov).
 - Recipes are original JainJoy adaptations, checked automatically; a human culinary review and external source links are still pending.
 - Data lives on each device (IndexedDB). There is no cloud account or sync.
+
+## PRD 2.1 – Jain Parva Tithi engine (mandatory tests)
+
+Strict profile, Ahmedabad, 9 regional cuisines × 150 days from 1 Nov 2026 (234 Parva Tithi menus, 1,350 menus in all, both options checked).
+
+| # | Test | Result | Evidence |
+|---|---|---|---|
+| P1 | Sud Pancham triggers the restriction | PASS | 14 Nov 2026, Shukla tithi 5 → Parva rule; 0 fresh vegetables in both options; the Standard profile adds no rule on this day |
+| P2 | Sud Aatham triggers the restriction | PASS | 17 Nov 2026, Shukla tithi 8 → Parva rule; 0 fresh vegetables |
+| P3 | Vad Aatham triggers the restriction | PASS | 2 Nov 2026, Krishna tithi 8 → Parva rule; 0 fresh vegetables |
+| P4 | Sud Chaudas triggers the restriction | PASS | 23 Nov 2026, Shukla tithi 14 → Parva rule; 0 fresh vegetables |
+| P5 | Vad Chaudas triggers the restriction | PASS | 8 Nov 2026, Krishna tithi 14 → Parva rule; 0 fresh vegetables |
+| P6 | No leafy vegetables on these dates | PASS | 234 Parva menus: none |
+| P7 | No fresh vegetables on these dates | PASS | No fresh vegetables, herbs or sprouts; no recipe was made to fit by dropping an ingredient |
+| P8 | No onion or garlic on any day | PASS | 1,350 menus, both options: none |
+| P9 | Kaddu excluded on every day | PASS | None in menus; "pumpkin" and "કોળું" resolve to Kaddu, which is prohibited |
+| P10 | Confirmed Alavi excluded on every day | PASS | None in menus; alavi, arvi, taro, colocasia, अरबी, અળવી → Alavi root; patra, aluchi pane → Alavi leaves; both prohibited and verified |
+| P11 | All recipe ingredients validated | PASS | 165 ingredients classified; 415 recipes valid; Level A 415, Level B 113; an unknown ingredient blocks approval; a recipe named "Jain Parva Special" containing tomato is not Level B |
+| P12 | Chutneys, garnishes and accompaniments validated | PASS | Parva days allow papad, pickle, chaas, curd and dry peanut chutney, not the tomato chutney; 186 recipes with a fresh garnish are all excluded from Level B |
+| P13 | Grocery lists exclude restricted ingredients | PASS | 40-day Parva list has no vegetable group and no prohibited item; 7-day list has no prohibited item |
+| P14 | Regional meal planning continues | PASS | Core thali slots on every Parva day for all 9 cuisines; own-region or pan-Indian components 71–93% |
+| P15 | English, Hindi and Gujarati throughout | PASS | 416 strings in 3 languages, none missing; Parva screens rendered in Hindi and Gujarati with no untranslated text |
+| P16 | Panchang verified against the reference convention | PASS | Labh Pancham 26 Oct 2025 and 14 Nov 2026 (Sud 5), Durga Ashtami 30 Sep 2025 (Sud 8), Janmashtami 16 Aug 2025 (Vad 8), Kartaki Chaumasi Chaudas 4 Nov 2025 (Sud 14), Kali Chaudas 20 Oct 2025 (Vad 14) all match; 12–13 of each Parva Tithi in 2026; dates recomputed every year |
+| P17 | Two options for every meal | PASS | Option 2 differs for breakfast, lunch, snack and dinner; grocery list follows the chosen option; all 234 Parva menus have two compliant options |
+| P18 | Next-day reminder | PASS | 10 Parva days in the next 60 days → 10 calendar events, each with a 7 pm evening-before alarm; Today shows the Tomorrow card |
+
+Reference dates are the sunrise-tithi dates published for Gujarat. A Sangh whose printed Panchang uses a different convention may differ by a day on some dates; the app tells users to follow their Sangh for parva days.

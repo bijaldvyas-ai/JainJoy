@@ -13,7 +13,7 @@ What is inside
 Run on this computer:  double-click START-JainJoy.bat  (http://localhost:8080)
 
 Documents
-- docs/PRD-v2.0.md       product requirements
+- docs/PRD-v2.1.md       product requirements
 - docs/TEST-REPORT.md    test results
 - docs/SETUP.md          setup, publishing, dependencies
 - db/schema.sql          server database schema; db/migrations/

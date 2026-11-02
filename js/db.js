@@ -5,7 +5,7 @@
    private windows), data is kept in localStorage instead. */
 (function (JJ) {
 'use strict';
-var DB_NAME = window.JJ_DB_NAME || 'jainjoy', DB_VERSION = 1, SEED_VERSION = 3;
+var DB_NAME = window.JJ_DB_NAME || 'jainjoy', DB_VERSION = 1, SEED_VERSION = 4;
 var STORES = {
   meta: 'key', users: 'id', profiles: 'userId', traditions: 'id', regions: 'id', ingredients: 'id', ingredient_restrictions: 'id',
   recipes: 'id', recipe_translations: 'key', recipe_sources: 'recipeId', panchang: 'key', timings: 'key',
@@ -96,7 +96,7 @@ function srcFor(r) {
 JJ.seedDatabase = function () {
   var meta = JJ.db.get('meta', 'seed') || {key: 'seed', version: 0};
   if (meta.version >= SEED_VERSION) return false;
-  JJ.ING_ROWS.forEach(function (r) { var g = JJ.ING[r[0]]; JJ.db.put('ingredients', {id: g.id, en: g.en, hi: g.hi, gu: g.gu, category: g.cat, unit: g.unit, is_leafy: g.L, is_green: g.G, is_pulse: g.P, is_raw_curd: g.RC, is_crucifer: g.C, allergens: g.alg, season: g.season, grams_per_piece: g.pg, grams_per_tsp: g.tg, jain_allowed: !g.banned, banned_reason: g.banned}); });
+  JJ.ING_ROWS.forEach(function (r) { var g = JJ.ING[r[0]]; JJ.db.put('ingredients', {id: g.id, en: g.en, hi: g.hi, gu: g.gu, category: g.cat, unit: g.unit, is_leafy: g.L, is_green: g.G, is_pulse: g.P, is_raw_curd: g.RC, is_crucifer: g.C, allergens: g.alg, season: g.season, grams_per_piece: g.pg, grams_per_tsp: g.tg, jain_allowed: !g.banned, banned_reason: g.banned, synonyms: g.syn, is_root: g.isRoot, is_fresh_vegetable: g.isFreshVeg, is_herb: g.isHerb, is_sprout: g.isSprout, is_fruit: g.isFruit, jain_category: g.jainCategory, everyday_restriction: g.everyday, parva_restriction: g.parva, household_restriction: g.household, verification: g.verified}); });
   Object.keys(JJ.BAN_REASONS).forEach(function (k) { JJ.db.put('ingredient_restrictions', Object.assign({id: 'ban:' + k, kind: 'banned'}, JJ.BAN_REASONS[k])); });
   JJ.db.put('ingredient_restrictions', {id: 'rule:tithi-leafy', kind: 'tithi', tithis: [8, 14], rule: 'no leafy vegetables', mandatory: true});
   JJ.db.put('ingredient_restrictions', {id: 'rule:dwidal', kind: 'combination', rule: 'raw curd or buttermilk never combined with pulses', mandatory: true});

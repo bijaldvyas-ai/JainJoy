@@ -8,7 +8,7 @@ JainJoy is a static web app (HTML, CSS, JavaScript) with an on-device database. 
 |---|---|
 | `index.html` | App shell, link-preview tags, script loading |
 | `css/app.css` | Styles (glass surfaces, light and dark themes) |
-| `js/data/` | Seed data: ingredients, 36 states and UTs with 580 Indian cities, cuisines and thali structures, step templates, 391 recipes |
+| `js/data/` | Seed data: ingredients and their classification and synonyms (`classification.js`), 36 states and UTs with 580 Indian cities, cuisines and thali structures, step templates, 415 recipes including 24 Parva Tithi recipes (`recipes-parva.js`), nutrition values |
 | `js/engine/` | Astronomy, Panchang and timings, Jain compliance, meal planner and grocery |
 | `js/db.js` | IndexedDB database, seeding, v1 migration |
 | `js/i18n.js` | All interface text in English, Hindi and Gujarati |
@@ -58,3 +58,11 @@ A preview build is published under `/v2-preview/` on the same site so it can be 
 - **Admin sign-in.** Recipe admin works on each device without a password. A shared admin needs the cloud database above.
 - **Certified Panchang.** Tithi is calculated astronomically. Matching a specific Sangh's printed Panchang needs that Sangh's published data.
 - **External recipe sources.** Each recipe has a source record (JainJoy Kitchen, original adaptation), but no external URL and no human culinary review yet.
+
+## Parva Tithi engine (v2.1)
+
+- Rules live in `js/engine/panchang.js` (`JJ.PARVA`, `JJ.dayRules`) and the validators in `js/engine/compliance.js` (`JJ.levelA`, `JJ.levelB`, `JJ.allowed`).
+- Ingredient classification and synonyms are in `js/data/classification.js`. To recognise a new regional name, add it to `JJ.SYNONYMS`, or map it in Recipe admin → "ingredient names waiting for verification".
+- Existing households were moved to the Strict profile (5 Parva Tithis). They can choose Standard or Custom in Profile → Tithi observances. Past menus were not changed.
+- New Level B recipes: add them to `js/data/recipes-parva.js` (or through Recipe admin), raise `SEED_VERSION` in `js/db.js`, and rerun the tests.
+- Reminders: the calendar file is created on the phone. Real push notifications at a fixed time would need a push server (for example Firebase Cloud Messaging) and an account; that is not included.

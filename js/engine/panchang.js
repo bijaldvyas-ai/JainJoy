@@ -133,9 +133,26 @@ JJ.panchang = function (iso, c, prof) {
 JJ.panchangReset = function () { cache.clear(); };
 
 /* Which restrictions apply on a day, given the household's observance settings. */
+/* The five Jain Parva Tithis, by tithi number (1-15 Shukla / Sud, 16-30 Krishna / Vad):
+   Sud Pancham (5), Sud Aatham (8), Vad Aatham (23), Sud Chaudas (14), Vad Chaudas (29).
+   Uses the tithis observed on the day (sunrise tithi, with the Jain kshaya/vriddhi rule). */
+JJ.PARVA = {5: 'sud_pancham', 8: 'sud_aatham', 23: 'vad_aatham', 14: 'sud_chaudas', 29: 'vad_chaudas'};
+JJ.parvaKeys = function (p) { return p.observed.filter(function (t) { return JJ.PARVA[t]; }).map(function (t) { return JJ.PARVA[t]; }); };
+/* Observance profiles:
+   strict   - (default) on all five Parva Tithis: no leafy vegetables, no fresh vegetables, no green herbs,
+              no sprouts; fresh fruit only if the household also chooses parvaFruit
+   standard - Aatham and Chaudas (both pakshas): no leafy vegetables
+   custom   - standard plus the household's own green-vegetable days (greenRule, shuklaPanchamGreen)
+   Onion, garlic, roots, Kaddu, Alavi and other everyday prohibitions apply on every day in every profile. */
 JJ.dayRules = function (p, prof) {
-  var r = {noLeafy: false, noGreen: false, reasons: []};
+  var r = {noLeafy: false, noGreen: false, parva: false, noFruit: false, reasons: [], parvaKeys: JJ.parvaKeys(p)};
+  var profile = prof.obsProfile || 'strict';
   if (p.aatham || p.chaudas) { r.noLeafy = true; r.reasons.push(p.aatham ? 'aatham' : 'chaudas'); }
+  if (profile === 'strict') {
+    if (r.parvaKeys.length) { r.parva = true; r.noLeafy = true; r.noFruit = !!prof.parvaFruit; r.reasons = r.parvaKeys.slice(); }
+    return r;
+  }
+  if (profile === 'standard') return r;
   var g = prof.greenRule || 'none';
   var five = p.beej || p.pancham || p.aatham || p.agiyaras || p.chaudas;
   if (g === 'ac' && (p.aatham || p.chaudas)) r.noGreen = true;

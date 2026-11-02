@@ -217,8 +217,8 @@ function chogLine() {
   return '<button class="lrow chog-row chog-' + c.q + '" style="margin-top:8px" data-a="tab" data-v="chog"><span class="chog-dot"></span><span class="mtxt grow"><b>' + esc(t('chog_now_line', {name: t('chog_' + c.k), q: t('chog_q_' + c.q)})) + '</b><small>' + esc(t('chog_until', {time: hm(c.end)})) + '</small></span>' + ic('next', 'chev') + '</button>';
 }
 function tithiCard(iso) {
-  var p = pan(iso), r = JJ.dayRules(p, P), sp = p.aatham || p.chaudas;
-  var title = (sp ? t(p.aatham ? 'aatham' : 'chaudas') + ' · ' : '') + JJ.tithiName(p.t, LANG);
+  var p = pan(iso), r = JJ.dayRules(p, P), sp = r.parva || p.aatham || p.chaudas;
+  var pk = JJ.parvaKeys(p), title = pk.length ? pk.map(function (k) { return t(k); }).join(' · ') : JJ.tithiName(p.t, LANG);
   var mo = JJ.MONTHS[p.month][{en: 0, hi: 1, gu: 2}[LANG]];
   var h = '<div class="tcard' + (sp ? ' sp' : '') + '"><div class="tbox"><span>' + esc(t('tithi')) + '</span><b>' + p.n + '</b></div><div class="tinfo"><b>' + esc(title) + '</b><small>' +
     esc((p.adhik ? t('adhik') + ' ' : '') + mo + ' ' + t(p.paksha === 'S' ? 'shukla' : 'krishna') + ' · ' + t('ends_at', {time: hm(p.tithiEnd)})) + '</small></div></div>';
@@ -228,26 +228,90 @@ function tithiCard(iso) {
   if (p.skipped) tags.push(t('kshaya', {name: JJ.tithiName(p.skipped, LANG)}));
   p.observances.forEach(function (o) { tags.push(nm(o)); });
   if (tags.length) h += '<div class="obs">' + tags.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div>';
-  if (r.noGreen) h += '<p class="rule-note sp">' + ic('noleaf') + '<span><b>' + esc(t('no_green_today')) + '</b> ' + esc(t('no_green_why')) + '</span></p>';
+  if (r.parva) h += parvaBox(r);
+  else if (r.noGreen) h += '<p class="rule-note sp">' + ic('noleaf') + '<span><b>' + esc(t('no_green_today')) + '</b> ' + esc(t('no_green_why')) + '</span></p>';
   else if (r.noLeafy) h += '<p class="rule-note sp">' + ic('noleaf') + '<span><b>' + esc(t('no_leafy_today', {day: t(p.aatham ? 'aatham' : 'chaudas')})) + '</b> ' + esc(t('always_on')) + '</span></p>';
   else h += '<p class="rule-note">' + ic('check') + '<span><b>' + esc(t('base_rules')) + '</b> ' + esc(t('base_rules_text')) + '</span></p>';
   return h;
 }
+/* Parva Tithi restriction box: which tithi, which paksha, and the full list of restrictions */
+function parvaBox(r) {
+  var list = ['pr_leafy', 'pr_fresh', 'pr_herbs', 'pr_sprouts', 'pr_roots', 'pr_onion', 'pr_kaddu', 'pr_alavi'];
+  if (r.noFruit) list.push('pr_fruit');
+  return '<div class="parva-box"><b>' + esc(r.parvaKeys.map(function (k) { return t(k); }).join(' · ')) + ' · ' + esc(t('parva_tithi')) + '</b>' +
+    '<ul>' + list.map(function (k) { return '<li>' + esc(t(k)) + '</li>'; }).join('') + '</ul><small>' + esc(t(r.noFruit ? 'parva_fruit_no' : 'parva_fruit_ok')) + ' ' + esc(t('parva_applies')) + '</small></div>';
+}
+/* Next-day reminder: tomorrow's tithi rule and planned meals, with phone-calendar and evening reminders */
+function tomorrowSummary() {
+  var d = JJ.addDays(today(), 1), p = pan(d), r = JJ.dayRules(p, P), m = menuFor(d);
+  var names = m ? MEALS.map(function (k) {
+    if (k === 'l') return t('meal_l') + ': ' + JJ.chosenItems(m).filter(function (it) { return it.id; }).slice(0, 3).map(function (it) { return rName(JJ.recipeFor(m, it.id)); }).join(', ');
+    var x = JJ.chosenMeal(m, k); return t('meal_' + k) + ': ' + (x && x.id ? rName(JJ.recipeFor(m, x.id)) : '—');
+  }) : [];
+  return {date: d, p: p, r: r, names: names};
+}
+function tomorrowCard() {
+  var s = tomorrowSummary(), head = s.r.parva ? s.r.parvaKeys.map(function (k) { return t(k); }).join(' · ') + ' · ' + t('parva_no_veg') : JJ.tithiName(s.p.t, LANG) + ' · ' + t(s.p.paksha === 'S' ? 'shukla' : 'krishna');
+  return '<section class="card glass tomorrow' + (s.r.parva ? ' is-parva' : '') + '"><h3>' + esc(t('tomorrow')) + ' · ' + esc(dShort(s.date)) + '</h3><b>' + esc(head) + '</b>' +
+    '<ul class="tlist">' + s.names.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' +
+    (s.r.parva ? '<p class="fine" style="margin:6px 0 0">' + esc(t('tomorrow_parva_tip')) + '</p>' : '') +
+    '<div class="row" style="flex-wrap:wrap;margin-top:10px"><button class="btn small" data-a="day" data-v="' + s.date + '">' + esc(t('see_tomorrow')) + '</button><button class="btn small" data-a="ics">' + esc(t('add_reminders')) + '</button><button class="btn small" data-a="notify">' + esc(t(notifyState() === 'on' ? 'evening_on' : 'evening_reminder')) + '</button></div></section>';
+}
+function notifyState() { try { return localStorage.getItem('jainjoy.notify') === '1' && window.Notification && Notification.permission === 'granted' ? 'on' : 'off'; } catch (e) { return 'off'; } }
+/* Shown once per day after 5 pm while the app is open (phones do not allow scheduled alarms without a server). */
+function maybeEveningReminder() {
+  if (!P || notifyState() !== 'on') return;
+  var now = new Date(), key = 'jainjoy.notified.' + today();
+  if (now.getHours() < 17) return;
+  try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) { return; }
+  var s = tomorrowSummary(), title = t('tomorrow') + ': ' + (s.r.parva ? s.r.parvaKeys.map(function (k) { return t(k); }).join(', ') + ' – ' + t('parva_no_veg') : JJ.tithiName(s.p.t, LANG));
+  try { new Notification(title, {body: s.names.join('\n'), icon: 'icon-192.png', tag: 'jainjoy-tomorrow'}); } catch (e) {}
+}
+/* .ics file: an all-day event on each Parva Tithi in the next 60 days, with an alarm at 7 pm the evening before */
+function parvaIcs() {
+  var td = today(), lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//JainJoy//Parva Tithi//EN', 'CALSCALE:GREGORIAN'];
+  function esc2(s) { return String(s).replace(/[\\;,]/g, function (c) { return '\\' + c; }).replace(/\n/g, '\\n'); }
+  for (var k = 1; k <= 60; k++) {
+    var d = JJ.addDays(td, k), p = pan(d), r = JJ.dayRules(p, P);
+    if (!r.parva && !r.noLeafy) continue;
+    var m = menuFor(d), title = (r.parva ? r.parvaKeys.map(function (x) { return t(x); }).join(', ') + ' – ' + t('parva_no_veg') : t(p.aatham ? 'aatham' : 'chaudas') + ' – ' + t('pr_leafy')) + ' (JainJoy)';
+    var desc = m ? MEALS.map(function (q) { var x = q === 'l' ? null : JJ.chosenMeal(m, q); return t('meal_' + q) + ': ' + (q === 'l' ? JJ.chosenItems(m).filter(function (it) { return it.id; }).map(function (it) { return rName(JJ.recipeFor(m, it.id)); }).join(', ') : x && x.id ? rName(JJ.recipeFor(m, x.id)) : '—'); }).join('\n') : '';
+    var ds = d.replace(/-/g, ''), de = JJ.addDays(d, 1).replace(/-/g, '');
+    lines.push('BEGIN:VEVENT', 'UID:jainjoy-' + ds + '@bijaldvyas-ai.github.io', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', 'DTSTART;VALUE=DATE:' + ds, 'DTEND;VALUE=DATE:' + de,
+      'SUMMARY:' + esc2(title), 'DESCRIPTION:' + esc2(desc), 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + esc2(t('tomorrow') + ': ' + title), 'TRIGGER:-PT5H', 'END:VALARM', 'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+/* which recipe is shown for a meal: option 1 or option 2 */
+function chosen(menu, k) { return menu.legacy ? menu.meals[k] : JJ.chosenMeal(menu, k); }
+function optionToggle(iso, k, menu) {
+  if (menu.legacy) return '';
+  var x = menu.meals[k], has = k === 'l' ? (x.items || []).some(function (it) { return it.alt; }) : x && x.alt;
+  if (!has) return '';
+  var cur = (menu.choice && menu.choice[k]) || 0, locked = menu.status === 'history' && iso !== today();
+  var name2 = k === 'l' ? t('alt_thali') : rName(JJ.recipeFor(menu, x.alt.id)), name1 = k === 'l' ? t('main_thali') : rName(JJ.recipeFor(menu, x.id));
+  return '<div class="opt-toggle" role="group" aria-label="' + esc(t('choose_option')) + '">' + [name1, name2].map(function (n, i) {
+    return '<button data-a="choose" data-d="' + iso + '" data-m="' + k + '" data-v="' + i + '" aria-pressed="' + (cur === i) + '"' + (locked ? ' disabled' : '') + '><small>' + esc(t('option_n', {n: i + 1})) + '</small><span>' + esc(n) + '</span></button>';
+  }).join('') + '</div>';
+}
 function mealCard(iso, k, menu) {
-  var x = menu.meals[k], tagCls = {b: 'b', l: 'l', s: 's', d: 'd'}[k];
+  var x = chosen(menu, k), tagCls = {b: 'b', l: 'l', s: 's', d: 'd'}[k];
+  var pb = menu.rules && menu.rules.parva ? '<span class="tag ok">' + esc(t('parva_ok')) + '</span>' : '';
   if (k === 'l') {
-    var items = (x.items || []).filter(function (it) { return it.id || it.acc || it.legacy; });
+    var items = (menu.legacy ? (menu.meals.l.items || []) : JJ.chosenItems(menu)).filter(function (it) { return it.id || it.acc || it.legacy; });
     var names = items.map(function (it) { return it.legacy ? it.legacy : it.acc ? nm(JJ.ACCOMP[it.acc]) : rName(JJ.recipeFor(menu, it.id)); });
     var main = items.filter(function (it) { return it.id; })[1] || items[0];
     var r0 = main && main.id ? JJ.recipeFor(menu, main.id) : null;
-    return '<button class="meal" data-a="thali" data-d="' + iso + '">' + plate(r0, 64) + '<span class="mtxt"><span class="mtag mt-l">' + esc(t('meal_l')) + ' · ' + esc(nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)) + '</span><b>' + esc(names.slice(0, 3).join(' · ')) + '</b><small>' + esc(t('thali_items', {n: items.length})) + (menu.legacy ? '' : ' · ' + JJ.dayNutrition(menu).l[0] + ' ' + esc(t('kcal'))) + '</small></span>' + ic('next', 'chev') + '</button>';
+    return '<button class="meal" data-a="thali" data-d="' + iso + '">' + plate(r0, 64) + '<span class="mtxt"><span class="mtag mt-l">' + esc(t('meal_l')) + ' · ' + esc(nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)) + '</span><b>' + esc(names.slice(0, 3).join(' · ')) + '</b><small>' + esc(t('thali_items', {n: items.length})) + (menu.legacy ? '' : ' · ' + JJ.dayNutrition(menu).l[0] + ' ' + esc(t('kcal'))) + '</small>' + pb + '</span>' + ic('next', 'chev') + '</button>';
   }
   if (!x || x.legacy) return '<div class="meal"><span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(x ? x.legacy : '—') + '</b><small>' + esc(t('legacy_menu')) + '</small></span></div>';
   if (!x.id) return '<div class="meal"><span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(t('no_match')) + '</b><small>' + esc(t('no_match_hint')) + '</small></span></div>';
   var r = JJ.recipeFor(menu, x.id);
   var extra = k === 'd' ? '<span class="warn-line" style="color:var(--saffron)">' + esc(t('finish_before', {time: hm(JJ.timings(pan(iso), {navkarsi: P.navkarsi, chauvihar: P.chauvihar}).chauvihar)})) + '</span>' : '';
-  return '<button class="meal" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(t('min_total', {n: (r.prep || 0) + (r.cook || 0)})) + ' · ' + JJ.recipeNutrition(r, x.drop)[0] + ' ' + esc(t('kcal')) + (x.drop && x.drop.length ? ' · ' + esc(t('adjusted_today')) : '') + '</small>' + extra + '</span>' + ic('next', 'chev') + '</button>';
+  return '<button class="meal" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(timeText(r)) + ' · ' + JJ.recipeNutrition(r, x.drop)[0] + ' ' + esc(t('kcal')) + (x.drop && x.drop.length ? ' · ' + esc(t('adjusted_today')) : '') + '</small>' + extra + pb + '</span>' + ic('next', 'chev') + '</button>';
 }
+function timeText(r) { return (r.prep || 0) >= 240 ? t('min_soak', {n: r.cook || 0}) : t('min_total', {n: (r.prep || 0) + (r.cook || 0)}); }
 function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hist">' + ic('lock') + esc(t('status_hist')) + '</span>' : st === 'plan' ? '<span class="status-pill st-plan">' + ic('check') + esc(t('status_plan')) + '</span>' : st === 'prev' ? '<span class="status-pill st-prev">' + esc(t('status_prev')) + '</span>' : ''; }
 function dayBody(iso, isToday) {
   // simple order: timings, tithi, the 4 meals, quick links, then nutrition in short form
@@ -255,11 +319,13 @@ function dayBody(iso, isToday) {
   b += compactTimings(iso, isToday);
   b += tithiCard(iso);
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
-  b += '<div class="meals">' + MEALS.map(function (k) { return mealCard(iso, k, menu); }).join('') + '</div>';
+  b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + optionToggle(iso, k, menu) + '</div>'; }).join('') + '</div>';
+  if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (isToday) b += '<div class="quick">' +
     '<button data-a="tab" data-v="shop">' + ic('cart') + '<span>' + esc(t('quick_grocery')) + '</span></button>' +
     '<button data-a="tab" data-v="chog">' + ic('clock') + '<span>' + esc(t('tab_choghadiya')) + '</span></button>' +
     '<button data-a="tab" data-v="cal">' + ic('cal') + '<span>' + esc(t('quick_month')) + '</span></button></div>';
+  if (isToday) b += tomorrowCard();
   if (!menu.legacy) b += nutritionCard(menu);
   b += '<div class="row" style="margin-top:12px">' + statusPill(menuStatus(iso, menu)) + '</div>';
   b += '<p class="fine">' + esc(menu.status === 'history' ? t('hist_note') : menu.status === 'planned' ? t('plan_note') : t('prev_note')) + '</p>';
@@ -302,7 +368,7 @@ function viewDayPushed(top) {
 
 /* ---------------- Thali and recipe ---------------- */
 function viewThali(top) {
-  var menu = menuFor(top.date), items = menu.meals.l.items || [], cu = JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen;
+  var menu = menuFor(top.date), items = menu.legacy ? (menu.meals.l.items || []) : JJ.chosenItems(menu), cu = JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen;
   var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('thali_title', {c: nm(cu)})) + '</h1><p class="sub">' + esc(t('thali_sub')) + '</p>';
   var hasRaw = false, hasPulse = false;
   items.forEach(function (it) {
@@ -326,7 +392,7 @@ function viewRecipe(top) {
   var menu = top.date ? menuFor(top.date) : null, r = menu ? JJ.recipeFor(menu, top.id) : JJ.catalog.byId[top.id];
   if (!r) return backBar(t('recipe')) + '<main class="scroll gx" id="scroll"><div class="empty">' + esc(t('unknown_recipe')) + '</div></main>';
   var drop = [];
-  if (menu) { ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x && x.id === r.id) drop = x.drop || []; }); (menu.meals.l.items || []).forEach(function (it) { if (it.id === r.id) drop = it.drop || []; }); }
+  if (menu) { ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x && x.id === r.id) drop = x.drop || []; if (x && x.alt && x.alt.id === r.id) drop = x.alt.drop || []; }); (menu.meals.l.items || []).forEach(function (it) { if (it.id === r.id) drop = it.drop || []; if (it.alt && it.alt.id === r.id) drop = it.alt.drop || []; }); }
   var hh = menu ? (menu.hh || P.hh) : P.hh, f = hh / (r.serves || 4), skip = {}; drop.forEach(function (d) { skip[d] = true; });
   var comp = JJ.compileRecipe(Object.assign({}, r, {ings: r.ings.map(function (x) { return x.id + ':' + x.q + (x.opt ? '?' : ''); }).join(' ')}));
   var cu = r.cu && r.cu[0] && JJ.CUISINES[r.cu[0]];
@@ -334,13 +400,14 @@ function viewRecipe(top) {
   var b = '<div class="rhero mt-' + r.meal + '">' + plate(r, 140) + '</div><h1 class="h1 rname">' + esc(rName(r)) + '</h1>';
   if (r.orig) b += '<p class="origname">' + esc(t('original_name')) + ': ' + esc(r.orig) + '</p>';
   if (LANG !== 'en') b += '<p class="origname">' + esc(r.en) + '</p>';
-  b += '<div class="badges"><span class="badge b-ok">' + ic('check') + esc(t('jain_ok')) + '</span>' +
+  b += '<div class="badges"><span class="badge b-ok">' + ic('check') + esc(t('level_a')) + '</span>' + (JJ.levelB(comp) ? '<span class="badge b-ok">' + ic('check') + esc(t('level_b')) + '</span>' : '<span class="badge b-plain">' + esc(t('level_b_no')) + '</span>') +
     (comp.tags.leafy ? '<span class="badge b-plain">' + ic('leaf') + esc(t('has_leafy')) + '</span>' : '<span class="badge b-warn">' + ic('noleaf') + esc(t('aatham_safe')) + '</span>') +
     (!comp.tags.green ? '<span class="badge b-warn">' + esc(t('green_free')) + '</span>' : '') +
     '<span class="badge b-plain">' + esc(mealKey) + '</span>' + (cu ? '<span class="badge b-plain">' + esc(nm(cu)) + '</span>' : '') + '</div>';
   b += '<div class="nut"><div><b>' + (r.prep || 0) + '</b><small>' + esc(t('prep_min')) + '</small></div><div><b>' + (r.cook || 0) + '</b><small>' + esc(t('cook_min')) + '</small></div><div><b>' + hh + '</b><small>' + esc(t('serves')) + '</small></div><div><b>' + (r.serves || 4) + '</b><small>' + esc(t('base_serves')) + '</small></div></div>';
   var rn = JJ.recipeNutrition(r, drop);
   b += '<section class="card glass"><h3>' + esc(t('per_serving')) + '</h3>' + nutriGrid(rn) + splitBar(rn) + '</section>';
+  if (!JJ.levelB(comp)) b += '<p class="fine">' + esc(t('level_b_why', {list: JJ.parvaBlockers(comp).map(ingName).join(', ')})) + '</p>';
   if (drop.length) b += '<div class="note">' + esc(t('left_out_today', {list: drop.map(ingName).join(', ')})) + '</div>';
   if (r.fromSnapshot) b += '<div class="note info">' + esc(t('snapshot_note')) + '</div>';
   var alg = Object.keys(comp.tags.alg).filter(function (a) { return (P.allergies || []).indexOf(a) >= 0; });
@@ -355,6 +422,14 @@ function viewRecipe(top) {
 }
 
 /* ---------------- Calendar ---------------- */
+/* labels for a special day: the Parva Tithi name(s) and what is restricted */
+function dayTags(p) {
+  var r = JJ.dayRules(p, P), out = [];
+  r.parvaKeys.forEach(function (k) { out.push(t(k)); });
+  if (r.parva) out.push(t('parva_no_veg'));
+  else if (r.noLeafy) { if (!r.parvaKeys.length) out.push(t(p.aatham ? 'aatham' : 'chaudas')); out.push(t('pr_leafy')); }
+  return out;
+}
 function viewCal() {
   var td = today(), m = ui.calMonth || ym(td), first = monthStart(m), last = monthEnd(m);
   var minM = ym(P.created), histMonths = JJ.db.all('menu_history').map(function (h) { return h.month || ym(h.date); });
@@ -366,10 +441,10 @@ function viewCal() {
   for (var i = 0; i < start; i++) g += '<div class="cd blank"></div>';
   var specials = [], saved = JJ.db.get('monthly_menus', m);
   for (var d = first; d <= last; d = JJ.addDays(d, 1)) {
-    var p = pan(d), sp = p.aatham || p.chaudas, day = +d.slice(8);
+    var p = pan(d), dr = JJ.dayRules(p, P), sp = dr.parva || p.aatham || p.chaudas, day = +d.slice(8);
     var st = d < P.created && !JJ.db.get('menu_history', d) ? 'none' : d <= td ? (JJ.db.get('menu_history', d) ? 'hist' : 'hist') : (JJ.db.get('daily_menus', d) && JJ.db.get('daily_menus', d).pv === P.version ? 'plan' : 'prev');
     if (sp || p.shuklaPancham || p.observances.length) specials.push([d, p]);
-    var lab = p.aatham ? t('aatham') : p.chaudas ? t('chaudas') : (p.t === 15 ? t('punam_s') : p.t === 30 ? t('amas_s') : t(p.paksha === 'S' ? 'sh_s' : 'kr_s') + p.n);
+    var lab = dr.parvaKeys.length ? t(dr.parvaKeys[0] + '_s') : p.aatham ? t('aatham') : p.chaudas ? t('chaudas') : (p.t === 15 ? t('punam_s') : p.t === 30 ? t('amas_s') : t(p.paksha === 'S' ? 'sh_s' : 'kr_s') + p.n);
     var cls = 'cd' + (sp ? ' sp' : '') + (d < td ? ' past' : '') + (d === td ? ' today' : '') + (st === 'none' ? ' pre' : ' ' + st);
     var aria = dLong(d) + ', ' + JJ.tithiName(p.t, LANG) + (sp ? ', ' + lab : '') + ', ' + t('status_' + (st === 'none' ? 'none' : st));
     var dots = p.observances.length || p.shuklaPancham ? '<span class="dots"><i></i></span>' : '';
@@ -380,7 +455,7 @@ function viewCal() {
   var isFuture = m > ym(td), isCur = m === ym(td);
   var b = '<div class="cal-nav"><button class="icon-btn" data-a="calm" data-v="-1" aria-label="' + esc(t('prev_month')) + '"' + (m <= minM ? ' disabled' : '') + '>' + ic('back') + '</button><h1 class="h1">' + esc(monthTitle(m)) + '</h1><button class="icon-btn" data-a="calm" data-v="1" aria-label="' + esc(t('next_month')) + '"' + (m >= maxM ? ' disabled' : '') + '>' + ic('next') + '</button></div>';
   b += '<p class="sub">' + esc(m < ym(td) ? t('cal_past') : isCur ? t('cal_current') : t('cal_next')) + '</p>';
-  b += '<div class="legend"><span><i style="background:var(--crimson)"></i>' + esc(t('today')) + '</span><span><i style="background:var(--saffron)"></i>' + esc(t('aatham_chaudas')) + '</span><span><i style="background:var(--navy)"></i>' + esc(t('status_hist')) + '</span><span><i style="background:var(--green)"></i>' + esc(t('status_plan')) + '</span><span><i style="background:var(--line)"></i>' + esc(t('status_prev')) + '</span></div>';
+  b += '<div class="legend"><span><i style="background:var(--crimson)"></i>' + esc(t('today')) + '</span><span><i style="background:var(--saffron)"></i>' + esc(t((P.obsProfile || 'strict') === 'strict' ? 'legend_parva' : 'aatham_chaudas')) + '</span><span><i style="background:var(--navy)"></i>' + esc(t('status_hist')) + '</span><span><i style="background:var(--green)"></i>' + esc(t('status_plan')) + '</span><span><i style="background:var(--line)"></i>' + esc(t('status_prev')) + '</span></div>';
   b += '<div class="calwrap">' + g + '</div>';
   if (isFuture || isCur) {
     var info = saved ? t('month_saved', {date: dShort(JJ.tz.isoOf(saved.generatedAt, city().tz))}) : t('month_not_saved');
@@ -388,7 +463,7 @@ function viewCal() {
   }
   b += '<h2 class="h2">' + esc(t('special_days')) + '<span>' + specials.length + '</span></h2><div class="splist">' + specials.map(function (x) {
     var d = x[0], p = x[1], parts = [];
-    if (p.aatham) parts.push(t('aatham')); if (p.chaudas) parts.push(t('chaudas')); if (p.shuklaPancham) parts.push(t('shukla_pancham'));
+    parts = parts.concat(dayTags(p));
     p.observances.forEach(function (o) { parts.push(nm(o)); });
     return '<button class="sprow' + (d < td ? ' past' : '') + '" data-a="day" data-v="' + d + '"><span class="dnum"><b>' + (+d.slice(8)) + '</b><small>' + esc(dfmt(d, {month: 'short'})) + '</small></span><span class="mtxt"><b>' + esc(parts.join(' · ')) + '</b><small>' + esc(dShort(d) + ' · ' + JJ.tithiName(p.t, LANG)) + '</small></span>' + ic('next', 'chev') + '</button>';
   }).join('') + '</div>';
@@ -411,7 +486,7 @@ function viewPan() {
   for (var k = 1; k <= 45; k++) { var d = JJ.addDays(td, k), q = pan(d); if (q.aatham || q.chaudas || q.shuklaPancham || q.observances.length) up.push([d, q]); }
   b += '<h2 class="h2">' + esc(t('upcoming_days')) + '<span>' + esc(t('next_45')) + '</span></h2><div class="splist">' + up.map(function (x) {
     var d = x[0], q = x[1], parts = [];
-    if (q.aatham) parts.push(t('aatham')); if (q.chaudas) parts.push(t('chaudas')); if (q.shuklaPancham) parts.push(t('shukla_pancham'));
+    parts = parts.concat(dayTags(q));
     q.observances.forEach(function (o) { parts.push(nm(o)); });
     return '<button class="sprow" data-a="day" data-v="' + d + '"><span class="dnum"><b>' + (+d.slice(8)) + '</b><small>' + esc(dfmt(d, {month: 'short'})) + '</small></span><span class="mtxt"><b>' + esc(parts.join(' · ')) + '</b><small>' + esc(dShort(d) + ' · ' + JJ.tithiName(q.t, LANG) + ' · ' + t('sunrise') + ' ' + hm(q.rise)) + '</small></span>' + ic('next', 'chev') + '</button>';
   }).join('') + '</div>';
@@ -444,12 +519,21 @@ function groceryView(groups, listId, title, sub, saved) {
   b += '<p class="fine">' + esc(t('rounded_note')) + '</p>';
   return b;
 }
+/* Separate guidance for Parva Tithi days: which dates, and exactly what those days need (never fresh vegetables) */
+function parvaShopping(menus) {
+  var pm = menus.filter(function (m) { return m.rules && m.rules.parva; });
+  if (!pm.length) return '';
+  var g = JJ.grocery(pm), n = 0; g.forEach(function (x) { n += x.items.length; });
+  return '<details class="card glass fold parva-shop"><summary><span class="ficon">' + ic('noleaf') + '</span><span class="mtxt grow"><b>' + esc(t('parva_shop_title', {n: pm.length})) + '</b><small>' + esc(pm.map(function (m) { return dShort(m.date) + ' ' + (m.rules.parvaKeys || []).map(function (k) { return t(k); }).join(', '); }).join(' · ')) + '</small></span>' + ic('next', 'chev fold-chev') + '</summary>' +
+    '<p class="fine" style="margin:0 0 8px">' + esc(t('parva_shop_note')) + '</p>' +
+    g.map(function (gr) { return '<div class="gsec"><h3>' + esc(t('grp_' + gr.group)) + '</h3>' + gr.items.map(function (it) { var a = JJ.buyAmount(it.amt, it.unit); return '<div class="gi" style="cursor:default"><span class="gn">' + esc(ingName(it.id)) + '</span><span class="gq">' + a.v + ' ' + esc(t('u_' + a.u)) + '</span></div>'; }).join('') + '</div>'; }).join('') + '</details>';
+}
 function viewShop() {
   var r = rangeFor(ui.gRange), menus = menusIn(r[0], r[1]), groups = JJ.grocery(menus);
   var listId = ui.gRange + ':' + r[0];
   if (ui.gRange === 'week') JJ.db.put('grocery_lists', {id: 'week:' + r[0], from: r[0], to: r[1], createdAt: Date.now(), hh: P.hh, groups: groups});
   var seg = '<div class="seg" role="group">' + [['week', 'g_week'], ['month', 'g_month'], ['next', 'g_next']].map(function (x) { return '<button data-a="grange" data-v="' + x[0] + '" aria-pressed="' + (ui.gRange === x[0]) + '">' + esc(t(x[1])) + '</button>'; }).join('') + '</div>';
-  var b = seg + groceryView(groups, listId, t('grocery_title'), dShort(r[0]) + ' – ' + dShort(r[1]) + ' · ' + t('for_members', {n: P.hh}) + ' · ' + t('days_n', {n: menus.length}));
+  var b = seg + parvaShopping(menus) + groceryView(groups, listId, t('grocery_title'), dShort(r[0]) + ' – ' + dShort(r[1]) + ' · ' + t('for_members', {n: P.hh}) + ' · ' + t('days_n', {n: menus.length}));
   b += '<p class="fine" style="text-align:center"><button class="linkbtn" data-a="push" data-v="glists">' + esc(t('saved_lists')) + '</button></p>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
@@ -502,7 +586,7 @@ function viewProfileHome() {
     '<b>' + esc(t('cuisine')) + '</b><span>' + esc(nm(JJ.CUISINES[P.cuisine] || JJ.CUISINES.gen)) + '</span>' +
     '<b>' + esc(t('household')) + '</b><span>' + esc(t('for_members', {n: P.hh})) + '</span>' +
     '<b>' + esc(t('allergies_ex')) + '</b><span>' + esc(ex) + '</span>' +
-    '<b>' + esc(t('observances')) + '</b><span>' + esc(t('green_' + (P.greenRule || 'none'))) + '</span>' +
+    '<b>' + esc(t('observances')) + '</b><span>' + esc(t('obs_' + (P.obsProfile || 'strict')) + ((P.obsProfile || 'strict') === 'strict' ? ' · ' + t(P.parvaFruit ? 'parva_fruit_no' : 'parva_fruit_ok') : '')) + '</span>' +
     '<b>' + esc(t('chauvihar')) + '</b><span>' + esc(P.chauvihar ? t('chauvihar_before', {m: P.chauvihar}) : t('chauvihar_at')) + '</span>' +
     '</div><button class="btn primary" style="margin-top:12px;width:100%" data-a="push" data-v="profile">' + esc(t('edit_profile_btn')) + '</button></div>';
   b += '<div class="card glass"><h3>' + esc(t('language')) + '</h3>' + langChip() + '</div><div class="list">' +
@@ -563,11 +647,27 @@ function adminList() {
     return !q || (r.id + ' ' + [r.en, r.hi, r.gu].join(' ')).toLowerCase().indexOf(q) >= 0;
   });
 }
+/* Ingredient lines may use any regional name ("methi leaves:100, kothmir:10?"); names are matched to the
+   ingredient database. Unknown names are queued for admin verification and block approval. */
+function normIngs(str, record) {
+  str = String(str || '').trim(); var parts = str.indexOf(',') >= 0 ? str.split(',') : str.split(/\s+/), out = [], unknown = [];
+  parts.map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (p) {
+    var m = /^(.+?)\s*:\s*([0-9.]+)(\?)?$/.exec(p); if (!m) { unknown.push(p); return; }
+    var id = JJ.ING[m[1].trim()] ? m[1].trim() : JJ.resolveIngredient(m[1]);
+    if (!id) { unknown.push(m[1].trim()); return; }
+    out.push(id + ':' + m[2] + (m[3] || ''));
+  });
+  if (record && unknown.length) { var q = JJ.db.get('meta', 'ing_reviews') || {key: 'ing_reviews', names: []}; unknown.forEach(function (n) { if (q.names.indexOf(n) < 0) q.names.push(n); }); JJ.db.put('meta', q); }
+  return {str: out.join(' ') + (unknown.length ? ' ' : ''), unknown: unknown};
+}
 function viewAdmin() {
   var f = ui.admin, list = adminList();
+  var rev = (JJ.db.get('meta', 'ing_reviews') || {names: []}).names;
+  var revHtml = rev.length ? '<div class="card glass"><h3>' + esc(t('unverified_title', {n: rev.length})) + '</h3><p class="fine" style="margin:0 0 8px">' + esc(t('unverified_help')) + '</p>' +
+    rev.map(function (n, i) { return '<form class="addrow" data-map="' + i + '" autocomplete="off"><span style="flex:1;font-weight:800;align-self:center">' + esc(n) + '</span><input id="map-' + i + '" placeholder="' + esc(t('map_placeholder')) + '" aria-label="' + esc(t('map_placeholder')) + '"><button type="submit">' + esc(t('map_btn')) + '</button></form>'; }).join('') + '</div>' : '';
   var segS = '<div class="seg">' + ['all', 'approved', 'pending', 'rejected', 'invalid'].map(function (s) { return '<button data-a="adstatus" data-v="' + s + '" aria-pressed="' + (f.status === s) + '">' + esc(t('st_' + s)) + '</button>'; }).join('') + '</div>';
   var segM = '<div class="seg" style="margin-top:8px">' + ['all'].concat(MEALS).map(function (m) { return '<button data-a="admeal" data-v="' + m + '" aria-pressed="' + (f.meal === m) + '">' + esc(m === 'all' ? t('st_all') : t('meal_' + m)) + '</button>'; }).join('') + '</div>';
-  var b = '<p class="sub" style="margin-top:8px">' + esc(t('admin_intro')) + '</p><button class="btn primary" data-a="adnew">' + esc(t('add_recipe')) + '</button>' + '<div style="margin-top:12px">' + segS + segM + '</div>' +
+  var b = '<p class="sub" style="margin-top:8px">' + esc(t('admin_intro')) + '</p><button class="btn primary" data-a="adnew">' + esc(t('add_recipe')) + '</button>' + revHtml + '<div style="margin-top:12px">' + segS + segM + '</div>' +
     '<div class="field"><input class="input" id="ad-q" value="' + esc(f.q) + '" placeholder="' + esc(t('search_recipes')) + '" aria-label="' + esc(t('search_recipes')) + '"></div><p class="fine">' + esc(t('n_recipes', {n: list.length})) + '</p><div class="list">' +
     list.slice(0, 200).map(function (r) {
       var tg = !r.valid ? '<span class="tag bad">' + esc(t('st_invalid')) + '</span>' : '<span class="tag ' + (r.status === 'approved' ? 'ok' : r.status === 'pending' ? 'warn' : 'bad') + '">' + esc(t('st_' + r.status)) + '</span>';
@@ -584,7 +684,8 @@ function textToSteps(txt) {
 }
 function viewEdit(top) {
   var e = top.form;
-  var comp = JJ.compileRecipe({id: e.id, meal: e.meal, comp: e.comp, cu: e.cu.split(/[ ,]+/).filter(Boolean), en: e.en, hi: e.hi, gu: e.gu, ings: e.ings, steps: textToSteps(e.steps), flags: e.flags});
+  var comp = JJ.compileRecipe({id: e.id, meal: e.meal, comp: e.comp, cu: e.cu.split(/[ ,]+/).filter(Boolean), en: e.en, hi: e.hi, gu: e.gu, ings: normIngs(e.ings).str, steps: textToSteps(e.steps), flags: e.flags});
+  normIngs(e.ings).unknown.forEach(function (n) { comp.errors.push({c: 'unverifiedIng', p: n}); comp.valid = false; });
   var dups = JJ.catalog.list.filter(function (r) { return r.id !== e.id && r.key === comp.key && r.status === 'approved'; });
   if (dups.length) comp.errors.push({c: 'dup', p: dups[0].id});
   function fld(id, label, val, type) { return '<div class="field"><label for="ed-' + id + '">' + esc(t(label)) + '</label>' + (type === 'area' ? '<textarea class="input" id="ed-' + id + '" data-ed="' + id + '">' + esc(val) + '</textarea>' : '<input class="input" id="ed-' + id + '" data-ed="' + id + '" value="' + esc(val) + '">') + '</div>'; }
@@ -615,7 +716,7 @@ function formFor(r) {
 }
 function saveRecipe(form, status) {
   var rec = {id: form.id, meal: form.meal, comp: form.comp, cu: form.cu.split(/[ ,]+/).filter(Boolean), orig: form.orig, serves: +form.serves || 4, prep: +form.prep || 0, cook: +form.cook || 0,
-    ings: form.ings.trim(), steps: textToSteps(form.steps), flags: form.flags, status: status, origin: 'admin', reviewedBy: 'admin (this device)', updatedAt: Date.now()};
+    ings: normIngs(form.ings, true).str, steps: textToSteps(form.steps), flags: form.flags, status: status, origin: 'admin', reviewedBy: 'admin (this device)', updatedAt: Date.now()};
   JJ.db.put('recipes', rec);
   ['en', 'hi', 'gu'].forEach(function (l) { JJ.db.put('recipe_translations', {key: rec.id + '|' + l, recipeId: rec.id, lang: l, name: form[l]}); });
   if (!JJ.db.get('recipe_sources', rec.id)) JJ.db.put('recipe_sources', {recipeId: rec.id, name: t('src_admin'), url: null, verified: false});
@@ -625,7 +726,7 @@ function saveRecipe(form, status) {
 
 /* ---------------- Profile / onboarding ---------------- */
 var SUBS = {Shwetambar: ['Murtipujak', 'Sthanakvasi', 'Terapanth', 'Other'], Digambar: ['Bispanthi', 'Terapanth', 'Taranpanth', 'Other']};
-function blankDraft() { return {lang: LANG, tradition: '', subsect: '', country: 'IN', state: '', cityId: '', custom: null, cuisine: '', calendar: 'amanta', hh: 4, allergies: [], exclude: [], avoidCrucifer: false, greenRule: 'none', shuklaPanchamGreen: false, navkarsi: 48, chauvihar: 0}; }
+function blankDraft() { return {lang: LANG, tradition: '', subsect: '', country: 'IN', state: '', cityId: '', custom: null, cuisine: '', calendar: 'amanta', hh: 4, allergies: [], exclude: [], avoidCrucifer: false, greenRule: 'none', shuklaPanchamGreen: false, obsProfile: 'strict', parvaFruit: false, navkarsi: 48, chauvihar: 0}; }
 function fromProfile(p) { var d = JSON.parse(JSON.stringify(p)); return d; }
 function ready(d) { return !!(d.tradition && d.subsect && (d.cityId || d.custom) && d.cuisine && d.hh >= 1); }
 function frow(key, icon, title, value, done, bodyFn) {
@@ -664,8 +765,13 @@ function viewProfile(onboard) {
       '<div class="field"><input class="input" id="ex-q" value="' + esc(ui.ingQ) + '" placeholder="' + esc(t('exclude_search')) + '" aria-label="' + esc(t('exclude_search')) + '"></div><div class="search-results">' + exResults(ui.ingQ) + '</div>' +
       '<label class="toggle"><input type="checkbox" data-pf="avoidCrucifer"' + (d.avoidCrucifer ? ' checked' : '') + '><span>' + esc(t('avoid_crucifer')) + '<small>' + esc(t('avoid_crucifer_sub')) + '</small></span></label>';
   });
-  rows += frow('obs', 'moon', t('observances'), t('green_' + d.greenRule), true, function () {
-    return '<div class="toggle" style="cursor:default"><input type="checkbox" checked disabled><span>' + esc(t('ac_locked')) + '<small>' + esc(t('ac_locked_sub')) + '</small></span></div>' +
+  var op = d.obsProfile || 'strict';
+  rows += frow('obs', 'moon', t('observances'), t('obs_' + op), true, function () {
+    var h = '<div class="field"><label for="pf-obs">' + esc(t('obs_profile')) + '</label><select class="select" id="pf-obs">' + ['strict', 'standard', 'custom'].map(function (o) { return '<option value="' + o + '"' + (op === o ? ' selected' : '') + '>' + esc(t('obs_' + o)) + '</option>'; }).join('') + '</select></div>' +
+      '<p class="hint">' + esc(t('obs_' + op + '_sub')) + '</p>';
+    if (op === 'strict') return h + '<label class="toggle"><input type="checkbox" data-pf="parvaFruit"' + (d.parvaFruit ? ' checked' : '') + '><span>' + esc(t('parva_fruit_rule')) + '<small>' + esc(t('parva_fruit_rule_sub')) + '</small></span></label>' + '<p class="hint">' + esc(t('obs_help')) + '</p>';
+    if (op === 'standard') return h + '<div class="toggle" style="cursor:default"><input type="checkbox" checked disabled><span>' + esc(t('ac_locked')) + '<small>' + esc(t('ac_locked_sub')) + '</small></span></div>';
+    return h + '<div class="toggle" style="cursor:default"><input type="checkbox" checked disabled><span>' + esc(t('ac_locked')) + '<small>' + esc(t('ac_locked_sub')) + '</small></span></div>' +
       '<div class="field"><label for="pf-green">' + esc(t('green_rule')) + '</label><select class="select" id="pf-green">' + ['none', 'ac', 'five', 'twelve'].map(function (g) { return '<option value="' + g + '"' + (d.greenRule === g ? ' selected' : '') + '>' + esc(t('green_' + g)) + '</option>'; }).join('') + '</select></div>' +
       '<label class="toggle"><input type="checkbox" data-pf="shuklaPanchamGreen"' + (d.shuklaPanchamGreen ? ' checked' : '') + '><span>' + esc(t('pancham_rule')) + '<small>' + esc(t('pancham_rule_sub')) + '</small></span></label>' +
       '<p class="hint">' + esc(t('obs_help')) + '</p>';
@@ -720,6 +826,28 @@ app.addEventListener('click', function (e) {
     case 'thali': stack.push({k: 'thali', date: el.dataset.d}); render(); break;
     case 'librecipe': stack.push({k: 'recipe', id: v}); render(); break;
     case 'libmeal': ui.lib.meal = v; render(); break;
+    case 'choose': {
+      var cm = menuFor(el.dataset.d); if (!cm) break;
+      cm.choice = Object.assign({b: 0, l: 0, s: 0, d: 0}, cm.choice); cm.choice[el.dataset.m] = +v;
+      if (cm.status === 'history') JJ.db.put('menu_history', cm);
+      else { cm = Object.assign({}, cm, {status: 'planned', month: ym(cm.date), savedAt: Date.now()}); JJ.db.put('daily_menus', cm); previewCache.delete(cm.date); }
+      render(); toast(t('option_saved')); break;
+    }
+    case 'ics': {
+      var blob = new Blob([parvaIcs()], {type: 'text/calendar'}), a2 = document.createElement('a');
+      a2.href = URL.createObjectURL(blob); a2.download = 'jainjoy-parva-reminders.ics'; document.body.appendChild(a2); a2.click(); a2.remove();
+      toast(t('ics_done')); break;
+    }
+    case 'notify': {
+      if (!window.Notification) { toast(t('notify_unsupported')); break; }
+      if (notifyState() === 'on') { try { localStorage.removeItem('jainjoy.notify'); } catch (e) {} render(); toast(t('notify_off')); break; }
+      Notification.requestPermission().then(function (perm) {
+        if (perm === 'granted') { try { localStorage.setItem('jainjoy.notify', '1'); } catch (e) {} toast(t('notify_on')); maybeEveningReminder(); }
+        else toast(t('notify_denied'));
+        render();
+      });
+      break;
+    }
     case 'chogday': ui.chogDate = JJ.addDays(ui.chogDate || today(), +v); render(); break;
     case 'calm': ui.calMonth = addMonth(ui.calMonth || ym(today()), +v); render(); break;
     case 'genmonth': generateMonth(v); toast(t('month_saved_toast')); render(); break;
@@ -769,6 +897,7 @@ app.addEventListener('change', function (e) {
   else if (el.id === 'pf-state') { draft.state = el.value; draft.cityId = ''; var st = JJ.STATES.IN[el.value]; if (st && !draft.cuisineSet) { draft.cuisine = st.cu; draft.calendar = st.cal; } render(); }
   else if (el.id === 'pf-city') { if (el.value) pickCity(el.value); render(); }
   else if (el.id === 'pf-green') { draft.greenRule = el.value; render(); }
+  else if (el.id === 'pf-obs') { draft.obsProfile = el.value; render(); }
   else if (el.id === 'pf-cha') { draft.chauvihar = +el.value; render(); }
   else if (el.id === 'pf-cal') { draft.calendar = el.value; render(); }
   else if (el.dataset.pf) { draft[el.dataset.pf] = el.checked; render(); }
@@ -789,6 +918,14 @@ app.addEventListener('input', function (e) {
 app.addEventListener('submit', function (e) {
   e.preventDefault();
   if (e.target.id === 'geo-form') geoSearch();
+  if (e.target.dataset && e.target.dataset.map != null) {
+    var qi = +e.target.dataset.map, q = JJ.db.get('meta', 'ing_reviews') || {key: 'ing_reviews', names: []}, name = q.names[qi], val = (document.getElementById('map-' + qi).value || '').trim();
+    var id = JJ.ING[val] ? val : JJ.resolveIngredient(val);
+    if (!id) { toast(t('map_unknown')); return; }
+    var syn = JJ.db.get('meta', 'custom_synonyms') || {key: 'custom_synonyms', list: []}; syn.list.push({name: name, id: id}); JJ.db.put('meta', syn);
+    JJ.customSynonyms = syn.list; JJ.rebuildIngredientIndex();
+    q.names.splice(qi, 1); JJ.db.put('meta', q); toast(t('map_done', {name: name, ing: ingName(id)})); render();
+  }
 });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet) { sheet = null; render(); } });
 function refreshCounts() {
@@ -835,19 +972,22 @@ var lastDay = null;
 setInterval(function () {
   tick();
   if (!P) return;
+  maybeEveningReminder();
   var td = today(); if (lastDay && td !== lastDay) { freezeHistory(); if (!stack.length) render(); } lastDay = td;
 }, 30000);
 
 /* ---------------- boot ---------------- */
-JJ.app = {render: render, menuFor: menuFor, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
+JJ.app = {render: render, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
   get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache};
 JJ.boot = function () {
   return JJ.db.open().then(function () {
     JJ.seedDatabase(); JJ.migrateV1();
+    JJ.customSynonyms = (JJ.db.get('meta', 'custom_synonyms') || {list: []}).list; JJ.rebuildIngredientIndex();
     JJ.loadCatalog(JJ.recipesFromDb());
     P = JJ.db.get('profiles', 'local') || null;
     try { LANG = (P && P.lang) || localStorage.getItem('jainjoy.lang') || 'en'; } catch (e) { LANG = (P && P.lang) || 'en'; }
-    if (P) { lastDay = today(); freezeHistory(); }
+    if (P && !P.obsProfile) { P.obsProfile = 'strict'; P.parvaFruit = false; JJ.app.applyProfileChange(); }
+    if (P) { lastDay = today(); freezeHistory(); maybeEveningReminder(); }
     render();
   });
 };
