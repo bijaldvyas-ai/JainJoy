@@ -229,3 +229,27 @@ JJ.energySplit = function (n) {
   return [Math.round(p * 100 / s), Math.round(c * 100 / s), Math.round(f * 100 / s)];
 };
 })(window.JJ = window.JJ || {});
+
+/* ---------------- re-check a stored menu against today's rules ---------------- */
+(function (JJ) {
+'use strict';
+/* Every recipe in a menu (both options) and every accompaniment is checked again before it is shown.
+   Returns a list of problems; an empty list means the menu is fully compliant with the current rules. */
+JJ.menuViolations = function (menu, prof) {
+  if (!menu || menu.legacy) return [];
+  var city = JJ.profileCity(prof), p = JJ.panchang(menu.date, city, prof), rules = JJ.dayRules(p, prof), out = [];
+  function check(id, where) {
+    var r = JJ.catalog.byId[id] || (menu.snap && menu.snap[id] && JJ.compileRecipe(Object.assign({}, menu.snap[id], {ings: menu.snap[id].ings.map(function (x) { return x.id + ':' + x.q + (x.opt ? '?' : ''); }).join(' ')})));
+    if (!r) { out.push(where + ':' + id + ':missing'); return; }
+    var drop = JJ.allowed(Object.assign({}, r, {status: 'approved'}), rules, prof);
+    if (!drop) out.push(where + ':' + id);
+  }
+  ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x && x.id) { check(x.id, m); if (x.alt) check(x.alt.id, m + '2'); } });
+  (menu.meals.l.items || []).forEach(function (it) {
+    if (it.id) check(it.id, 'l'); if (it.alt) check(it.alt.id, 'l2');
+    if (it.acc && !JJ.accAllowed(it.acc, rules, prof)) out.push('acc:' + it.acc);
+  });
+  if (rules.parva && !(menu.rules && menu.rules.parva)) out.push('rules-changed');
+  return out;
+};
+})(window.JJ = window.JJ || {});

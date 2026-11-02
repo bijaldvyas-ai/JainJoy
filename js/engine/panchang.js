@@ -146,13 +146,12 @@ JJ.parvaKeys = function (p) { return p.observed.filter(function (t) { return JJ.
    Onion, garlic, roots, Kaddu, Alavi and other everyday prohibitions apply on every day in every profile. */
 JJ.dayRules = function (p, prof) {
   var r = {noLeafy: false, noGreen: false, parva: false, noFruit: false, reasons: [], parvaKeys: JJ.parvaKeys(p)};
-  var profile = prof.obsProfile || 'strict';
+  // The five Parva Tithis are mandatory for every household: no leafy or fresh vegetables, herbs or sprouts.
+  // No profile setting can weaken them; a household can only add extra days (greenRule) or also avoid fruit.
   if (p.aatham || p.chaudas) { r.noLeafy = true; r.reasons.push(p.aatham ? 'aatham' : 'chaudas'); }
-  if (profile === 'strict') {
-    if (r.parvaKeys.length) { r.parva = true; r.noLeafy = true; r.noFruit = !!prof.parvaFruit; r.reasons = r.parvaKeys.slice(); }
-    return r;
-  }
-  if (profile === 'standard') return r;
+  if (r.parvaKeys.length) { r.parva = true; r.noLeafy = true; r.noFruit = !!prof.parvaFruit; r.reasons = r.parvaKeys.slice(); }
+  var profile = prof.obsProfile || 'strict';
+  if (profile !== 'custom') return r;
   var g = prof.greenRule || 'none';
   var five = p.beej || p.pancham || p.aatham || p.agiyaras || p.chaudas;
   if (g === 'ac' && (p.aatham || p.chaudas)) r.noGreen = true;

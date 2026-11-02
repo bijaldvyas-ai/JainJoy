@@ -63,9 +63,9 @@ The five Parva Tithis are core, calendar-driven food rules.
 **Observance profiles** (Profile → Tithi observances)
 | Profile | Parva Tithi rule |
 |---|---|
-| Strict (default) | On all five Parva Tithis: no leafy vegetables, no fresh vegetables of any kind, no green herbs, no sprouts |
-| Standard | Aatham and Chaudas of both pakshas: no leafy vegetables |
-| Custom | Standard plus the household's own green-vegetable days |
+| All households (mandatory) | On all five Parva Tithis: no leafy vegetables, no fresh vegetables of any kind, no green herbs, no sprouts. No setting can weaken this |
+
+| Optional extra days | A household may add more green-vegetable-free days (5 or 12 tithis) |
 
 Fresh-fruit avoidance on Parva Tithis is a separate household choice (off by default).
 
@@ -314,3 +314,9 @@ Status: all pass (see `docs/TEST-REPORT.md`, 41 of 41).
 | Lauki called "kaddu/ghiya" in some regions | Glossary clarifies; household can exclude lauki |
 
 Open questions: which Sangh's Panchang to certify against; who reviews recipes; whether to add a premium tier; whether to add push notifications for Navkarsi and Chauvihar.
+
+## 11. Change log – v2.1 correction (2 Nov 2026)
+
+- The five Parva Tithi restrictions are mandatory for every household; the Standard and Custom profiles can no longer weaken them (Custom only adds extra days).
+- Every stored menu (today, saved plans, previews) is re-validated against the current rules before display. A non-compliant menu for today or a future day is rebuilt immediately; a past day is kept as recorded and marked.
+- Cause of the reported issue: a menu saved on the device before the Parva update (Gavar nu Shaak on Vad Aatham) was locked and not re-validated.

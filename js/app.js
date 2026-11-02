@@ -90,14 +90,25 @@ function freezeHistory() {
   }
   meta.upto = td; JJ.db.put('meta', meta);
 }
+/* Every stored menu is re-checked against the current rules before it is shown.
+   Today and future days that fail are rebuilt at once; past days stay as recorded but are marked. */
+function checked(iso, m) {
+  if (!m || m.legacy || !JJ.menuViolations(m, P).length) return m;
+  var td = today();
+  if (iso < td) return Object.assign({}, m, {ruleWarning: true});
+  if (m.status === 'history') { JJ.db.del('menu_history', iso); return freeze(generate(iso)); }
+  var g = Object.assign(generate(iso), {status: m.status === 'planned' ? 'planned' : 'preview', month: ym(iso), savedAt: Date.now()});
+  if (g.status === 'planned') JJ.db.put('daily_menus', g); else previewCache.set(iso, g);
+  return g;
+}
 function menuFor(iso) {
   if (!P) return null;
-  var h = JJ.db.get('menu_history', iso); if (h) return h;
+  var h = JJ.db.get('menu_history', iso); if (h) return checked(iso, h);
   if (iso < P.created) return null;
   var td = today();
-  if (iso <= td) { freezeHistory(); return JJ.db.get('menu_history', iso); }
+  if (iso <= td) { freezeHistory(); return checked(iso, JJ.db.get('menu_history', iso)); }
   if (previewPv !== P.version) { previewCache.clear(); previewPv = P.version; }
-  var s = JJ.db.get('daily_menus', iso); if (s && s.pv === P.version) return s;
+  var s = JJ.db.get('daily_menus', iso); if (s && s.pv === P.version) return checked(iso, s);
   for (var d = JJ.addDays(td, 1); d <= iso; d = JJ.addDays(d, 1)) {
     if (getStored(d) || previewCache.has(d)) continue;
     previewCache.set(d, Object.assign(generate(d), {status: 'preview'}));
@@ -321,6 +332,7 @@ function dayBody(iso, isToday) {
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + optionToggle(iso, k, menu) + '</div>'; }).join('') + '</div>';
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
+  if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
   if (isToday) b += '<div class="quick">' +
     '<button data-a="tab" data-v="shop">' + ic('cart') + '<span>' + esc(t('quick_grocery')) + '</span></button>' +
     '<button data-a="tab" data-v="chog">' + ic('clock') + '<span>' + esc(t('tab_choghadiya')) + '</span></button>' +
@@ -586,7 +598,7 @@ function viewProfileHome() {
     '<b>' + esc(t('cuisine')) + '</b><span>' + esc(nm(JJ.CUISINES[P.cuisine] || JJ.CUISINES.gen)) + '</span>' +
     '<b>' + esc(t('household')) + '</b><span>' + esc(t('for_members', {n: P.hh})) + '</span>' +
     '<b>' + esc(t('allergies_ex')) + '</b><span>' + esc(ex) + '</span>' +
-    '<b>' + esc(t('observances')) + '</b><span>' + esc(t('obs_' + (P.obsProfile || 'strict')) + ((P.obsProfile || 'strict') === 'strict' ? ' · ' + t(P.parvaFruit ? 'parva_fruit_no' : 'parva_fruit_ok') : '')) + '</span>' +
+    '<b>' + esc(t('observances')) + '</b><span>' + esc(t('parva_locked') + (P.obsProfile === 'custom' && P.greenRule !== 'none' ? ' + ' + t('green_' + P.greenRule) : '') + ' · ' + t(P.parvaFruit ? 'parva_fruit_no' : 'parva_fruit_ok')) + '</span>' +
     '<b>' + esc(t('chauvihar')) + '</b><span>' + esc(P.chauvihar ? t('chauvihar_before', {m: P.chauvihar}) : t('chauvihar_at')) + '</span>' +
     '</div><button class="btn primary" style="margin-top:12px;width:100%" data-a="push" data-v="profile">' + esc(t('edit_profile_btn')) + '</button></div>';
   b += '<div class="card glass"><h3>' + esc(t('language')) + '</h3>' + langChip() + '</div><div class="list">' +
@@ -765,15 +777,10 @@ function viewProfile(onboard) {
       '<div class="field"><input class="input" id="ex-q" value="' + esc(ui.ingQ) + '" placeholder="' + esc(t('exclude_search')) + '" aria-label="' + esc(t('exclude_search')) + '"></div><div class="search-results">' + exResults(ui.ingQ) + '</div>' +
       '<label class="toggle"><input type="checkbox" data-pf="avoidCrucifer"' + (d.avoidCrucifer ? ' checked' : '') + '><span>' + esc(t('avoid_crucifer')) + '<small>' + esc(t('avoid_crucifer_sub')) + '</small></span></label>';
   });
-  var op = d.obsProfile || 'strict';
-  rows += frow('obs', 'moon', t('observances'), t('obs_' + op), true, function () {
-    var h = '<div class="field"><label for="pf-obs">' + esc(t('obs_profile')) + '</label><select class="select" id="pf-obs">' + ['strict', 'standard', 'custom'].map(function (o) { return '<option value="' + o + '"' + (op === o ? ' selected' : '') + '>' + esc(t('obs_' + o)) + '</option>'; }).join('') + '</select></div>' +
-      '<p class="hint">' + esc(t('obs_' + op + '_sub')) + '</p>';
-    if (op === 'strict') return h + '<label class="toggle"><input type="checkbox" data-pf="parvaFruit"' + (d.parvaFruit ? ' checked' : '') + '><span>' + esc(t('parva_fruit_rule')) + '<small>' + esc(t('parva_fruit_rule_sub')) + '</small></span></label>' + '<p class="hint">' + esc(t('obs_help')) + '</p>';
-    if (op === 'standard') return h + '<div class="toggle" style="cursor:default"><input type="checkbox" checked disabled><span>' + esc(t('ac_locked')) + '<small>' + esc(t('ac_locked_sub')) + '</small></span></div>';
-    return h + '<div class="toggle" style="cursor:default"><input type="checkbox" checked disabled><span>' + esc(t('ac_locked')) + '<small>' + esc(t('ac_locked_sub')) + '</small></span></div>' +
-      '<div class="field"><label for="pf-green">' + esc(t('green_rule')) + '</label><select class="select" id="pf-green">' + ['none', 'ac', 'five', 'twelve'].map(function (g) { return '<option value="' + g + '"' + (d.greenRule === g ? ' selected' : '') + '>' + esc(t('green_' + g)) + '</option>'; }).join('') + '</select></div>' +
-      '<label class="toggle"><input type="checkbox" data-pf="shuklaPanchamGreen"' + (d.shuklaPanchamGreen ? ' checked' : '') + '><span>' + esc(t('pancham_rule')) + '<small>' + esc(t('pancham_rule_sub')) + '</small></span></label>' +
+  rows += frow('obs', 'moon', t('observances'), t('parva_locked'), true, function () {
+    return '<div class="toggle" style="cursor:default"><input type="checkbox" checked disabled><span>' + esc(t('parva_locked')) + '<small>' + esc(t('obs_strict_sub')) + '</small></span></div>' +
+      '<label class="toggle"><input type="checkbox" data-pf="parvaFruit"' + (d.parvaFruit ? ' checked' : '') + '><span>' + esc(t('parva_fruit_rule')) + '<small>' + esc(t('parva_fruit_rule_sub')) + '</small></span></label>' +
+      '<div class="field"><label for="pf-green">' + esc(t('extra_days')) + '</label><select class="select" id="pf-green">' + ['none', 'five', 'twelve'].map(function (g) { var v = d.obsProfile === 'custom' ? d.greenRule : 'none'; return '<option value="' + g + '"' + (v === g ? ' selected' : '') + '>' + esc(t('green_' + g)) + '</option>'; }).join('') + '</select></div>' +
       '<p class="hint">' + esc(t('obs_help')) + '</p>';
   });
   rows += frow('timing', 'clock', t('timing_conv'), t('chauvihar') + ': ' + (d.chauvihar ? t('chauvihar_before', {m: d.chauvihar}) : t('chauvihar_at')), true, function () {
@@ -896,7 +903,7 @@ app.addEventListener('change', function (e) {
   if (el.id === 'pf-country') { draft.country = el.value; draft.state = ''; draft.cityId = ''; render(); }
   else if (el.id === 'pf-state') { draft.state = el.value; draft.cityId = ''; var st = JJ.STATES.IN[el.value]; if (st && !draft.cuisineSet) { draft.cuisine = st.cu; draft.calendar = st.cal; } render(); }
   else if (el.id === 'pf-city') { if (el.value) pickCity(el.value); render(); }
-  else if (el.id === 'pf-green') { draft.greenRule = el.value; render(); }
+  else if (el.id === 'pf-green') { draft.greenRule = el.value; draft.obsProfile = el.value === 'none' ? 'strict' : 'custom'; render(); }
   else if (el.id === 'pf-obs') { draft.obsProfile = el.value; render(); }
   else if (el.id === 'pf-cha') { draft.chauvihar = +el.value; render(); }
   else if (el.id === 'pf-cal') { draft.calendar = el.value; render(); }
