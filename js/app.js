@@ -663,9 +663,9 @@ function groceryView(allGroups, listId, title, sub, saved) {
   var tk = ticks().v[listId] || {}, total = 0, done = 0;
   groups.forEach(function (g) { g.items.forEach(function (it) { total++; if (tk[it.id]) done++; }); });
   var pct = total ? Math.round(done * 100 / total) : 0;
-  var b = '<h1 class="h1" style="margin-top:6px">' + esc(title) + '</h1><p class="sub">' + esc(sub) + '</p>';
+  var b = '<div class="greet-row title-row"><h1 class="h1" style="margin:0">' + esc(title) + '</h1><button class="btn small wa" data-a="wa" data-v="list" data-list="' + esc(listId) + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><p class="sub">' + esc(sub) + '</p>';
   b += '<div class="gtop"><div class="ring" id="ring" style="--p:' + pct + '"><span id="ringtxt">' + pct + '%</span></div><div class="tinfo"><b id="gcount">' + esc(t('items_done', {d: done, n: total})) + '</b><small>' + esc(t('grocery_note')) + '</small></div></div>';
-  b += '<div class="gactions"><button class="gbtn" data-a="copy" data-v="' + esc(listId) + '">' + ic('copy') + esc(t('copy_list')) + '</button><button class="gbtn wa" data-a="wa" data-v="list" data-list="' + esc(listId) + '">' + esc(t('share_whatsapp')) + '</button><button class="gbtn" data-a="clearticks" data-v="' + esc(listId) + '">' + ic('undo') + esc(t('clear_ticks')) + '</button><button class="gbtn" data-a="push" data-v="pantry">🏠 ' + esc(t('pantry_title')) + '</button></div>';
+  b += '<div class="gactions"><button class="gbtn" data-a="copy" data-v="' + esc(listId) + '">' + ic('copy') + esc(t('copy_list')) + '</button><button class="gbtn" data-a="clearticks" data-v="' + esc(listId) + '">' + ic('undo') + esc(t('clear_ticks')) + '</button><button class="gbtn" data-a="push" data-v="pantry">🏠 ' + esc(t('pantry_title')) + '</button></div>';
   groups.forEach(function (g) {
     b += '<section class="gsec"><h3>' + esc(t('grp_' + g.group)) + '</h3>' + g.items.map(function (it) {
       var a = JJ.buyAmount(it.amt, it.unit);
@@ -735,9 +735,12 @@ function viewSavedList(top) {
   return backBar(t('saved_lists')) + '<main class="scroll gx" id="scroll">' + groceryView(l.groups, 'saved:' + l.id, t('grocery_title'), dShort(l.from) + ' – ' + dShort(l.to)) + '</main>';
 }
 function listText(groups) {
-  var s = '🪷 JainJoy\n';
-  splitPantry(groups).buy.forEach(function (g) { s += '\n' + t('grp_' + g.group) + '\n'; g.items.forEach(function (it) { var a = JJ.buyAmount(it.amt, it.unit); s += '- ' + ingName(it.id) + ': ' + a.v + ' ' + t('u_' + a.u) + '\n'; }); });
-  return s;
+  var s = '🪷 JainJoy · ' + t('grocery_title') + '\n', sp = splitPantry(groups);
+  function line(it) { var a = JJ.buyAmount(it.amt, it.unit); return '- ' + ingName(it.id) + ': ' + a.v + ' ' + t('u_' + a.u) + '\n'; }
+  sp.buy.forEach(function (g) { s += '\n🛒 ' + t('grp_' + g.group) + '\n'; g.items.forEach(function (it) { s += line(it); }); });
+  // pantry staples are not bought, but listed so the family can check the stock is enough
+  if (sp.home.length) { s += '\n🏠 ' + t('pantry_at_home', {n: sp.home.length}) + '\n'; sp.home.forEach(function (it) { s += line(it); }); }
+  return s + '\nhttps://bijaldvyas-ai.github.io/JainJoy/';
 }
 
 /* ---------------- Choghadiya ---------------- */
