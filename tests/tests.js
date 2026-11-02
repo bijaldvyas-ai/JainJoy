@@ -207,7 +207,8 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
   test(15, 'Every recipe has steps, valid references, source record and no dwidal', function () {
     var noSrc = approved.filter(function (r) { return !JJ.db.get('recipe_sources', r.id); }).length;
     var dw = approved.filter(function (r) { return !r.tags.dwidalSafe; }).length;
-    var steps = approved.filter(function (r) { return r.steps.map(function (s) { return JJ.renderStep(s, 'gu', JJ.ING, {}); }).some(function (s) { return !s || /\{[abn]\}/.test(s); }); }).length;
+    // a blank where a number belongs ("2 minutes", "4 whistles") leaves a double space
+    var steps = approved.filter(function (r) { return ['en', 'hi', 'gu'].some(function (l) { return r.steps.map(function (s) { return JJ.renderStep(s, l, JJ.ING, {}); }).some(function (s) { return !s || /\{[abn]\}/.test(s) || /  /.test(s); }); }); }).length;
     return {ok: !noSrc && !dw && !steps, details: 'Missing source record: ' + noSrc + '; dwidal: ' + dw + '; steps that fail to render in Gujarati: ' + steps};
   });
   test(16, 'All Indian states and union territories with cities', function () {
