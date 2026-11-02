@@ -86,7 +86,7 @@ Fresh-fruit avoidance on Parva Tithis is a separate household choice (off by def
 
 **Grocery list:** totals follow the chosen menu option, scaled to the household and grouped by category; a separate "Parva Tithi days" section lists what those days need, which never includes fresh vegetables.
 
-**Two options per meal [v2.1]:** every day offers option 1 and option 2 for breakfast, lunch (a second thali), snack and dinner, both compliant with the day's rules. The chosen option is saved and drives the grocery list and nutrition; past days stay locked.
+**Two options per meal [v2.1]:** every day offers option 1 and option 2 for breakfast, lunch (a second thali), snack and dinner, both compliant with the day's rules. They are shown side by side as two small cards (agreed with the product owner on 2 Nov 2026): tap a card to choose it (marked ✓), and "Recipe ›" or "Thali ›" opens it. The chosen option is saved and drives the grocery list and nutrition; past days stay locked.
 
 **Next-day reminder [v2.1]:** Today shows a Tomorrow card (tithi, Parva rule and planned meals). "Add Parva reminders to phone calendar" downloads a calendar file with every Parva Tithi of the next 60 days and an alert at 7 pm the evening before. An optional evening reminder appears after 5 pm while the app is open (phones do not allow scheduled alarms from a website without a push server).
 
