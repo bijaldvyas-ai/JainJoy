@@ -320,3 +320,15 @@ Open questions: which Sangh's Panchang to certify against; who reviews recipes; 
 - The five Parva Tithi restrictions are mandatory for every household; the Standard and Custom profiles can no longer weaken them (Custom only adds extra days).
 - Every stored menu (today, saved plans, previews) is re-validated against the current rules before display. A non-compliant menu for today or a future day is rebuilt immediately; a past day is kept as recorded and marked.
 - Cause of the reported issue: a menu saved on the device before the Parva update (Gavar nu Shaak on Vad Aatham) was locked and not re-validated.
+
+## 12. Change log – v2.6.0 home-kitchen update (2 Nov 2026)
+
+From the housewife audit, the top five fixes:
+
+1. **Less daily cooking.** Each dish has an active-time figure (an overnight soak counts as 10 minutes). Weekday limits: breakfast 30 min, snack 15, dinner 45, each lunch bowl 25; weekends 50 / 40 / 70 / 45. Dishes over the limit are strongly avoided.
+2. **Lighter food.** At most 1 fried dish a week (preferred on Saturday or Sunday) and at most 2 sweet dishes a week. Calorie guide per serving: breakfast 420, snack 280, dinner 650, lunch bowl 400.
+3. **Fewer vegetables to buy.** About 7 fresh vegetables per week (Monday to Sunday), reused across dishes; everyday tomato, chilli, lemon, coriander, curry leaves and mint are not counted. The weekly grocery list shows fresh vegetables and fruit split into two market trips.
+4. **Soak tonight.** The Tomorrow card and the evening notification list what to soak tonight and for which dish (overnight soaks, soaks of 6 hours or more, and any soak for breakfast).
+5. **Kitchen measures.** Recipe ingredients show katori (about 150 ml bowl) next to grams where it makes sense; bread recipes say how many pieces the dough makes.
+
+Acceptance: tests H1–H5 (see TEST-REPORT.md).
