@@ -522,6 +522,28 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
       details: fr.length + ' festive recipes; not Parva-safe or invalid: ' + (bad.join(',') || 'none') + '; missing ids: ' + (missing.join(',') || 'none') + '; dishes per day: ' + shown.join(' ') + '; Labh Pancham (Parva) keeps all dishes: ' + panchamOk + '; none on an ordinary day: ' + plain + '; never in everyday menus: ' + !inMenus};
   });
 
+  // ---- v2.9: customer accounts (validation and app flow; the live server is checked separately) ----
+  test('C1', 'Sign-up and login fields are validated with clear messages', function () {
+    var V = JJ.account.validate, cases = [
+      [{name: '', phone: '', password: '', confirm: ''}, true, ['acc_err_name_empty', 'acc_err_phone_empty', 'acc_err_pw_empty', 'acc_err_confirm_empty']],
+      [{name: 'Bijal Jain', phone: '98765', password: 'abc', confirm: 'abd'}, true, ['acc_err_phone_invalid', 'acc_err_pw_weak', 'acc_err_confirm_match']],
+      [{name: 'Bijal Jain', phone: '98765abcde', password: 'password', confirm: 'password'}, true, ['acc_err_phone_invalid', 'acc_err_pw_weak']],
+      [{name: 'Bijal Jain', phone: '+91 98765 43210', password: 'Jain2026', confirm: 'Jain2026'}, true, []],
+      [{phone: '9876543210', password: ''}, false, ['acc_err_pw_empty']],
+      [{phone: '9876543210', password: 'x'}, false, []]
+    ], bad = [];
+    cases.forEach(function (c, i) { var got = V(c[0], c[1]).map(function (e) { return e.key; }).sort().join(','); if (got !== c[2].slice().sort().join(',')) bad.push(i + ': ' + got); });
+    var keys = ['acc_err_phone_taken', 'acc_err_blocked', 'acc_err_wrong', 'acc_err_too_many'].every(function (k) { return JJ.app.t(k) !== k; });
+    return {ok: !bad.length && keys && JJ.account.cleanPhone('+91 98765-43210') === '9876543210', details: cases.length + ' cases' + (bad.length ? '; wrong: ' + bad.join(' | ') : ' all correct') + '; +91 and spaces are removed; messages for taken phone, blocked, wrong password and too many attempts exist: ' + keys};
+  });
+  test('C2', 'Without Supabase settings the app is unchanged', function () {
+    var on = JJ.account.configured();
+    JJ.app.profile = Object.assign({created: today}, STRICT()); JJ.db.put('profiles', JJ.app.profile);
+    document.querySelector('[data-a="tab"][data-v="today"]').click();
+    var txt = document.getElementById('app').innerText;
+    return {ok: !on && !/free JainJoy account/.test(txt), details: 'accounts configured: ' + on + '; no sign-up prompt or login wall shown: ' + !/free JainJoy account/.test(txt)};
+  });
+
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();

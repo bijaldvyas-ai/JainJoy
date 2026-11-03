@@ -348,3 +348,12 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 - **Festive recipes.** 14 traditional Gujarati Jain dishes (meal type "f"): Mohanthal, Magas, Ghughra, Kansar, Dudhpak, Basundi, Lapsi, Besan (Nirvan) Laddu, Mathiya, Chorafali, Chakri, Jain Sev, Shakkarpara and Kali Chaudas na Vada, in English, Hindi and Gujarati. None uses a vegetable, root or fresh herb, so all are Parva-safe.
 - **Festive menu card.** On each festival day the day screen shows "Diwali festive menu": what to cook that day, the nasto and sweets, and the tradition behind it. The everyday menu stays as planned; festive dishes are checked against the day's rules and the household's allergies and exclusions.
 - **Shopping and sharing.** Grocery shows a separate "Diwali festive shopping" section for the festive dishes in the chosen range; the WhatsApp day message lists the festive dishes.
+
+## 15. Change log – v2.9.0 customer accounts (3 Nov 2026)
+
+- **Optional accounts.** Sign Up (full name, 10-digit phone, password, confirm) and Login (phone + password) under Profile, plus one dismissible invitation on Today. The app works the same without an account. A signed-in customer stays signed in on that phone.
+- **Validation.** Clear messages in English, Hindi and Gujarati for: empty fields, invalid phone, weak password (at least 8 characters with a letter and a number), passwords that do not match, phone already registered, wrong password, blocked account and too many attempts.
+- **Storage.** Supabase: `customers` (id, name, phone unique, status active/blocked, created_at, last_login, last_seen). Passwords are bcrypt hashes kept by Supabase Auth only.
+- **Admin Customers section.** Live table (name, phone, status, joined, last login), cards for Total customers, New today and Active now, search by name or phone, and filters (All, Active, Blocked). Block, unblock and delete actions. New customers appear within 5 seconds without a refresh. Passwords are never shown.
+- **Security.** With accounts switched on, the admin area opens only for admin accounts, and the database enforces this with row-level security. Login attempts are limited by Supabase Auth per IP, and on each phone after 5 wrong tries.
+- Setup: docs/SETUP.md "Customer accounts" and db/supabase-setup.sql.

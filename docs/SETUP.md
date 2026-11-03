@@ -66,3 +66,21 @@ A preview build is published under `/v2-preview/` on the same site so it can be 
 - Existing households were moved to the Strict profile (5 Parva Tithis). They can choose Standard or Custom in Profile → Tithi observances. Past menus were not changed.
 - New Level B recipes: add them to `js/data/recipes-parva.js` (or through Recipe admin), raise `SEED_VERSION` in `js/db.js`, and rerun the tests.
 - Reminders: the calendar file is created on the phone. Real push notifications at a fixed time would need a push server (for example Firebase Cloud Messaging) and an account; that is not included.
+
+## Customer accounts (optional, Supabase)
+
+JainJoy works without accounts. To switch on Sign Up / Login and the admin Customers list:
+
+1. Go to https://supabase.com, sign in (GitHub is easiest) and create a **New project** named `jainjoy`, region **Mumbai (ap-south-1)**. Keep the database password to yourself.
+2. **Authentication → Sign In / Providers → Email**: turn **Confirm email** OFF (customers sign in with phone + password; no e-mails are sent). Set the minimum password length to 8.
+3. **SQL Editor → New query**: paste all of `db/supabase-setup.sql` and press **Run**.
+4. **Project Settings → API**: copy the **Project URL** and the **anon public** key into `js/config.js` (`supabaseUrl`, `supabaseKey`) and publish.
+5. Open the app, **Profile → Sign up** with your own phone number. Then in the SQL Editor run the last line of `db/supabase-setup.sql` with your number to make that account the admin.
+6. **Profile → Recipe admin** now opens with the live **Customers** section.
+
+How it is protected:
+- **Passwords:** Supabase Auth keeps only bcrypt hashes in `auth.users`. The `customers` table has no password column, and no screen or API key can read the hashes.
+- **Who sees what:** row-level security lets a customer read only their own row. Only accounts listed in `public.admins` can read all customers or block and delete them, and they do it through security-definer functions that check `is_admin()`.
+- **Blocking:** a blocked customer is banned in Supabase Auth, so the server refuses their login and ends their open sessions. Unblocking lifts the ban.
+- **Login attempts:** Supabase Auth limits sign-in requests per IP address (Authentication → Rate Limits). The app also locks login on that phone for 5 minutes after 5 wrong passwords.
+- **Live updates:** the admin table refreshes every 5 seconds and also listens for realtime database changes.

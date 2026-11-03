@@ -1,6 +1,6 @@
 # JainJoy 2.0 – Test Report
 
-**Run:** 2 Nov 2026, Chrome (desktop app browser), local server · **Result: 55 of 55 passed** (v2.8.0: Diwali festive menu)
+**Run:** 3 Nov 2026, Chrome (desktop app browser), local server · **Result: 57 of 57 passed** (v2.9.0: customer accounts)
 **Astronomy:** Astronomy Engine 2.1.19 · **Reference city:** Ahmedabad unless stated
 **How to rerun:** open `tests/index.html` from any web server (for example `https://bijaldvyas-ai.github.io/JainJoy/tests/`). The tests use a separate database (`jainjoy-test`) and never touch real app data.
 
@@ -124,3 +124,20 @@ Note: the lunch minutes add up every bowl separately; in a real kitchen dal, ric
 |---|---|---|---|
 | D1 | Diwali festival days | PASS | 2026 (Ahmedabad): Vagh Baras 5 Nov, Dhanteras 6 Nov, Kali Chaudas 7 Nov, Lakshmi Pujan 8 Nov, Jain Diwali (Mahavir Nirvan) 9 Nov, Nutan Varsh 10 Nov, Bhai Beej 11 Nov, Labh/Gyan Pancham 14 Nov. 2025 reference dates (Dhanteras 18 Oct, Lakshmi Pujan 20 Oct, Jain Diwali 21 Oct, New Year 22 Oct, Bhai Beej 23 Oct) all match |
 | D2 | Festive dishes are Jain compliant and shown on the right days | PASS | 14 festive recipes, all valid and Parva-safe; every festival day has dishes; Labh Pancham (a Parva day) keeps all its dishes; none on ordinary days; never in the everyday menu |
+
+## v2.9.0 – customer accounts
+
+| # | Test | Result | Evidence |
+|---|---|---|---|
+| C1 | Field validation and messages | PASS | 6 cases: empty fields, short name, invalid phone, weak password, mismatch, valid; +91 and spaces removed |
+| C2 | Without Supabase settings the app is unchanged | PASS | No invitation or login wall; admin area as before |
+
+App walk-through with an in-memory stand-in for Supabase (same rules as the SQL), 3 Nov 2026:
+- **Sign-up:** shows all four field errors, then succeeds and greets "Welcome to JainJoy, Bijal Jain!"; no plain password is stored.
+- **Duplicates:** a second sign-up with the same phone shows "This phone number is already registered".
+- **Login:** a wrong password shows "Wrong phone number or password"; after 5 wrong tries login is locked for 5 minutes.
+- **Admin access:** a customer account opening Admin sees "Admins only".
+- **Customers table:** the admin account sees the live table. A customer added elsewhere appeared within 5.6 seconds without a refresh. Search by name and by phone, and the Blocked filter, work.
+- **Block and delete:** a blocked customer's login is refused ("This account is blocked"); after unblocking they can log in again. Delete removes the customer.
+
+**Not yet verified:** the real Supabase project (bcrypt storage, row-level security, bans, server rate limits). It can only be checked after the project is created and configured.
