@@ -4,7 +4,7 @@
 var app = document.getElementById('app');
 var MEALS = ['b', 'l', 's', 'd'];
 var P = null, LANG = 'en', tab = 'today', stack = [], draft = null, openField = null, sheet = null;
-var ui = {calMonth: null, gRange: 'week', admin: {status: 'all', meal: 'all', q: ''}, lib: {meal: 'b', q: ''}, geo: {q: '', results: null, busy: false}, ingQ: ''};
+var ui = {calMonth: null, gRange: 'week', admin: {status: 'all', meal: 'all', q: ''}, lib: {meal: 'b', q: ''}, geo: {q: '', results: null, busy: false}, ingQ: '', acc: {mode: 'signup', f: {}, errs: [], busy: false}, cust: {rows: null, q: '', filter: 'all', err: ''}};
 var previewCache = new Map(), previewPv = -1;
 
 /* ---------------- i18n helpers ---------------- */
@@ -210,11 +210,12 @@ function render() {
   var body;
   if (!P) body = viewProfile(true);
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
-    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry})[top.k](top);
+    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount})[top.k](top);
   else body = tab === 'today' ? viewToday() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
   app.innerHTML = '<div class="phone">' + withCredit(body) + (P ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
   if (top && top.k === 'about' && JJ.analytics.enabled()) JJ.analytics.total().then(function (n) { var el = document.getElementById('visitors'); if (el) el.textContent = n == null ? t('visitors_unavailable') : t('visitors_total', {n: n}); });
+  if (top && top.k === 'admin' && JJ.account.isAdmin) custStartLive(); else custStopLive();
   tick();
 }
 var toastT = null;
@@ -529,7 +530,7 @@ function dinnerIcs() {
 }
 function viewToday() {
   var td = today();
-  var b = '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + td + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub">' + esc(dLong(td)) + ' · ' + esc(t('for_members', {n: P.hh})) + '</p>' + dayBody(td, true);
+  var b = '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + td + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub">' + esc(dLong(td)) + ' · ' + esc(t('for_members', {n: P.hh})) + '</p>' + inviteCard() + dayBody(td, true);
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
 function viewDayPushed(top) {
@@ -797,7 +798,7 @@ function viewProfileHome() {
   function row(a, v, i, l, s) { return '<button class="lrow" data-a="' + a + '" data-v="' + v + '"><span class="ficon">' + ic(i) + '</span><span class="mtxt grow"><b>' + esc(t(l)) + '</b><small>' + esc(t(s)) + '</small></span>' + ic('next', 'chev') + '</button>'; }
   var c = city(), st = P.country === 'IN' && JJ.STATES.IN[P.state] ? nm(JJ.STATES.IN[P.state]) : nm(JJ.COUNTRIES[P.country] || {en: ''});
   var ex = (P.allergies || []).map(function (a) { return nm(JJ.ALLERGENS[a]); }).concat((P.exclude || []).map(ingName)).join(', ') || t('none');
-  var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('tab_profile')) + '</h1>' +
+  var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('tab_profile')) + '</h1>' + accountCard() +
     '<div class="card glass"><div class="kv">' +
     '<b>' + esc(t('tradition')) + '</b><span>' + esc(t('trad_' + P.tradition) + ' · ' + t('sub_' + P.subsect)) + '</span>' +
     '<b>' + esc(t('location')) + '</b><span>' + esc(cityLabel(c) + (st ? ', ' + st : '')) + '</span>' +
@@ -813,6 +814,98 @@ function viewProfileHome() {
     row('push', 'glists', 'cart', 'saved_lists', 'saved_lists_sub') + row('push', 'about', 'db', 'about', 'about_sub') + '</div>';
   b += '<button class="btn-danger" data-a="resetask">' + esc(t('reset')) + '</button>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
+/* ---------------- customer account (optional) ---------------- */
+function accountCard() {
+  if (!JJ.account.configured()) return '';
+  var u = JJ.account.user;
+  if (u) return '<div class="card glass acc-card"><span class="ficon">👤</span><span class="mtxt grow"><b>' + esc(u.name || '') + '</b><small>' + esc(t('acc_signed_in', {phone: u.phone || ''})) + '</small></span><button class="btn small" data-a="logout">' + esc(t('acc_logout')) + '</button></div>';
+  return '<div class="card glass acc-card"><span class="ficon">👤</span><span class="mtxt grow"><b>' + esc(t('acc_invite_title')) + '</b><small>' + esc(t('acc_invite_sub')) + '</small></span>' +
+    '<div class="row" style="gap:6px"><button class="btn small primary" data-a="acc" data-v="signup">' + esc(t('acc_signup')) + '</button><button class="btn small" data-a="acc" data-v="login">' + esc(t('acc_login')) + '</button></div></div>';
+}
+/* one gentle invitation on Today; "Not now" hides it for good */
+function inviteCard() {
+  if (!JJ.account.configured() || JJ.account.user) return '';
+  try { if (localStorage.getItem('jainjoy.inviteDone')) return ''; } catch (e) { return ''; }
+  return '<section class="card glass acc-invite"><b>👤 ' + esc(t('acc_invite_title')) + '</b><p class="fine" style="margin:4px 0 8px">' + esc(t('acc_invite_sub')) + '</p>' +
+    '<div class="row" style="gap:8px"><button class="btn small primary" data-a="acc" data-v="signup">' + esc(t('acc_signup')) + '</button><button class="btn small" data-a="acc" data-v="login">' + esc(t('acc_login')) + '</button><button class="linkbtn" data-a="invitedone">' + esc(t('acc_not_now')) + '</button></div></section>';
+}
+function viewAccount() {
+  var a = ui.acc, su = a.mode === 'signup', f = a.f;
+  function err(field) { var e = a.errs.filter(function (x) { return x.field === field; })[0]; return e ? '<small class="ferr" role="alert">' + esc(t(e.key)) + '</small>' : ''; }
+  function inp(id, type, label, extra) { return '<label class="field"><span class="flabel">' + esc(t(label)) + '</span><input class="input' + (a.errs.some(function (x) { return x.field === id; }) ? ' bad' : '') + '" id="acc-' + id + '" type="' + type + '" value="' + esc(type === 'password' ? '' : f[id] || '') + '"' + (extra || '') + '>' + err(id) + '</label>'; }
+  var general = a.errs.filter(function (x) { return !x.field; })[0];
+  var b = '<div class="seg" role="group" style="margin-top:10px"><button data-a="accmode" data-v="signup" aria-pressed="' + su + '">' + esc(t('acc_signup')) + '</button><button data-a="accmode" data-v="login" aria-pressed="' + !su + '">' + esc(t('acc_login')) + '</button></div>' +
+    '<p class="sub">' + esc(t(su ? 'acc_signup_sub' : 'acc_login_sub')) + '</p>' +
+    (general ? '<div class="alert" role="alert">' + esc(t(general.key)) + '</div>' : '') +
+    '<form id="acc-form" class="card glass" autocomplete="on" novalidate>' +
+    (su ? inp('name', 'text', 'acc_name', ' autocomplete="name" maxlength="80"') : '') +
+    inp('phone', 'tel', 'acc_phone', ' inputmode="numeric" autocomplete="tel-national" maxlength="14" placeholder="98XXXXXXXX"') +
+    inp('password', 'password', 'acc_password', ' autocomplete="' + (su ? 'new-password' : 'current-password') + '"') +
+    (su ? '<p class="fine" style="margin:-4px 0 8px">' + esc(t('acc_pw_rule')) + '</p>' + inp('confirm', 'password', 'acc_confirm', ' autocomplete="new-password"') : '') +
+    '<button class="btn primary" type="submit" style="width:100%;margin-top:6px"' + (a.busy ? ' disabled' : '') + '>' + esc(t(a.busy ? 'acc_wait' : su ? 'acc_signup' : 'acc_login')) + '</button></form>' +
+    '<p class="fine" style="text-align:center">' + esc(t('acc_privacy')) + '</p>';
+  return backBar(t(su ? 'acc_signup' : 'acc_login')) + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
+function submitAccount() {
+  var a = ui.acc; if (a.busy) return;
+  ['name', 'phone', 'password', 'confirm'].forEach(function (k) { var el = document.getElementById('acc-' + k); if (el) a.f[k] = el.value; });
+  a.busy = true; a.errs = []; render();
+  (a.mode === 'signup' ? JJ.account.signUp(a.f) : JJ.account.signIn(a.f)).then(function (r) {
+    a.busy = false;
+    if (r.ok) { var su = a.mode === 'signup'; a.f = {}; a.errs = []; stack.pop(); try { localStorage.setItem('jainjoy.inviteDone', '1'); } catch (e) {} render(); toast(t(su ? 'acc_welcome' : 'acc_welcome_back', {name: (JJ.account.user || {}).name || ''})); return; }
+    a.errs = r.errors || [{field: '', key: 'acc_err_generic'}]; a.f.password = ''; a.f.confirm = ''; render();
+  }, function () { a.busy = false; a.errs = [{field: '', key: 'acc_err_offline'}]; render(); });
+}
+
+/* ---------------- admin: customers (live) ---------------- */
+var custPoll = null, custUnwatch = null;
+function custStartLive() {
+  if (custPoll) return;
+  custRefresh();
+  custPoll = setInterval(custRefresh, 5000); // polling every 5 s, with realtime pushes in between
+  custUnwatch = JJ.account.watch(custRefresh);
+}
+function custStopLive() { clearInterval(custPoll); custPoll = null; if (custUnwatch) { custUnwatch(); custUnwatch = null; } }
+function custRefresh() {
+  JJ.account.customers().then(function (r) { ui.cust.err = r.error || ''; if (r.rows) ui.cust.rows = r.rows; custPaint(); });
+}
+function localDay(ts) { var d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function tsText(ts) { return ts ? new Intl.DateTimeFormat(loc(), {day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', numberingSystem: 'latn'}).format(new Date(ts)) : '—'; }
+function custLiveHTML() {
+  var c = ui.cust, rows = c.rows;
+  if (c.err && !rows) return '<div class="alert">' + esc(t('cust_error')) + '</div>';
+  if (!rows) return '<p class="fine">' + esc(t('cust_loading')) + '</p>';
+  var td = localDay(Date.now()), now = Date.now();
+  var newToday = rows.filter(function (r) { return localDay(r.created_at) === td; }).length;
+  var activeNow = rows.filter(function (r) { return r.status === 'active' && r.last_seen && now - new Date(r.last_seen).getTime() < 5 * 6e4; }).length;
+  var q = c.q.trim().toLowerCase(), list = rows.filter(function (r) {
+    if (c.filter !== 'all' && r.status !== c.filter) return false;
+    return !q || (r.name || '').toLowerCase().indexOf(q) >= 0 || (r.phone || '').indexOf(q.replace(/\D/g, '') || '~') >= 0;
+  });
+  return '<div class="cust-stats"><div><b>' + rows.length + '</b><small>' + esc(t('cust_total')) + '</small></div><div><b>' + newToday + '</b><small>' + esc(t('cust_new_today')) + '</small></div><div><b>' + activeNow + '</b><small>' + esc(t('cust_active_now')) + '</small></div></div>' +
+    '<p class="fine">' + esc(t('cust_showing', {n: list.length, total: rows.length})) + ' · <span class="live-dot"></span>' + esc(t('cust_live')) + '</p>' +
+    (list.length ? '<div class="cust-table" role="table"><div class="cust-row head" role="row"><span>' + esc(t('acc_name')) + '</span><span>' + esc(t('acc_phone')) + '</span><span>' + esc(t('cust_status')) + '</span><span>' + esc(t('cust_joined')) + '</span><span>' + esc(t('cust_last_login')) + '</span><span></span></div>' +
+      list.map(function (r) {
+        var blocked = r.status === 'blocked';
+        return '<div class="cust-row" role="row"><span><b>' + esc(r.name) + '</b></span><span>' + esc(r.phone) + '</span><span><span class="tag ' + (blocked ? 'bad' : 'ok') + '">' + esc(t(blocked ? 'cust_blocked' : 'cust_active')) + '</span></span><span data-l="' + esc(t('cust_joined')) + '">' + esc(tsText(r.created_at)) + '</span><span data-l="' + esc(t('cust_last_login')) + '">' + esc(tsText(r.last_login)) + '</span>' +
+          '<span class="cust-acts"><button class="btn small" data-a="custstatus" data-v="' + r.id + '" data-s="' + (blocked ? 'active' : 'blocked') + '">' + esc(t(blocked ? 'cust_unblock' : 'cust_block')) + '</button><button class="btn small danger" data-a="custdel" data-v="' + r.id + '" data-n="' + esc(r.name) + '">' + esc(t('cust_delete')) + '</button></span></div>';
+      }).join('') + '</div>' : '<div class="empty">' + esc(t(rows.length ? 'cust_none_match' : 'cust_none')) + '</div>');
+}
+function custPaint() { var el = document.getElementById('cust-live'); if (el) el.innerHTML = custLiveHTML(); }
+function customersSection() {
+  var c = ui.cust;
+  return '<section class="card glass cust"><h3>👥 ' + esc(t('cust_title')) + '</h3>' +
+    '<div class="field"><input class="input" id="cust-q" value="' + esc(c.q) + '" placeholder="' + esc(t('cust_search')) + '" aria-label="' + esc(t('cust_search')) + '"></div>' +
+    '<div class="seg" role="group">' + ['all', 'active', 'blocked'].map(function (s) { return '<button data-a="custf" data-v="' + s + '" aria-pressed="' + (c.filter === s) + '">' + esc(t(s === 'all' ? 'st_all' : 'cust_' + s)) + '</button>'; }).join('') + '</div>' +
+    '<div id="cust-live">' + custLiveHTML() + '</div></section>';
+}
+/* with accounts switched on, the admin area is for admin accounts only */
+function adminGate() {
+  if (!JJ.account.configured() || JJ.account.isAdmin) return '';
+  var u = JJ.account.user;
+  return backBar(t('admin')) + '<main class="scroll gx" id="scroll"><div class="empty"><b>🔒 ' + esc(t('admin_only')) + '</b>' + esc(t(u ? 'admin_not_admin' : 'admin_login_first')) + '</div>' +
+    (u ? '' : '<button class="btn primary" style="width:100%" data-a="acc" data-v="login">' + esc(t('acc_login')) + '</button>') + '</main>';
 }
 function viewGlossary() {
   var b = '<p class="sub" style="margin-top:8px">' + esc(t('glossary_intro')) + '</p>';
@@ -879,13 +972,14 @@ function normIngs(str, record) {
   return {str: out.join(' ') + (unknown.length ? ' ' : ''), unknown: unknown};
 }
 function viewAdmin() {
+  var gate = adminGate(); if (gate) return gate;
   var f = ui.admin, list = adminList();
   var rev = (JJ.db.get('meta', 'ing_reviews') || {names: []}).names;
   var revHtml = rev.length ? '<div class="card glass"><h3>' + esc(t('unverified_title', {n: rev.length})) + '</h3><p class="fine" style="margin:0 0 8px">' + esc(t('unverified_help')) + '</p>' +
     rev.map(function (n, i) { return '<form class="addrow" data-map="' + i + '" autocomplete="off"><span style="flex:1;font-weight:800;align-self:center">' + esc(n) + '</span><input id="map-' + i + '" placeholder="' + esc(t('map_placeholder')) + '" aria-label="' + esc(t('map_placeholder')) + '"><button type="submit">' + esc(t('map_btn')) + '</button></form>'; }).join('') + '</div>' : '';
   var segS = '<div class="seg">' + ['all', 'approved', 'pending', 'rejected', 'invalid'].map(function (s) { return '<button data-a="adstatus" data-v="' + s + '" aria-pressed="' + (f.status === s) + '">' + esc(t('st_' + s)) + '</button>'; }).join('') + '</div>';
   var segM = '<div class="seg" style="margin-top:8px">' + ['all'].concat(MEALS).map(function (m) { return '<button data-a="admeal" data-v="' + m + '" aria-pressed="' + (f.meal === m) + '">' + esc(m === 'all' ? t('st_all') : t('meal_' + m)) + '</button>'; }).join('') + '</div>';
-  var b = '<p class="sub" style="margin-top:8px">' + esc(t('admin_intro')) + '</p><button class="btn primary" data-a="adnew">' + esc(t('add_recipe')) + '</button>' + revHtml + '<div style="margin-top:12px">' + segS + segM + '</div>' +
+  var b = (JJ.account.isAdmin ? customersSection() : '') + '<p class="sub" style="margin-top:8px">' + esc(t('admin_intro')) + '</p><button class="btn primary" data-a="adnew">' + esc(t('add_recipe')) + '</button>' + revHtml + '<div style="margin-top:12px">' + segS + segM + '</div>' +
     '<div class="field"><input class="input" id="ad-q" value="' + esc(f.q) + '" placeholder="' + esc(t('search_recipes')) + '" aria-label="' + esc(t('search_recipes')) + '"></div><p class="fine">' + esc(t('n_recipes', {n: list.length})) + '</p><div class="list">' +
     list.slice(0, 200).map(function (r) {
       var tg = !r.valid ? '<span class="tag bad">' + esc(t('st_invalid')) + '</span>' : '<span class="tag ' + (r.status === 'approved' ? 'ok' : r.status === 'pending' ? 'warn' : 'bad') + '">' + esc(t('st_' + r.status)) + '</span>';
@@ -1057,6 +1151,13 @@ app.addEventListener('click', function (e) {
       toast(t('ics_done')); break;
     }
     case 'wa': shareText(v === 'list' ? listText(currentGroups(el.dataset.list)) : menuText(v)); break;
+    case 'acc': ui.acc.mode = v; ui.acc.errs = []; if (!top || top.k !== 'account') stack.push({k: 'account'}); render(); break;
+    case 'accmode': ui.acc.mode = v; ui.acc.errs = []; render(); break;
+    case 'logout': JJ.account.signOut().then(function () { render(); toast(t('acc_logged_out')); }); break;
+    case 'invitedone': try { localStorage.setItem('jainjoy.inviteDone', '1'); } catch (x) {} render(); break;
+    case 'custf': ui.cust.filter = v; render(); break;
+    case 'custstatus': JJ.account.setStatus(v, el.dataset.s).then(function (r) { toast(r.error ? t('cust_error') : t(el.dataset.s === 'blocked' ? 'cust_blocked_toast' : 'cust_unblocked_toast')); custRefresh(); }); break;
+    case 'custdel': if (window.confirm(t('cust_delete_confirm', {name: el.dataset.n}))) JJ.account.remove(v).then(function (r) { toast(r.error ? t('cust_error') : t('cust_deleted_toast')); custRefresh(); }); break;
     case 'pantryclear': JJ.db.put('meta', {key: 'pantry', have: {}}); render(); break;
     case 'ayambil': ui.ayambil = ui.ayambil === v ? null : v; render(); break;
     case 'notify': {
@@ -1135,11 +1236,14 @@ app.addEventListener('input', function (e) {
   else if (id === 'ad-q') later(function () { ui.admin.q = el.value; });
   else if (id === 'ex-q' || id === 'ing-q') later(function () { ui.ingQ = el.value; });
   else if (id === 'geo-q') ui.geo.q = el.value;
+  else if (id === 'cust-q') { ui.cust.q = el.value; custPaint(); }
+  else if (id.indexOf('acc-') === 0 && el.type !== 'password') ui.acc.f[id.slice(4)] = el.value;
   else if (el.dataset.ed && el.tagName === 'TEXTAREA') { stack[stack.length - 1].form[el.dataset.ed] = el.value; }
 });
 app.addEventListener('submit', function (e) {
   e.preventDefault();
   if (e.target.id === 'geo-form') geoSearch();
+  if (e.target.id === 'acc-form') submitAccount();
   if (e.target.dataset && e.target.dataset.map != null) {
     var qi = +e.target.dataset.map, q = JJ.db.get('meta', 'ing_reviews') || {key: 'ing_reviews', names: []}, name = q.names[qi], val = (document.getElementById('map-' + qi).value || '').trim();
     var id = JJ.ING[val] ? val : JJ.resolveIngredient(val);
@@ -1211,6 +1315,7 @@ JJ.boot = function () {
     if (P && !P.obsProfile) { P.obsProfile = 'strict'; P.parvaFruit = false; JJ.app.applyProfileChange(); }
     if (P) { lastDay = today(); freezeHistory(); maybeEveningReminder(); }
     render();
+    JJ.account.init(function () { render(); }); // optional customer account (only when Supabase is set up)
   });
 };
 /* when the precise astronomy engine finishes loading, recompute with it */
