@@ -9,7 +9,8 @@ var SDK = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/su
 var sb = null, ready = null, me = null, admin = false, seenT = null, known = false;
 var LOCK_KEY = 'jainjoy.loginFails', MAX_FAILS = 5, LOCK_MS = 5 * 6e4;
 
-function configured() { return !!(JJ.CONFIG && JJ.CONFIG.supabaseUrl && JJ.CONFIG.supabaseKey); }
+/* accounts (Sign Up, Sign In, subscription, admin customers) run only when switched on in js/config.js */
+function configured() { return !!(JJ.CONFIG && JJ.CONFIG.accountsEnabled && JJ.CONFIG.supabaseUrl && JJ.CONFIG.supabaseKey); }
 /* Supabase Auth signs in with an e-mail address; each phone number gets a private address of its own */
 function emailFor(phone) { return phone + '@phone.jainjoy.app'; }
 function cleanPhone(p) { p = String(p || '').replace(/[\s-]/g, ''); if (/^\+91\d{10}$/.test(p)) p = p.slice(3); if (/^0\d{10}$/.test(p)) p = p.slice(1); return p; }
