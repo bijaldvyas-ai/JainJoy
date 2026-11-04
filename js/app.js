@@ -262,7 +262,7 @@ function tithiCard(iso) {
 /* the day's tithi for the page header: "Vad Aatham · Krishna paksha", highlighted on Parva days */
 function tithiInline(iso) {
   var p = pan(iso), pk = JJ.parvaKeys(p), name = pk.length ? pk.map(function (k) { return t(k); }).join(' · ') : JJ.tithiName(p.t, LANG);
-  return '<span class="tithi-pill' + (pk.length || p.aatham || p.chaudas ? ' sp' : '') + '">🌙 ' + esc(name) + ' · ' + esc(t(p.paksha === 'S' ? 'shukla' : 'krishna')) + '</span>';
+  return '<span class="tithi-pill' + (pk.length || p.aatham || p.chaudas ? ' sp' : '') + '">🌙 <span class="tnum">' + p.n + '</span> ' + esc(name) + ' · ' + esc(t(p.paksha === 'S' ? 'shukla' : 'krishna')) + '</span>';
 }
 /* Parva Tithi restriction box: which tithi, which paksha, and the full list of restrictions */
 function parvaBox(r) {
@@ -393,15 +393,15 @@ function mealCard(iso, k, menu) {
 function timeText(r) { return (r.prep || 0) >= 240 ? t('min_soak', {n: r.cook || 0}) : t('min_total', {n: (r.prep || 0) + (r.cook || 0)}); }
 function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hist">' + ic('lock') + esc(t('status_hist')) + '</span>' : st === 'plan' ? '<span class="status-pill st-plan">' + ic('check') + esc(t('status_plan')) + '</span>' : st === 'prev' ? '<span class="status-pill st-prev">' + esc(t('status_prev')) + '</span>' : ''; }
 function dayBody(iso, isToday) {
-  // simple order: timings, tithi, the 4 meals, quick links, then nutrition in short form
+  // order: timings, then the 4 meals right away, then the tithi rules, quick links and nutrition
   var menu = menuFor(iso), b = '';
   b += compactTimings(iso, isToday);
-  b += tithiCard(iso);
-  if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
+  if (!menu) { b += tithiCard(iso) + '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   if (isToday && ui.showcase) b += '<div class="showcase" id="showcase"><b>🎉 ' + esc(t('plan_ready')) + '</b><small>' + esc(t('plan_ready_sub')) + '</small></div>';
   b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + (hasOptions(menu, k) ? optionPair(iso, k, menu) : mealCard(iso, k, menu)) + '</div>'; }).join('') + '</div>';
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
+  b += tithiCard(iso);
   var oli = isOli(iso);
   b += festiveCard(iso);
   if (oli || ui.ayambil === iso) b += ayambilCard(iso);
@@ -436,9 +436,10 @@ function nutritionCard(menu) {
 function compactTimings(iso, live) {
   var p = pan(iso), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar}), now = Date.now();
   function cell(lbl, ms, cls, showUntil) { return '<div class="tcell ' + (cls || '') + '"><small>' + esc(t(lbl)) + '</small><b>' + hm(ms) + '</b>' + (showUntil ? '<em data-until="' + ms + '">' + until(ms) + '</em>' : '') + '</div>'; }
-  return '<section class="card glass"><h3>' + esc(t('timings_title')) + '</h3><div class="tgrid tg3">' +
-    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '', live) + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '', live) + shubhCell(iso, live) +
-    '</div>' + dinnerLine(iso, live) + '<p class="fine" style="margin-top:8px">' + esc(t('sunrise') + ' ' + hm(tm.sunrise) + ' · ' + t('sunset') + ' ' + hm(tm.sunset)) + ' · <button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></p></section>';
+  // one compact table: Sunrise · Navkarsi · Chauvihar · Sunset, then the Shubh Choghadiya on a slim row
+  return '<section class="card glass timings-card"><div class="tc-head"><h3>' + esc(t('timings_title')) + '</h3><button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></div><div class="tgrid tg4">' +
+    cell('sunrise', tm.sunrise, 'sun') + cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '', live) + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '', live) + cell('sunset', tm.sunset, 'sun') +
+    '</div>' + shubhCell(iso, live) + '</section>';
 }
 /* Shubh Choghadiya for the timings card: on today the one running now or the next one (Amrit, Shubh or Labh);
    on another day the first one after sunrise. Tapping it opens the Choghadiya tab. */
@@ -448,23 +449,8 @@ function shubhCell(iso, live) {
   var c = list.filter(function (x) { return x.q === 'good' && (live ? x.end > now : x.part === 'day'); })[0];
   if (!c) return '';
   var running = live && now >= c.start;
-  return '<button class="tcell chog-cell" data-a="tab" data-v="chog"><small>' + esc(t('shubh_chog')) + '</small><b>' + esc(t('chog_' + c.k)) + '</b>' +
+  return '<button class="chog-strip" data-a="tab" data-v="chog"><small>' + esc(t('shubh_chog')) + '</small><b>' + esc(t('chog_' + c.k)) + '</b>' +
     '<em>' + esc(hm(c.start) + '–' + hm(c.end)) + '</em>' + (live ? '<em class="' + (running ? 'now' : '') + '"' + (running ? '' : ' data-until="' + c.start + '"') + '>' + esc(running ? t('chog_now_short') : until(c.start)) + '</em>' : '') + '</button>';
-}
-/* When to start cooking so dinner is eaten before Chauvihar: the chosen dinner's cooking time
-   (an overnight soak is done the night before, so it does not count) plus 20 minutes to eat, rounded down to 5 minutes. */
-function dinnerStart(iso) {
-  var m = menuFor(iso); if (!m) return null;
-  var x = chosen(m, 'd'), r = x && x.id && JJ.recipeFor(m, x.id); if (!r) return null;
-  var p = pan(iso), cha = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar}).chauvihar;
-  var mins = ((r.prep || 0) >= 120 ? 10 : (r.prep || 0)) + (r.cook || 0) + 20, at = cha - mins * 6e4;
-  return {at: Math.floor(at / 3e5) * 3e5, dish: rName(r), mins: mins, chauvihar: cha};
-}
-function dinnerLine(iso, live) {
-  var s = dinnerStart(iso); if (!s) return '';
-  return '<div class="dinner-start"><b>🍳 ' + esc(t('dinner_start', {time: hm(s.at)})) + '</b>' + (live && Date.now() < s.at ? ' <em data-until="' + s.at + '">' + until(s.at) + '</em>' : '') +
-    '<small>' + esc(t('dinner_start_why', {dish: s.dish, n: s.mins})) + '</small>' +
-    (live ? '<button class="linkbtn" data-a="dinnerics" style="padding:0">' + esc(t('dinner_alarms')) + '</button>' : '') + '</div>';
 }
 /* Ayambil thali: shown by itself during Ayambil Oli, and on any day with the "Ayambil thali" button */
 function isOli(iso) { return pan(iso).observances.some(function (o) { return o.k === 'oli_chaitra' || o.k === 'oli_aso'; }); }
@@ -527,27 +513,6 @@ function shareText(txt) {
 function currentGroups(listId) {
   if (listId && listId.indexOf('saved:') === 0) return JJ.db.get('grocery_lists', listId.slice(6)).groups;
   var r = rangeFor(ui.gRange); return JJ.grocery(menusIn(r[0], r[1]));
-}
-/* in-app alert 15 minutes before it is time to start dinner (only while the app is open) */
-function maybeDinnerReminder() {
-  if (!P || notifyState() !== 'on') return;
-  var s = dinnerStart(today()), now = Date.now(), key = 'jainjoy.dinner.' + today();
-  if (!s || now < s.at - 15 * 6e4 || now > s.at) return;
-  try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) { return; }
-  try { new Notification(t('dinner_start', {time: hm(s.at)}), {body: t('dinner_start_why', {dish: s.dish, n: s.mins}), icon: 'icon-192.png', tag: 'jainjoy-dinner'}); } catch (e) {}
-}
-/* .ics file: a daily "start dinner" alarm for the next 30 days, at each day's own time */
-function dinnerIcs() {
-  var td = today(), lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//JainJoy//Dinner//EN', 'CALSCALE:GREGORIAN'];
-  function utc(ms) { return new Date(ms).toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z'; }
-  for (var k = 0; k < 30; k++) {
-    var d = JJ.addDays(td, k), s = dinnerStart(d); if (!s) continue;
-    var title = t('dinner_start', {time: hm(s.at)}) + ' – ' + s.dish;
-    lines.push('BEGIN:VEVENT', 'UID:jainjoy-dinner-' + d.replace(/-/g, '') + '@bijaldvyas-ai.github.io', 'DTSTAMP:' + utc(Date.now()), 'DTSTART:' + utc(s.at), 'DTEND:' + utc(s.chauvihar),
-      'SUMMARY:' + title.replace(/[\\;,]/g, function (c) { return '\\' + c; }), 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + title.replace(/[\\;,]/g, function (c) { return '\\' + c; }), 'TRIGGER:-PT10M', 'END:VALARM', 'END:VEVENT');
-  }
-  lines.push('END:VCALENDAR');
-  return lines.join('\r\n');
 }
 function viewToday() {
   var td = today();
@@ -1258,11 +1223,6 @@ app.addEventListener('click', function (e) {
       a2.href = URL.createObjectURL(blob); a2.download = 'jainjoy-parva-reminders.ics'; document.body.appendChild(a2); a2.click(); a2.remove();
       toast(t('ics_done')); break;
     }
-    case 'dinnerics': {
-      var blob2 = new Blob([dinnerIcs()], {type: 'text/calendar'}), a3 = document.createElement('a');
-      a3.href = URL.createObjectURL(blob2); a3.download = 'jainjoy-dinner-reminders.ics'; document.body.appendChild(a3); a3.click(); a3.remove();
-      toast(t('ics_done')); break;
-    }
     case 'wa': shareText(v === 'list' ? listText(currentGroups(el.dataset.list)) : menuText(v)); break;
     case 'acc': ui.acc.mode = v; ui.acc.errs = []; if (!top || top.k !== 'account') stack.push({k: 'account'}); render(); break;
     case 'accmode': ui.acc.mode = v; ui.acc.errs = []; render(); break;
@@ -1412,12 +1372,12 @@ var lastDay = null;
 setInterval(function () {
   tick();
   if (!P) return;
-  maybeEveningReminder(); maybeDinnerReminder();
+  maybeEveningReminder();
   var td = today(); if (lastDay && td !== lastDay) { freezeHistory(); if (!stack.length) render(); } lastDay = td;
 }, 30000);
 
 /* ---------------- boot ---------------- */
-JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, dinnerStart: dinnerStart, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
+JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
   get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache};
 JJ.boot = function () {
   return JJ.db.open().then(function () {
