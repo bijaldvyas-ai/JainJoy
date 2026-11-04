@@ -215,6 +215,8 @@ function render() {
   app.innerHTML = '<div class="phone">' + withCredit(body) + (P ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
   if (top && top.k === 'about' && JJ.analytics.enabled()) JJ.analytics.total().then(function (n) { var el = document.getElementById('visitors'); if (el) el.textContent = n == null ? t('visitors_unavailable') : t('visitors_total', {n: n}); });
+  // first view of a brand-new plan: bring today's menu into view
+  var show = document.getElementById('showcase'); if (show && !ui.showcaseDone) { ui.showcaseDone = true; show.scrollIntoView({block: 'start'}); }
   if (top && top.k === 'admin' && JJ.account.isAdmin) custStartLive(); else custStopLive();
   tick();
 }
@@ -241,9 +243,8 @@ function tithiCard(iso) {
   var p = pan(iso), r = JJ.dayRules(p, P), sp = r.parva || p.aatham || p.chaudas;
   var pk = JJ.parvaKeys(p), title = pk.length ? pk.map(function (k) { return t(k); }).join(' · ') : JJ.tithiName(p.t, LANG);
   var mo = JJ.MONTHS[p.month][{en: 0, hi: 1, gu: 2}[LANG]];
-  var h = '<div class="tcard' + (sp ? ' sp' : '') + '"><div class="tbox"><span>' + esc(t('tithi')) + '</span><b>' + p.n + '</b></div><div class="tinfo"><b>' + esc(title) + '</b><small>' +
-    esc((p.adhik ? t('adhik') + ' ' : '') + mo + ' ' + t(p.paksha === 'S' ? 'shukla' : 'krishna') + ' · ' + t('ends_at', {time: hm(p.tithiEnd)})) + '</small></div></div>';
-  var tags = [];
+  // the tithi itself is shown beside the date at the top; this card keeps the month, the end time and the day's rules
+  var h = '', tags = [(p.adhik ? t('adhik') + ' ' : '') + mo + ' ' + t(p.paksha === 'S' ? 'shukla' : 'krishna') + ' · ' + t('ends_at', {time: hm(p.tithiEnd)})];
   if (p.shuklaPancham) tags.push(t('shukla_pancham'));
   if (p.vriddhi) tags.push(t('vriddhi'));
   if (p.skipped) tags.push(t('kshaya', {name: JJ.tithiName(p.skipped, LANG)}));
@@ -254,6 +255,11 @@ function tithiCard(iso) {
   else if (r.noLeafy) h += '<p class="rule-note sp">' + ic('noleaf') + '<span><b>' + esc(t('no_leafy_today', {day: t(p.aatham ? 'aatham' : 'chaudas')})) + '</b> ' + esc(t('always_on')) + '</span></p>';
   else h += '<p class="rule-note">' + ic('check') + '<span><b>' + esc(t('base_rules')) + '</b> ' + esc(t('base_rules_text')) + '</span></p>';
   return h;
+}
+/* the day's tithi for the page header: "Vad Aatham · Krishna paksha", highlighted on Parva days */
+function tithiInline(iso) {
+  var p = pan(iso), pk = JJ.parvaKeys(p), name = pk.length ? pk.map(function (k) { return t(k); }).join(' · ') : JJ.tithiName(p.t, LANG);
+  return '<span class="tithi-pill' + (pk.length || p.aatham || p.chaudas ? ' sp' : '') + '">🌙 ' + esc(name) + ' · ' + esc(t(p.paksha === 'S' ? 'shukla' : 'krishna')) + '</span>';
 }
 /* Parva Tithi restriction box: which tithi, which paksha, and the full list of restrictions */
 function parvaBox(r) {
@@ -389,6 +395,7 @@ function dayBody(iso, isToday) {
   b += compactTimings(iso, isToday);
   b += tithiCard(iso);
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
+  if (isToday && ui.showcase) b += '<div class="showcase" id="showcase"><b>🎉 ' + esc(t('plan_ready')) + '</b><small>' + esc(t('plan_ready_sub')) + '</small></div>';
   b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + (hasOptions(menu, k) ? optionPair(iso, k, menu) : mealCard(iso, k, menu)) + '</div>'; }).join('') + '</div>';
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
@@ -426,9 +433,20 @@ function nutritionCard(menu) {
 function compactTimings(iso, live) {
   var p = pan(iso), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar}), now = Date.now();
   function cell(lbl, ms, cls, showUntil) { return '<div class="tcell ' + (cls || '') + '"><small>' + esc(t(lbl)) + '</small><b>' + hm(ms) + '</b>' + (showUntil ? '<em data-until="' + ms + '">' + until(ms) + '</em>' : '') + '</div>'; }
-  return '<section class="card glass"><h3>' + esc(t('timings_title')) + '</h3><div class="tgrid">' +
-    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '', live) + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '', live) +
-    '</div>' + dinnerLine(iso, live) + (live ? chogLine() : '') + '<p class="fine" style="margin-top:8px">' + esc(t('sunrise') + ' ' + hm(tm.sunrise) + ' · ' + t('sunset') + ' ' + hm(tm.sunset)) + ' · <button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></p></section>';
+  return '<section class="card glass"><h3>' + esc(t('timings_title')) + '</h3><div class="tgrid tg3">' +
+    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '', live) + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '', live) + shubhCell(iso, live) +
+    '</div>' + dinnerLine(iso, live) + '<p class="fine" style="margin-top:8px">' + esc(t('sunrise') + ' ' + hm(tm.sunrise) + ' · ' + t('sunset') + ' ' + hm(tm.sunset)) + ' · <button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></p></section>';
+}
+/* Shubh Choghadiya for the timings card: on today the one running now or the next one (Amrit, Shubh or Labh);
+   on another day the first one after sunrise. Tapping it opens the Choghadiya tab. */
+function shubhCell(iso, live) {
+  var now = Date.now(), list = JJ.choghadiya(iso, city());
+  if (live) list = JJ.choghadiya(JJ.addDays(iso, -1), city()).concat(list, JJ.choghadiya(JJ.addDays(iso, 1), city()));
+  var c = list.filter(function (x) { return x.q === 'good' && (live ? x.end > now : x.part === 'day'); })[0];
+  if (!c) return '';
+  var running = live && now >= c.start;
+  return '<button class="tcell chog-cell" data-a="tab" data-v="chog"><small>' + esc(t('shubh_chog')) + '</small><b>' + esc(t('chog_' + c.k)) + '</b>' +
+    '<em>' + esc(hm(c.start) + '–' + hm(c.end)) + '</em>' + (live ? '<em class="' + (running ? 'now' : '') + '"' + (running ? '' : ' data-until="' + c.start + '"') + '>' + esc(running ? t('chog_now_short') : until(c.start)) + '</em>' : '') + '</button>';
 }
 /* When to start cooking so dinner is eaten before Chauvihar: the chosen dinner's cooking time
    (an overnight soak is done the night before, so it does not count) plus 20 minutes to eat, rounded down to 5 minutes. */
@@ -530,14 +548,14 @@ function dinnerIcs() {
 }
 function viewToday() {
   var td = today();
-  var b = '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + td + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub">' + esc(dLong(td)) + ' · ' + esc(t('for_members', {n: P.hh})) + '</p>' + inviteCard() + dayBody(td, true);
+  var b = '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + td + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub date-line"><span>' + esc(dLong(td)) + '</span>' + tithiInline(td) + '<span>' + esc(t('for_members', {n: P.hh})) + '</span></p>' + inviteCard() + dayBody(td, true);
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
 function viewDayPushed(top) {
   var iso = top.date, td = today();
   var sub = iso === td ? t('today') : iso < td ? t('past_day') : t('upcoming');
   var nav = '<div class="ab-nav"><button class="icon-btn" data-a="shift" data-v="-1" aria-label="' + esc(t('prev_day')) + '">' + ic('back') + '</button><button class="icon-btn" data-a="shift" data-v="1" aria-label="' + esc(t('next_day')) + '"' + (JJ.addDays(iso, 1) > monthEnd(addMonth(ym(td), 1)) ? ' disabled' : '') + '>' + ic('next') + '</button></div>';
-  return backBar(dLong(iso), sub, nav) + '<main class="scroll gx" id="scroll">' + dayBody(iso, iso === td) + '</main>';
+  return backBar(dLong(iso), sub, nav) + '<main class="scroll gx" id="scroll"><p class="sub date-line" style="margin-top:8px">' + tithiInline(iso) + '</p>' + dayBody(iso, iso === td) + '</main>';
 }
 
 /* ---------------- Thali and recipe ---------------- */
@@ -800,7 +818,6 @@ function viewProfileHome() {
   var ex = (P.allergies || []).map(function (a) { return nm(JJ.ALLERGENS[a]); }).concat((P.exclude || []).map(ingName)).join(', ') || t('none');
   var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('tab_profile')) + '</h1>' + accountCard() +
     '<div class="card glass"><div class="kv">' +
-    '<b>' + esc(t('tradition')) + '</b><span>' + esc(t('trad_' + P.tradition) + ' · ' + t('sub_' + P.subsect)) + '</span>' +
     '<b>' + esc(t('location')) + '</b><span>' + esc(cityLabel(c) + (st ? ', ' + st : '')) + '</span>' +
     '<b>' + esc(t('cuisine')) + '</b><span>' + esc(nm(JJ.CUISINES[P.cuisine] || JJ.CUISINES.gen)) + '</span>' +
     '<b>' + esc(t('household')) + '</b><span>' + esc(t('for_members', {n: P.hh})) + '</span>' +
@@ -1038,9 +1055,9 @@ function saveRecipe(form, status) {
 
 /* ---------------- Profile / onboarding ---------------- */
 var SUBS = {Shwetambar: ['Murtipujak', 'Sthanakvasi', 'Terapanth', 'Other'], Digambar: ['Bispanthi', 'Terapanth', 'Taranpanth', 'Other']};
-function blankDraft() { return {lang: LANG, tradition: '', subsect: '', country: 'IN', state: '', cityId: '', custom: null, cuisine: '', calendar: 'amanta', hh: 4, allergies: [], exclude: [], avoidCrucifer: false, greenRule: 'none', shuklaPanchamGreen: false, obsProfile: 'strict', parvaFruit: false, navkarsi: 48, chauvihar: 0}; }
+function blankDraft() { return {lang: LANG, tradition: 'Shwetambar', subsect: 'Murtipujak', country: 'IN', state: '', cityId: '', custom: null, cuisine: '', calendar: 'amanta', hh: 4, allergies: [], exclude: [], avoidCrucifer: false, greenRule: 'none', shuklaPanchamGreen: false, obsProfile: 'strict', parvaFruit: false, navkarsi: 48, chauvihar: 0}; }
 function fromProfile(p) { var d = JSON.parse(JSON.stringify(p)); return d; }
-function ready(d) { return !!(d.tradition && d.subsect && (d.cityId || d.custom) && d.cuisine && d.hh >= 1); }
+function ready(d) { return !!((d.cityId || d.custom) && d.cuisine && d.hh >= 1); }
 function frow(key, icon, title, value, done, bodyFn) {
   var open = openField === key;
   return '<section class="frow' + (open ? ' open' : '') + (done ? ' done' : '') + '"><button class="frow-h" data-a="field" data-v="' + key + '" aria-expanded="' + open + '"><span class="ficon">' + ic(icon) + '</span><span class="ftext"><b>' + esc(title) + '</b><small>' + esc(value) + '</small></span><span class="fcheck">' + ic('check') + '</span></button>' + (open ? '<div class="frow-b">' + bodyFn() + '</div>' : '') + '</section>';
@@ -1061,11 +1078,9 @@ function locationBody(d) {
   return h;
 }
 function viewProfile(onboard) {
-  if (!draft) { draft = onboard ? blankDraft() : fromProfile(P); if (onboard && openField == null) openField = 'tradition'; }
+  if (!draft) { draft = onboard ? blankDraft() : fromProfile(P); if (onboard && openField == null) openField = 'city'; }
   var d = draft, rows = '';
   rows += '<section class="frow done"><div class="frow-h static"><span class="ficon">' + ic('globe') + '</span><span class="ftext"><b>' + esc(t('language')) + '</b><small>' + esc(t('language_sub')) + '</small></span>' + langChip() + '</div></section>';
-  rows += frow('tradition', 'home', t('tradition'), d.tradition ? t('trad_' + d.tradition) : t('tradition_hint'), !!d.tradition, function () { return '<div class="opt2">' + ['Shwetambar', 'Digambar'].map(function (v) { return '<button class="opt" data-a="trad" data-v="' + v + '" aria-pressed="' + (d.tradition === v) + '">' + esc(t('trad_' + v)) + '</button>'; }).join('') + '</div>'; });
-  rows += frow('subsect', 'sect', t('subsect'), d.subsect ? t('sub_' + d.subsect) : t('subsect_hint'), !!d.subsect, function () { return d.tradition ? '<div class="chips">' + SUBS[d.tradition].map(function (v) { return '<button class="chip" data-a="sub" data-v="' + v + '" aria-pressed="' + (d.subsect === v) + '">' + esc(t('sub_' + v)) + '</button>'; }).join('') + '</div>' : '<p class="hint" style="margin:0">' + esc(t('choose_trad_first')) + '</p>'; });
   var cityObj = d.custom || JJ.CITIES[d.cityId];
   rows += frow('city', 'pin', t('location'), cityObj ? (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
   rows += frow('cuisine', 'thali', t('cuisine'), d.cuisine ? nm(JJ.CUISINES[d.cuisine]) : t('cuisine_hint'), !!d.cuisine, function () { return '<div class="chips">' + Object.keys(JJ.CUISINES).map(function (k) { return '<button class="chip" data-a="cuisine" data-v="' + k + '" aria-pressed="' + (d.cuisine === k) + '">' + esc(nm(JJ.CUISINES[k])) + '</button>'; }).join('') + '</div><p class="hint">' + esc(t('cuisine_help')) + '</p>'; });
@@ -1124,7 +1139,7 @@ app.addEventListener('click', function (e) {
   var a = el.dataset.a, v = el.dataset.v, top = stack[stack.length - 1];
   switch (a) {
     case 'lang': setLang(v); break;
-    case 'tab': tab = v; stack = []; render(); break;
+    case 'tab': tab = v; stack = []; ui.showcase = false; render(); break;
     case 'back': stack.pop(); if (!stack.length || stack[stack.length - 1].k !== 'profile') { if (top && top.k === 'profile') draft = null; } render(); break;
     case 'push': if (v === 'profile') { draft = null; openField = null; } stack.push({k: v}); render(); break;
     case 'day': stack.push({k: 'day', date: v}); render(); break;
@@ -1192,7 +1207,7 @@ app.addEventListener('click', function (e) {
       var tz = (draft.custom || JJ.CITIES[draft.cityId]).tz, td = JJ.todayISO(tz);
       P = Object.assign({}, draft, {userId: 'local', created: td, planFrom: td, version: 1, seed: hash(String(Date.now())) % 1000});
       delete P.cuisineSet; JJ.db.put('users', {id: 'local', createdAt: Date.now()}); saveProfile();
-      JJ.db.put('meta', {key: 'frozen', upto: null}); draft = null; openField = null; tab = 'today'; stack = []; freezeHistory(); render(); break;
+      JJ.db.put('meta', {key: 'frozen', upto: null}); draft = null; openField = null; tab = 'today'; stack = []; freezeHistory(); ui.showcase = true; render(); break;
     }
     case 'save': {
       if (!ready(draft)) return;

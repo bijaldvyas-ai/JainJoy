@@ -357,3 +357,10 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 - **Admin Customers section.** Live table (name, phone, status, joined, last login), cards for Total customers, New today and Active now, search by name or phone, and filters (All, Active, Blocked). Block, unblock and delete actions. New customers appear within 5 seconds without a refresh. Passwords are never shown.
 - **Security.** With accounts switched on, the admin area opens only for admin accounts, and the database enforces this with row-level security. Login attempts are limited by Supabase Auth per IP, and on each phone after 5 wrong tries.
 - Setup: docs/SETUP.md "Customer accounts" and db/supabase-setup.sql.
+
+## 16. Change log – v2.9.2 simpler start (4 Nov 2026)
+
+- **Profile.** Tradition and Sub-sect are no longer asked. Every household is treated as Jain, and the common Shwetambar (Murtipujak) calendar convention is used for festival dates. Getting a plan needs only city, cuisine (filled from the state) and household size.
+- **Today header.** The tithi sits beside the date under "Today's Menu" ("🌙 Dasham · Krishna paksha"), highlighted on Parva Tithis. The card below keeps the month, the tithi end time and the day's rules.
+- **Timings card.** Navkarsi, Chauvihar and the Shubh Choghadiya (Amrit, Shubh or Labh: running now, or the next one) side by side. Tapping it opens the Choghadiya tab.
+- **First plan.** Right after "Get My Meal Plan" the app scrolls to today's menu under "🎉 Your meal plan is ready!".
