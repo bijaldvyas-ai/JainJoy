@@ -6,7 +6,7 @@
 (function (JJ) {
 'use strict';
 var SDK = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
-var sb = null, ready = null, me = null, admin = false, seenT = null;
+var sb = null, ready = null, me = null, admin = false, seenT = null, known = false;
 var LOCK_KEY = 'jainjoy.loginFails', MAX_FAILS = 5, LOCK_MS = 5 * 6e4;
 
 function configured() { return !!(JJ.CONFIG && JJ.CONFIG.supabaseUrl && JJ.CONFIG.supabaseKey); }
@@ -40,11 +40,14 @@ function loadSdk() {
 function loadMe() {
   return sb.auth.getSession().then(function (r) {
     var s = r.data && r.data.session; if (!s) { me = null; admin = false; return null; }
+    var meta = s.user.user_metadata || {}, fallback = {id: s.user.id, name: meta.name, phone: meta.phone};
+    // without internet the saved session still counts, so the app keeps working offline
     return sb.from('customers').select('id,name,phone,status').eq('id', s.user.id).maybeSingle().then(function (q) {
+      if (q.error) { me = fallback; return me; }
       if (q.data && q.data.status === 'blocked') return sb.auth.signOut().then(function () { me = null; admin = false; return null; });
-      me = q.data || {id: s.user.id, name: (s.user.user_metadata || {}).name, phone: (s.user.user_metadata || {}).phone};
+      me = q.data || fallback;
       return sb.rpc('is_admin').then(function (a) { admin = !a.error && a.data === true; return me; });
-    });
+    }, function () { me = fallback; return me; });
   });
 }
 function startSeen() {
@@ -78,9 +81,23 @@ JJ.account = {
     ready = loadSdk().then(function () {
       sb = window.supabase.createClient(JJ.CONFIG.supabaseUrl, JJ.CONFIG.supabaseKey, {auth: {persistSession: true, autoRefreshToken: true, storageKey: 'jainjoy.auth'}});
       sb.auth.onAuthStateChange(function (ev) { if (ev === 'SIGNED_OUT') { me = null; admin = false; clearInterval(seenT); if (onChange) onChange(); } });
-      return loadMe().then(function (u) { startSeen(); if (onChange) onChange(); return u; });
-    }).catch(function () { ready = null; return null; });
+      return loadMe().then(function (u) { known = true; startSeen(); if (onChange) onChange(); return u; });
+    }).catch(function () {
+      // the sign-in library could not load (no internet and nothing cached): a session saved on this
+      // phone still counts, so a signed-in customer is never locked out of their own app
+      ready = null; known = true;
+      try { var s = JSON.parse(localStorage.getItem('jainjoy.auth') || 'null'), u = s && (s.user || (s.currentSession && s.currentSession.user)); if (u) me = {id: u.id, name: (u.user_metadata || {}).name, phone: (u.user_metadata || {}).phone}; } catch (e) {}
+      if (onChange) onChange(); return me;
+    });
     return ready;
+  },
+  /* true once the saved sign-in has been checked (until then the app shows its loading screen) */
+  get known() { return known || !configured(); },
+  /* the household profile travels with the account, so signing in on a new phone brings it back */
+  saveProfile: function (p) { if (!sb || !me) return Promise.resolve(); return sb.rpc('save_profile', {p: p}).then(function () {}, function () {}); },
+  loadProfile: function () {
+    if (!sb || !me) return Promise.resolve(null);
+    return sb.from('customers').select('profile').eq('id', me.id).maybeSingle().then(function (q) { return (q.data && q.data.profile) || null; }, function () { return null; });
   },
   signUp: function (f) {
     var errs = validate(f, true); if (errs.length) return Promise.resolve({errors: errs});

@@ -536,17 +536,19 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var keys = ['acc_err_phone_taken', 'acc_err_blocked', 'acc_err_wrong', 'acc_err_too_many'].every(function (k) { return JJ.app.t(k) !== k; });
     return {ok: !bad.length && keys && JJ.account.cleanPhone('+91 98765-43210') === '9876543210', details: cases.length + ' cases' + (bad.length ? '; wrong: ' + bad.join(' | ') : ' all correct') + '; +91 and spaces are removed; messages for taken phone, blocked, wrong password and too many attempts exist: ' + keys};
   });
-  test('C2', 'Accounts are optional: the menu opens without logging in', function () {
-    var on = JJ.account.configured();
-    JJ.app.profile = Object.assign({created: today}, STRICT()); JJ.db.put('profiles', JJ.app.profile);
-    try { localStorage.removeItem('jainjoy.inviteDone'); } catch (e) {}
-    document.querySelector('[data-a="tab"][data-v="today"]').click();
-    var txt = document.getElementById('app').innerText, menu = /Breakfast/.test(txt) && /Lunch/.test(txt) && /Dinner/.test(txt);
-    var invite = !!document.querySelector('.acc-invite'), notNow = document.querySelector('[data-a="invitedone"]');
-    if (notNow) notNow.click();
-    var gone = !document.querySelector('.acc-invite');
-    try { localStorage.removeItem('jainjoy.inviteDone'); } catch (e) {}
-    return {ok: menu && (!on || (invite && gone)), details: 'accounts configured: ' + on + '; today\'s menu shown without login: ' + menu + (on ? '; gentle invite shown: ' + invite + ', "Not now" hides it: ' + gone : '')};
+  test('C2', 'First page: Sign Up asks the right things, Sign In asks only phone and password', function () {
+    var div = document.createElement('div');
+    div.innerHTML = JJ.app.gateHTML('signup');
+    var ids = [].map.call(div.querySelectorAll('input[id^="acc-"]'), function (i) { return i.id.slice(4); }).join(',');
+    var rows = [].map.call(div.querySelectorAll('.frow b'), function (b) { return b.textContent; });
+    var want = ['Language', 'Location', 'Regional cuisine', 'Household size', 'Allergies and exclusions', 'Tithi observances', 'Timing convention'];
+    var missing = want.filter(function (w) { return rows.indexOf(w) < 0; });
+    var noTradition = !/Tradition|Sub-sect/.test(div.textContent), locAuto = !div.querySelector('#pf-state') && !div.querySelector('#pf-city');
+    var su = ids === 'name,phone,password,confirm' && !missing.length && noTradition && locAuto && !!div.querySelector('[data-a="signupsubmit"]');
+    div.innerHTML = JJ.app.gateHTML('signin');
+    var ids2 = [].map.call(div.querySelectorAll('input'), function (i) { return i.id.slice(4); }).join(','), si = ids2 === 'phone,password' && !div.querySelector('.frow');
+    JJ.app.gateHTML('signup');
+    return {ok: su && si, details: 'Sign Up fields: ' + ids + '; sections: ' + rows.join(', ') + (missing.length ? ' (missing ' + missing.join(', ') + ')' : '') + '; no tradition or sub-sect: ' + noTradition + '; location not asked (detected): ' + locAuto + '. Sign In fields: ' + ids2};
   });
 
   // ---- report ----

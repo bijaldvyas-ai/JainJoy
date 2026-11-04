@@ -364,3 +364,11 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 - **Today header.** The tithi sits beside the date under "Today's Menu" ("🌙 Dasham · Krishna paksha"), highlighted on Parva Tithis. The card below keeps the month, the tithi end time and the day's rules.
 - **Timings card.** Navkarsi, Chauvihar and the Shubh Choghadiya (Amrit, Shubh or Labh: running now, or the next one) side by side. Tapping it opens the Choghadiya tab.
 - **First plan.** Right after "Get My Meal Plan" the app scrolls to today's menu under "🎉 Your meal plan is ready!".
+
+## 17. Change log – v2.9.3 Sign Up first (4 Nov 2026)
+
+- **First page is Sign Up.** It asks for full name, phone (10 digits), password and confirm password. The same page also covers language, regional cuisine (filled from the detected state), household size, allergies and exclusions, tithi observances and timing convention.
+- **Location is not asked.** It is detected by GPS and matched to the nearest of the app's Indian cities; if more than 40 km from all of them, the exact spot is kept. The city picker appears only if the phone gives no location.
+- **Sign In** (phone + password only) is reached from "Already have an account? Log in". The household profile is saved with the account (`customers.profile`), so signing in on a new phone restores it.
+- **Existing households.** Those already using the app see the Sign Up page with their own settings filled in; their plan and history are kept.
+- **Offline.** A customer who signed in before stays signed in without internet.

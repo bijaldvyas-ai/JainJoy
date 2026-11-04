@@ -90,3 +90,12 @@ exception when duplicate_object then null; end $$;
 -- 7. Make yourself the admin: first sign up in the app with your own phone number, then run
 --    this line with that number (only admins can open the Customers section):
 -- insert into public.admins (user_id) select id from public.customers where phone = '9XXXXXXXXX' on conflict do nothing;
+
+-- 8. (v2.9.3) The household profile is saved with the account, so signing in on another phone restores it
+alter table public.customers add column if not exists profile jsonb;
+create or replace function public.save_profile(p jsonb) returns void
+language sql security definer set search_path = public as $$
+  update public.customers set profile = p where id = auth.uid();
+$$;
+revoke all on function public.save_profile(jsonb) from public, anon;
+grant execute on function public.save_profile(jsonb) to authenticated;

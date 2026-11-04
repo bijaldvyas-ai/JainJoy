@@ -208,11 +208,14 @@ function render() {
   var sc = document.getElementById('scroll'), top = stack[stack.length - 1];
   var key = (P ? '' : 'onb') + tab + '|' + (top ? JSON.stringify(top) : ''), keep = sc && key === lastKey ? sc.scrollTop : 0;
   var body;
-  if (!P) body = viewProfile(true);
+  var gate = JJ.account.configured() && !JJ.account.user; // with accounts on, Sign Up / Sign In comes first
+  if (JJ.account.configured() && !JJ.account.known) body = viewLoading();
+  else if (gate) body = viewGate();
+  else if (!P) body = viewProfile(true);
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
     admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount})[top.k](top);
   else body = tab === 'today' ? viewToday() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
-  app.innerHTML = '<div class="phone">' + withCredit(body) + (P ? tabbar() : '') + sheetHTML() + '</div>';
+  app.innerHTML = '<div class="phone">' + withCredit(body) + (P && !gate && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
   if (top && top.k === 'about' && JJ.analytics.enabled()) JJ.analytics.total().then(function (n) { var el = document.getElementById('visitors'); if (el) el.textContent = n == null ? t('visitors_unavailable') : t('visitors_total', {n: n}); });
   // first view of a brand-new plan: bring today's menu into view
@@ -847,6 +850,92 @@ function inviteCard() {
   return '<section class="card glass acc-invite"><b>👤 ' + esc(t('acc_invite_title')) + '</b><p class="fine" style="margin:4px 0 8px">' + esc(t('acc_invite_sub')) + '</p>' +
     '<div class="row" style="gap:8px"><button class="btn small primary" data-a="acc" data-v="signup">' + esc(t('acc_signup')) + '</button><button class="btn small" data-a="acc" data-v="login">' + esc(t('acc_login')) + '</button><button class="linkbtn" data-a="invitedone">' + esc(t('acc_not_now')) + '</button></div></section>';
 }
+/* ---------------- first page: Sign Up (account + household) and Sign In ---------------- */
+function viewLoading() { return '<main class="scroll gx" id="scroll"><div class="hero-brand" style="margin-top:18vh">' + lotus(72) + WORDMARK + '<p class="sub">' + esc(t('loading')) + '</p></div></main>'; }
+function accErr(field) { var e = ui.acc.errs.filter(function (x) { return x.field === field; })[0]; return e ? '<small class="ferr" role="alert">' + esc(t(e.key)) + '</small>' : ''; }
+function accInput(id, type, label, extra) {
+  var bad = ui.acc.errs.some(function (x) { return x.field === id; });
+  return '<label class="field"><span class="flabel">' + esc(t(label)) + '</span><input class="input' + (bad ? ' bad' : '') + '" id="acc-' + id + '" type="' + type + '" value="' + esc(ui.acc.f[id] || '') + '"' + (extra || '') + '>' + accErr(id) + '</label>';
+}
+function accGeneral() { var g = ui.acc.errs.filter(function (x) { return !x.field; })[0]; return g ? '<div class="alert" role="alert">' + esc(t(g.key)) + '</div>' : ''; }
+function viewGate() {
+  if (ui.acc.mode === 'signin') {
+    var b = '<div class="hero-brand">' + lotus(72) + WORDMARK + '<h1 class="h1">' + esc(t('signin_title')) + '</h1><p class="sub" style="margin:0">' + esc(t('acc_login_sub')) + '</p></div>' + accGeneral() +
+      '<form id="signin-form" class="card glass" autocomplete="on" novalidate>' +
+      accInput('phone', 'tel', 'acc_phone', ' inputmode="numeric" autocomplete="tel-national" maxlength="14" placeholder="98XXXXXXXX"') +
+      accInput('password', 'password', 'acc_password', ' autocomplete="current-password"') +
+      '<button class="btn primary" type="submit" style="width:100%;margin-top:6px"' + (ui.acc.busy ? ' disabled' : '') + '>' + esc(t(ui.acc.busy ? 'acc_wait' : 'acc_login')) + '</button></form>' +
+      '<p class="fine" style="text-align:center">' + esc(t('no_account')) + ' <button class="linkbtn" data-a="gatemode" data-v="signup">' + esc(t('acc_signup')) + '</button></p>';
+    return '<main class="scroll gx" id="scroll">' + b + '</main>';
+  }
+  if (!ui.loc) autoLocate();
+  return viewProfile('signup');
+}
+/* Location is detected, never asked: GPS, then the nearest of the app's cities (its state gives the cuisine).
+   Only if the phone gives no location does the city picker appear. */
+function autoLocate() {
+  ui.loc = {state: 'busy'};
+  function fail() { ui.loc = {state: 'failed'}; if (draft) openField = 'city'; render(); }
+  if (!navigator.geolocation) return setTimeout(fail, 0);
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    var la = pos.coords.latitude, lo = pos.coords.longitude, best = null, bd = Infinity;
+    Object.keys(JJ.CITIES).forEach(function (k) {
+      var c = JJ.CITIES[k], dla = (c.lat - la) * Math.PI / 180, dlo = (c.lon - lo) * Math.PI / 180;
+      var a = Math.pow(Math.sin(dla / 2), 2) + Math.cos(la * Math.PI / 180) * Math.cos(c.lat * Math.PI / 180) * Math.pow(Math.sin(dlo / 2), 2), km = 12742 * Math.asin(Math.sqrt(a));
+      if (km < bd) { bd = km; best = k; }
+    });
+    if (!draft) draft = blankDraft();
+    if (best) pickCity(best);
+    // far from every listed city: keep the exact spot for sunrise times, with the nearest city's state and cuisine
+    if (best && bd > 40) { var nc = JJ.CITIES[best]; draft.custom = {name: (nc[LANG] || nc.en) + ' ' + t('area'), en: nc.en + ' area', lat: la, lon: lo, tz: JJ.tz.deviceTz()}; draft.cityId = ''; }
+    ui.loc = {state: 'ok'}; openField = null; render();
+  }, fail, {timeout: 12000, maximumAge: 6e5});
+}
+function locRow(d) {
+  var c = d.custom || JJ.CITIES[d.cityId], s = ui.loc ? ui.loc.state : 'busy';
+  var txt = c ? (c[LANG] || c.en || c.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('loc_detecting');
+  return '<section class="frow done"><div class="frow-h static"><span class="ficon">' + ic('pin') + '</span><span class="ftext"><b>' + esc(t('location')) + '</b><small>' + esc(c ? t('loc_detected', {place: txt}) : s === 'busy' ? t('loc_detecting') : t('loc_failed')) + '</small></span>' + (c ? ic('check') : '') + '</div></section>';
+}
+function signupSubmit() {
+  var a = ui.acc; if (a.busy) return;
+  ['name', 'phone', 'password', 'confirm'].forEach(function (k) { var el = document.getElementById('acc-' + k); if (el) a.f[k] = el.value; });
+  var errs = JJ.account.validate(a.f, true);
+  if (errs.length || !ready(draft)) { a.errs = errs.length ? errs : [{field: '', key: 'complete_fields'}]; render(); var sc = document.getElementById('scroll'); if (sc) sc.scrollTop = 0; return; }
+  a.busy = true; a.errs = []; render();
+  JJ.account.signUp(a.f).then(function (r) {
+    a.busy = false;
+    if (!r.ok) { a.errs = r.errors || [{field: '', key: 'acc_err_generic'}]; render(); var sc = document.getElementById('scroll'); if (sc) sc.scrollTop = 0; return; }
+    var name = (JJ.account.user || {}).name || '';
+    ui.acc = {mode: 'signin', f: {}, errs: [], busy: false};
+    if (P) { // an existing household on this phone keeps its plan and history
+      var changed = JSON.stringify(fromProfile(P)) !== JSON.stringify(draft), keep = {userId: 'local', created: P.created, planFrom: P.planFrom, version: P.version, seed: P.seed};
+      if (changed) { P = Object.assign({}, draft, keep); delete P.cuisineSet; applyProfileChange(); }
+      draft = null; openField = null; stack = []; tab = 'today';
+    } else createPlan();
+    JJ.account.saveProfile(P); render(); toast(t('acc_welcome', {name: name}));
+  }, function () { a.busy = false; a.errs = [{field: '', key: 'acc_err_offline'}]; render(); });
+}
+function signinSubmit() {
+  var a = ui.acc; if (a.busy) return;
+  ['phone', 'password'].forEach(function (k) { var el = document.getElementById('acc-' + k); if (el) a.f[k] = el.value; });
+  a.busy = true; a.errs = []; render();
+  JJ.account.signIn(a.f).then(function (r) {
+    if (!r.ok) { a.busy = false; a.errs = r.errors || [{field: '', key: 'acc_err_generic'}]; render(); return; }
+    return JJ.account.loadProfile().then(function (saved) {
+      ui.acc = {mode: 'signin', f: {}, errs: [], busy: false};
+      if (saved && !P) { P = Object.assign({}, saved, {userId: 'local'}); saveProfile(); JJ.db.put('users', {id: 'local', createdAt: Date.now()}); lastDay = today(); freezeHistory(); }
+      else if (P && !saved) JJ.account.saveProfile(P);
+      stack = []; tab = 'today'; render(); toast(t('acc_welcome_back', {name: (JJ.account.user || {}).name || ''}));
+    });
+  }, function () { a.busy = false; a.errs = [{field: '', key: 'acc_err_offline'}]; render(); });
+}
+/* turn the filled-in draft into the household profile and open today's menu */
+function createPlan() {
+  var tz = (draft.custom || JJ.CITIES[draft.cityId]).tz, td = JJ.todayISO(tz);
+  P = Object.assign({}, draft, {userId: 'local', created: td, planFrom: td, version: 1, seed: hash(String(Date.now())) % 1000});
+  delete P.cuisineSet; JJ.db.put('users', {id: 'local', createdAt: Date.now()}); saveProfile();
+  JJ.db.put('meta', {key: 'frozen', upto: null}); draft = null; openField = null; tab = 'today'; stack = []; freezeHistory(); ui.showcase = true; ui.showcaseDone = false;
+}
 function viewAccount() {
   var a = ui.acc, su = a.mode === 'signup', f = a.f;
   function err(field) { var e = a.errs.filter(function (x) { return x.field === field; })[0]; return e ? '<small class="ferr" role="alert">' + esc(t(e.key)) + '</small>' : ''; }
@@ -1078,11 +1167,12 @@ function locationBody(d) {
   return h;
 }
 function viewProfile(onboard) {
-  if (!draft) { draft = onboard ? blankDraft() : fromProfile(P); if (onboard && openField == null) openField = 'city'; }
+  var signup = onboard === 'signup';
+  if (!draft) { draft = signup ? (P ? fromProfile(P) : blankDraft()) : onboard ? blankDraft() : fromProfile(P); if (onboard && !signup && openField == null) openField = 'city'; }
   var d = draft, rows = '';
   rows += '<section class="frow done"><div class="frow-h static"><span class="ficon">' + ic('globe') + '</span><span class="ftext"><b>' + esc(t('language')) + '</b><small>' + esc(t('language_sub')) + '</small></span>' + langChip() + '</div></section>';
   var cityObj = d.custom || JJ.CITIES[d.cityId];
-  rows += frow('city', 'pin', t('location'), cityObj ? (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
+  if (signup && !(ui.loc && ui.loc.state === 'failed' && !cityObj)) rows += locRow(d); else rows += frow('city', 'pin', t('location'), cityObj ? (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
   rows += frow('cuisine', 'thali', t('cuisine'), d.cuisine ? nm(JJ.CUISINES[d.cuisine]) : t('cuisine_hint'), !!d.cuisine, function () { return '<div class="chips">' + Object.keys(JJ.CUISINES).map(function (k) { return '<button class="chip" data-a="cuisine" data-v="' + k + '" aria-pressed="' + (d.cuisine === k) + '">' + esc(nm(JJ.CUISINES[k])) + '</button>'; }).join('') + '</div><p class="hint">' + esc(t('cuisine_help')) + '</p>'; });
   rows += frow('hh', 'users', t('household'), t('for_members', {n: d.hh}), d.hh >= 1, function () { return '<div class="stepper"><button data-a="hh" data-v="-1" aria-label="' + esc(t('fewer')) + '"' + (d.hh <= 1 ? ' disabled' : '') + '>−</button><output aria-live="polite">' + esc(t('for_members', {n: d.hh})) + '</output><button data-a="hh" data-v="1" aria-label="' + esc(t('more')) + '"' + (d.hh >= 20 ? ' disabled' : '') + '>+</button></div><p class="hint">' + esc(t('household_help')) + '</p>'; });
   var exVal = d.allergies.map(function (a) { return nm(JJ.ALLERGENS[a]); }).concat(d.exclude.map(ingName)).join(', ') || t('none');
@@ -1103,7 +1193,15 @@ function viewProfile(onboard) {
       '<div class="field"><label for="pf-cal">' + esc(t('month_system')) + '</label><select class="select" id="pf-cal"><option value="amanta"' + (d.calendar === 'amanta' ? ' selected' : '') + '>' + esc(t('cal_amanta')) + '</option><option value="purnimanta"' + (d.calendar === 'purnimanta' ? ' selected' : '') + '>' + esc(t('cal_purn')) + '</option></select></div><p class="hint">' + esc(t('navkarsi_fixed')) + '</p>';
   });
   var head, top = '', bottom;
-  if (onboard) {
+  if (signup) {
+    top = '<div class="hero-brand">' + lotus(72) + WORDMARK + '<h1 class="h1">' + esc(t('signup_title')) + '</h1><p class="sub" style="margin:0">' + esc(t('signup_sub')) + '</p></div>' + accGeneral() +
+      '<form id="signup-form" class="card glass" autocomplete="on" novalidate>' + accInput('name', 'text', 'acc_name', ' autocomplete="name" maxlength="80"') +
+      accInput('phone', 'tel', 'acc_phone', ' inputmode="numeric" autocomplete="tel-national" maxlength="14" placeholder="98XXXXXXXX"') +
+      accInput('password', 'password', 'acc_password', ' autocomplete="new-password"') + '<p class="fine" style="margin:-4px 0 8px">' + esc(t('acc_pw_rule')) + '</p>' +
+      accInput('confirm', 'password', 'acc_confirm', ' autocomplete="new-password"') + '</form>';
+    head = '';
+    bottom = '<div class="cta-bar gx"><button class="btn-primary" data-a="signupsubmit"' + (ready(d) && !ui.acc.busy ? '' : ' disabled') + '>' + esc(t(ui.acc.busy ? 'acc_wait' : 'signup_cta')) + '</button><p>' + esc(t('have_account')) + ' <button class="linkbtn" data-a="gatemode" data-v="signin" style="padding:0">' + esc(t('acc_login')) + '</button></p></div>';
+  } else if (onboard) {
     top = '<div class="hero-brand">' + lotus(72) + WORDMARK + '<h1 class="h1">' + esc(t('your_profile')) + '</h1><p class="sub" style="margin:0">' + esc(t('asked_once')) + '</p></div>';
     head = '';
     bottom = '<div class="cta-bar gx"><button class="btn-primary" data-a="submit"' + (ready(d) ? '' : ' disabled') + '>' + esc(t('get_plan')) + '</button><p>' + esc(ready(d) ? t('plan_starts_today') : t('complete_fields')) + '</p></div>';
@@ -1168,11 +1266,13 @@ app.addEventListener('click', function (e) {
     case 'wa': shareText(v === 'list' ? listText(currentGroups(el.dataset.list)) : menuText(v)); break;
     case 'acc': ui.acc.mode = v; ui.acc.errs = []; if (!top || top.k !== 'account') stack.push({k: 'account'}); render(); break;
     case 'accmode': ui.acc.mode = v; ui.acc.errs = []; render(); break;
-    case 'logout': JJ.account.signOut().then(function () { render(); toast(t('acc_logged_out')); }); break;
+    case 'logout': JJ.account.signOut().then(function () { ui.acc = {mode: 'signin', f: {}, errs: [], busy: false}; stack = []; tab = 'today'; render(); toast(t('acc_logged_out')); }); break;
     case 'invitedone': try { localStorage.setItem('jainjoy.inviteDone', '1'); } catch (x) {} render(); break;
     case 'custf': ui.cust.filter = v; render(); break;
     case 'custstatus': JJ.account.setStatus(v, el.dataset.s).then(function (r) { toast(r.error ? t('cust_error') : t(el.dataset.s === 'blocked' ? 'cust_blocked_toast' : 'cust_unblocked_toast')); custRefresh(); }); break;
     case 'custdel': if (window.confirm(t('cust_delete_confirm', {name: el.dataset.n}))) JJ.account.remove(v).then(function (r) { toast(r.error ? t('cust_error') : t('cust_deleted_toast')); custRefresh(); }); break;
+    case 'signupsubmit': signupSubmit(); break;
+    case 'gatemode': ui.acc.mode = v; ui.acc.errs = []; ui.acc.f.password = ''; ui.acc.f.confirm = ''; render(); break;
     case 'pantryclear': JJ.db.put('meta', {key: 'pantry', have: {}}); render(); break;
     case 'ayambil': ui.ayambil = ui.ayambil === v ? null : v; render(); break;
     case 'notify': {
@@ -1204,15 +1304,12 @@ app.addEventListener('click', function (e) {
     case 'geopick': { var r = ui.geo.results[+v]; draft.custom = {name: r.name + (r.admin1 ? ', ' + r.admin1 : ''), en: r.name, lat: r.latitude, lon: r.longitude, tz: r.timezone || JJ.tz.deviceTz(), country: r.country_code}; draft.cityId = ''; if (!draft.cuisine) draft.cuisine = 'gen'; ui.geo.results = null; render(); break; }
     case 'submit': {
       if (!ready(draft)) return;
-      var tz = (draft.custom || JJ.CITIES[draft.cityId]).tz, td = JJ.todayISO(tz);
-      P = Object.assign({}, draft, {userId: 'local', created: td, planFrom: td, version: 1, seed: hash(String(Date.now())) % 1000});
-      delete P.cuisineSet; JJ.db.put('users', {id: 'local', createdAt: Date.now()}); saveProfile();
-      JJ.db.put('meta', {key: 'frozen', upto: null}); draft = null; openField = null; tab = 'today'; stack = []; freezeHistory(); ui.showcase = true; render(); break;
+      createPlan(); JJ.account.saveProfile(P); render(); break;
     }
     case 'save': {
       if (!ready(draft)) return;
       var keep = {userId: 'local', created: P.created, planFrom: P.planFrom, version: P.version, seed: P.seed};
-      P = Object.assign({}, draft, keep); delete P.cuisineSet; applyProfileChange(); draft = null; openField = null; stack.pop(); render(); toast(t('saved_from_tomorrow')); break;
+      P = Object.assign({}, draft, keep); delete P.cuisineSet; applyProfileChange(); JJ.account.saveProfile(P); draft = null; openField = null; stack.pop(); render(); toast(t('saved_from_tomorrow')); break;
     }
     case 'resetask': sheet = 'reset'; render(); break;
     case 'sheetclose': sheet = null; render(); break;
@@ -1252,13 +1349,15 @@ app.addEventListener('input', function (e) {
   else if (id === 'ex-q' || id === 'ing-q') later(function () { ui.ingQ = el.value; });
   else if (id === 'geo-q') ui.geo.q = el.value;
   else if (id === 'cust-q') { ui.cust.q = el.value; custPaint(); }
-  else if (id.indexOf('acc-') === 0 && el.type !== 'password') ui.acc.f[id.slice(4)] = el.value;
+  else if (id.indexOf('acc-') === 0) ui.acc.f[id.slice(4)] = el.value; // kept in memory only, so other taps on the page do not clear it
   else if (el.dataset.ed && el.tagName === 'TEXTAREA') { stack[stack.length - 1].form[el.dataset.ed] = el.value; }
 });
 app.addEventListener('submit', function (e) {
   e.preventDefault();
   if (e.target.id === 'geo-form') geoSearch();
   if (e.target.id === 'acc-form') submitAccount();
+  if (e.target.id === 'signin-form') signinSubmit();
+  if (e.target.id === 'signup-form') signupSubmit();
   if (e.target.dataset && e.target.dataset.map != null) {
     var qi = +e.target.dataset.map, q = JJ.db.get('meta', 'ing_reviews') || {key: 'ing_reviews', names: []}, name = q.names[qi], val = (document.getElementById('map-' + qi).value || '').trim();
     var id = JJ.ING[val] ? val : JJ.resolveIngredient(val);
@@ -1318,7 +1417,7 @@ setInterval(function () {
 }, 30000);
 
 /* ---------------- boot ---------------- */
-JJ.app = {render: render, toast: toast, festiveFor: festiveFor, dinnerStart: dinnerStart, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
+JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, dinnerStart: dinnerStart, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
   get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache};
 JJ.boot = function () {
   return JJ.db.open().then(function () {
