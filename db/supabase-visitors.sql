@@ -59,3 +59,13 @@ revoke all on function public.log_visit(text, text, text, text, boolean), public
 grant execute on function public.log_visit(text, text, text, text, boolean) to anon, authenticated;
 grant execute on function public.visitor_stats() to authenticated;
 revoke execute on function public.visitor_stats() from anon;
+
+-- headline numbers for the "Data and about" page: totals only, nothing about any visitor
+create or replace function public.visitor_summary() returns json
+language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'total', (select count(distinct device_id) from visits),
+    'today', (select count(distinct device_id) from visits where day = (now() at time zone 'Asia/Kolkata')::date),
+    'planners', (select count(distinct device_id) from visits where has_plan));
+$$;
+grant execute on function public.visitor_summary() to anon, authenticated;

@@ -218,7 +218,7 @@ function render() {
   else body = tab === 'today' ? viewToday() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
   app.innerHTML = '<div class="phone">' + withCredit(body) + (P && !gate && !locked() && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
-  if (top && top.k === 'about' && JJ.analytics.enabled()) JJ.analytics.total().then(function (n) { var el = document.getElementById('visitors'); if (el) el.textContent = n == null ? t('visitors_unavailable') : t('visitors_total', {n: n}); });
+  if (top && top.k === 'about') JJ.visits.summary().then(function (s) { var el = document.getElementById('visitors'); if (el) el.textContent = s ? t(s.total === 1 ? 'visitors_now_one' : 'visitors_now', {n: s.total, today: s.today, plans: s.planners}) : t('visitors_unavailable'); });
   // first view of a brand-new plan: bring today's menu into view
   var show = document.getElementById('showcase'); if (show && !ui.showcaseDone) { ui.showcaseDone = true; show.scrollIntoView({block: 'start'}); }
   if (top && top.k === 'admin' && JJ.account.isAdmin) { custStartLive(); setTimeout(drawQr, 0); } else custStopLive();
@@ -1238,8 +1238,8 @@ function viewAbout() {
     '<b>' + esc(t('history_days')) + '</b><span>' + JJ.db.count('menu_history') + '</span>' +
     '<b>' + esc(t('storage')) + '</b><span>' + esc(t('storage_' + JJ.db.mode())) + '</span>' +
     '<b>' + esc(t('engine')) + '</b><span>' + esc(JJ.astro.name()) + '</span></div></div>';
-  b += '<div class="card glass"><h3>' + esc(t('visitors')) + '</h3><p style="margin:0;font-size:14px" id="visitors">' + esc(JJ.analytics.enabled() ? t('visitors_loading') : t('visitors_off')) + '</p>' +
-    (JJ.analytics.enabled() ? '<p class="fine"><a href="https://' + esc(JJ.CONFIG.goatcounter) + '.goatcounter.com" target="_blank" rel="noopener">' + esc(t('visitors_dashboard')) + '</a></p>' : '') + '</div>';
+  b += '<div class="card glass"><h3>' + esc(t('visitors')) + '</h3><p style="margin:0;font-size:15px;font-weight:700" id="visitors">' + esc(t('visitors_loading')) + '</p>' +
+    '<p class="fine" style="margin-top:6px"><button class="linkbtn" data-a="push" data-v="visitors" style="padding:0">' + esc(t('visitors_details')) + ' ›</button></p></div>';
   b += '<div class="card glass"><h3>' + esc(t('dependencies')) + '</h3><p style="margin:0;font-size:13.5px">' + esc(t('dependencies_text')) + '</p></div>';
   b += '<div class="row" style="margin-top:12px"><button class="btn" data-a="export">' + esc(t('export_data')) + '</button></div>';
   b += '<div class="card glass"><h3>' + esc(t('install')) + '</h3><p style="margin:0;font-size:13.5px">' + esc(t('install_text')) + '</p></div>';

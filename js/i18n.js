@@ -339,6 +339,9 @@ quick_grocery:['Grocery list','किराना सूची','કરિયા
 visitors:['Visitors','आगंतुक','મુલાકાતીઓ'], visitors_loading:['Loading…','लोड हो रहा है…','લોડ થાય છે…'], visitors_total:['{n} visits so far','अब तक {n} विज़िट','અત્યાર સુધી {n} મુલાકાત'],
 visitors_unavailable:['Visitor count is not available right now.','अभी आगंतुक संख्या उपलब्ध नहीं।','હમણાં મુલાકાતીઓની સંખ્યા ઉપલબ્ધ નથી.'], visitors_dashboard:['See visitors by country and city','देश और शहर के अनुसार आगंतुक देखें','દેશ અને શહેર પ્રમાણે મુલાકાતીઓ જુઓ'],
 visitors_off:['Visitor counting is not turned on yet.','आगंतुक गिनती अभी चालू नहीं है।','મુલાકાતીઓની ગણતરી હજુ ચાલુ નથી.'],
+visitors_now:['👥 {n} people have used JainJoy · {today} today · {plans} made a meal plan','👥 {n} लोगों ने JainJoy इस्तेमाल किया · आज {today} · {plans} ने भोजन योजना बनाई','👥 {n} લોકોએ JainJoy વાપર્યું · આજે {today} · {plans} એ ભોજન યોજના બનાવી'],
+visitors_now_one:['👥 1 person has used JainJoy · {today} today · {plans} made a meal plan','👥 1 व्यक्ति ने JainJoy इस्तेमाल किया · आज {today} · {plans} ने भोजन योजना बनाई','👥 1 વ્યક્તિએ JainJoy વાપર્યું · આજે {today} · {plans} એ ભોજન યોજના બનાવી'],
+visitors_details:['Full details: days, cities (owner)','पूरी जानकारी: दिन, शहर (मालिक)','પૂરી વિગત: દિવસો, શહેરો (માલિક)'],
 // nutrition
 nutrition_title:['Nutrition today · per person','आज का पोषण · प्रति व्यक्ति','આજનું પોષણ · વ્યક્તિ દીઠ'], thali_nutrition:['Whole thali · per person','पूरी थाली · प्रति व्यक्ति','આખી થાળી · વ્યક્તિ દીઠ'],
 per_serving:['Nutrition per serving','प्रति सर्विंग पोषण','એક પીરસણ દીઠ પોષણ'], kcal:['kcal','कैलोरी','કેલરી'], protein:['Protein','प्रोटीन','પ્રોટીન'], carbs:['Carbs','कार्ब्स','કાર્બ્સ'], fat:['Fat','वसा','ચરબી'],
