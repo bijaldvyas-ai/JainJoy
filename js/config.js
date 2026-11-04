@@ -8,6 +8,10 @@
 'use strict';
 JJ.CONFIG = {
   goatcounter: '',  // e.g. 'jainjoy'  ->  https://jainjoy.goatcounter.com
+  /* SWITCH: Sign Up / Sign In, the subscription and the admin customer dashboard.
+     false = off for now: the app opens straight to the household setup and today's menu.
+     Set to true (and publish) to turn all of it back on; the Supabase project below keeps every account. */
+  accountsEnabled: false,
   /* Optional customer accounts (Supabase, see docs/SETUP.md "Customer accounts").
      Both values are on Supabase → Project Settings → API. The anon key is public by design:
      the database's row security decides what each person may read or change. */

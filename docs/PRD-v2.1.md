@@ -399,3 +399,9 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 - **Free period is now 3 months (90 days) from sign-up**, plus invite days; after that ₹199 for 1 year. Setting: `trialDays: 90` in js/config.js. Terms and refund pages say "3 months" in all three languages.
 - The trial reminder on Today appears only in the last 14 days of the free period; Profile always shows the days left.
 - Customers who signed up on 4 Nov 2026 are free until 2 Feb 2027.
+
+## 22. Change log – v3.2.0 accounts paused (4 Nov 2026)
+
+- **Sign Up, Sign In, the subscription and the admin customer dashboard are switched off** with one setting: `accountsEnabled: false` in js/config.js. All of that code, the Supabase project, its tables and the existing accounts stay in place. To start the subscription model later, set `accountsEnabled: true` and publish (see SETUP.md).
+- **First page** is the household setup again, opening straight into today's menu ("🎉 Your meal plan is ready!").
+- **Location is detected, never asked.** GPS gives the nearest of the app's Indian cities; if GPS is refused or unavailable, the city is estimated from the internet connection (geojs.io). The city picker appears only if both fail, or if the estimate is more than 150 km from every listed city. The privacy text mentions this.

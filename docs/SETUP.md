@@ -93,3 +93,11 @@ Sign in with the admin account, open **Profile → Admin dashboard → Business 
 - **Contact name and email** – shown on the Privacy, Terms and Refunds pages.
 
 Press **Save settings**; every customer gets them straight away. Run `db/supabase-subscription.sql` once in the Supabase SQL Editor if the project is new.
+
+## Turning the subscription model on later
+
+Everything for Sign Up / Sign In, the 3-month free period, the ₹199/year UPI subscription and the admin dashboard is already in the code and the Supabase project. To switch it on:
+1. In `js/config.js` set `accountsEnabled: true`.
+2. Bump the version (`?v=` in index.html and `CACHE`/`V` in sw.js) and publish.
+3. Sign in with the admin number and fill in **Admin dashboard → Business settings** (UPI ID, WhatsApp, contact).
+The free period counts from each customer's sign-up date, so people who sign up after the switch get their full 3 months.

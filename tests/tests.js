@@ -530,6 +530,10 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var keys = ['acc_err_phone_taken', 'acc_err_blocked', 'acc_err_wrong', 'acc_err_too_many'].every(function (k) { return JJ.app.t(k) !== k; });
     return {ok: !bad.length && keys && JJ.account.cleanPhone('+91 98765-43210') === '9876543210', details: cases.length + ' cases' + (bad.length ? '; wrong: ' + bad.join(' | ') : ' all correct') + '; +91 and spaces are removed; messages for taken phone, blocked, wrong password and too many attempts exist: ' + keys};
   });
+  test('C0', 'Accounts are switched off for now: no Sign Up, Sign In or subscription screens', function () {
+    var on = JJ.TEST_CONFIG.accountsEnabled, cfg = !!(JJ.TEST_CONFIG.supabaseUrl && JJ.TEST_CONFIG.supabaseKey);
+    return {ok: on === false && cfg && typeof JJ.app.gateHTML === 'function' && typeof JJ.account.signUp === 'function', details: 'accountsEnabled = ' + on + ' in js/config.js; Supabase settings kept: ' + cfg + '; Sign Up / Sign In / subscription code still in the app: ' + (typeof JJ.app.gateHTML === 'function')};
+  });
   test('C2', 'First page: Sign Up asks the right things, Sign In asks only phone and password', function () {
     var div = document.createElement('div');
     div.innerHTML = JJ.app.gateHTML('signup');
@@ -563,7 +567,7 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
   test('S2', 'After the trial only the subscription page shows; during it a banner counts down', function () {
     var D = 864e5, keepUrl = JJ.CONFIG.supabaseUrl, keepKey = JJ.CONFIG.supabaseKey, keepUpi = JJ.CONFIG.upiId;
     var fake = {id: 'x', name: 'Test', phone: '9000000000', created_at: new Date(Date.now() - 95 * D).toISOString(), ref_code: 'AB12CD'};
-    JJ.CONFIG.supabaseUrl = 'https://example.supabase.co'; JJ.CONFIG.supabaseKey = 'k'; JJ.CONFIG.upiId = 'test@upi';
+    var keepOn = JJ.CONFIG.accountsEnabled; JJ.CONFIG.accountsEnabled = true; JJ.CONFIG.supabaseUrl = 'https://example.supabase.co'; JJ.CONFIG.supabaseKey = 'k'; JJ.CONFIG.upiId = 'test@upi';
     var keepAccess = JJ.account.access; JJ.account.access = function () { return JJ.account.planOf(fake); };
     Object.defineProperty(JJ.account, 'user', {get: function () { return fake; }, configurable: true});
     Object.defineProperty(JJ.account, 'known', {get: function () { return true; }, configurable: true});
@@ -573,7 +577,7 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var link = app.querySelector('a[href^="upi://pay"]'), upi = link ? link.getAttribute('href') : '';
     fake.created_at = new Date(Date.now() - 87 * D).toISOString(); JJ.app.render();
     var banner = app.querySelector('.trial-banner'), bannerTxt = banner ? banner.innerText : '', menu = /Breakfast/.test(app.innerText);
-    JJ.CONFIG.supabaseUrl = keepUrl; JJ.CONFIG.supabaseKey = keepKey; JJ.CONFIG.upiId = keepUpi; JJ.account.access = keepAccess;
+    JJ.CONFIG.accountsEnabled = keepOn; JJ.CONFIG.supabaseUrl = keepUrl; JJ.CONFIG.supabaseKey = keepKey; JJ.CONFIG.upiId = keepUpi; JJ.account.access = keepAccess;
     Object.defineProperty(JJ.account, 'known', {get: function () { return true; }, configurable: true});
     Object.defineProperty(JJ.account, 'user', {get: function () { return null; }, configurable: true});
     JJ.app.render();

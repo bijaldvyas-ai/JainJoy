@@ -852,20 +852,31 @@ function viewGate() {
 function autoLocate() {
   ui.loc = {state: 'busy'};
   function fail() { ui.loc = {state: 'failed'}; if (draft) openField = 'city'; render(); }
-  if (!navigator.geolocation) return setTimeout(fail, 0);
-  navigator.geolocation.getCurrentPosition(function (pos) {
-    var la = pos.coords.latitude, lo = pos.coords.longitude, best = null, bd = Infinity;
+  // GPS refused or unavailable: estimate the city from the internet connection instead of asking
+  function byNetwork() {
+    fetch('https://get.geojs.io/v1/ip/geo.json').then(function (r) { return r.json(); }).then(function (j) {
+      var la = parseFloat(j.latitude), lo = parseFloat(j.longitude);
+      if (isNaN(la) || isNaN(lo)) return fail();
+      useSpot(la, lo, true);
+    }).catch(fail);
+  }
+  if (!navigator.geolocation) return byNetwork();
+  navigator.geolocation.getCurrentPosition(function (pos) { useSpot(pos.coords.latitude, pos.coords.longitude, false); }, byNetwork, {timeout: 12000, maximumAge: 6e5});
+  function useSpot(la, lo, rough) {
+    var best = null, bd = Infinity;
     Object.keys(JJ.CITIES).forEach(function (k) {
       var c = JJ.CITIES[k], dla = (c.lat - la) * Math.PI / 180, dlo = (c.lon - lo) * Math.PI / 180;
       var a = Math.pow(Math.sin(dla / 2), 2) + Math.cos(la * Math.PI / 180) * Math.cos(c.lat * Math.PI / 180) * Math.pow(Math.sin(dlo / 2), 2), km = 12742 * Math.asin(Math.sqrt(a));
       if (km < bd) { bd = km; best = k; }
     });
+    // a network estimate is only city-level: use it when a listed city is near, otherwise let the person choose
+    if (rough && bd > 150) return fail();
     if (!draft) draft = blankDraft();
     if (best) pickCity(best);
-    // far from every listed city: keep the exact spot for sunrise times, with the nearest city's state and cuisine
-    if (best && bd > 40) { var nc = JJ.CITIES[best]; draft.custom = {name: (nc[LANG] || nc.en) + ' ' + t('area'), en: nc.en + ' area', lat: la, lon: lo, tz: JJ.tz.deviceTz()}; draft.cityId = ''; }
+    // GPS far from every listed city: keep the exact spot for sunrise times, with the nearest city's state and cuisine
+    if (best && bd > 40 && !rough) { var nc = JJ.CITIES[best]; draft.custom = {name: (nc[LANG] || nc.en) + ' ' + t('area'), en: nc.en + ' area', lat: la, lon: lo, tz: JJ.tz.deviceTz()}; draft.cityId = ''; }
     ui.loc = {state: 'ok'}; openField = null; render();
-  }, fail, {timeout: 12000, maximumAge: 6e5});
+  }
 }
 function locRow(d) {
   var c = d.custom || JJ.CITIES[d.cityId], s = ui.loc ? ui.loc.state : 'busy';
@@ -1292,11 +1303,11 @@ function locationBody(d) {
 }
 function viewProfile(onboard) {
   var signup = onboard === 'signup';
-  if (!draft) { draft = signup ? (P ? fromProfile(P) : blankDraft()) : onboard ? blankDraft() : fromProfile(P); if (onboard && !signup && openField == null) openField = 'city'; }
+  if (!draft) { draft = signup ? (P ? fromProfile(P) : blankDraft()) : onboard ? blankDraft() : fromProfile(P); if (onboard && !ui.loc) autoLocate(); }
   var d = draft, rows = '';
   rows += '<section class="frow done"><div class="frow-h static"><span class="ficon">' + ic('globe') + '</span><span class="ftext"><b>' + esc(t('language')) + '</b><small>' + esc(t('language_sub')) + '</small></span>' + langChip() + '</div></section>';
   var cityObj = d.custom || JJ.CITIES[d.cityId];
-  if (signup && !(ui.loc && ui.loc.state === 'failed' && !cityObj)) rows += locRow(d); else rows += frow('city', 'pin', t('location'), cityObj ? (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
+  if (onboard && !(ui.loc && ui.loc.state === 'failed' && !cityObj)) rows += locRow(d); else rows += frow('city', 'pin', t('location'), cityObj ? (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
   rows += frow('cuisine', 'thali', t('cuisine'), d.cuisine ? nm(JJ.CUISINES[d.cuisine]) : t('cuisine_hint'), !!d.cuisine, function () { return '<div class="chips">' + Object.keys(JJ.CUISINES).map(function (k) { return '<button class="chip" data-a="cuisine" data-v="' + k + '" aria-pressed="' + (d.cuisine === k) + '">' + esc(nm(JJ.CUISINES[k])) + '</button>'; }).join('') + '</div><p class="hint">' + esc(t('cuisine_help')) + '</p>'; });
   rows += frow('hh', 'users', t('household'), t('for_members', {n: d.hh}), d.hh >= 1, function () { return '<div class="stepper"><button data-a="hh" data-v="-1" aria-label="' + esc(t('fewer')) + '"' + (d.hh <= 1 ? ' disabled' : '') + '>−</button><output aria-live="polite">' + esc(t('for_members', {n: d.hh})) + '</output><button data-a="hh" data-v="1" aria-label="' + esc(t('more')) + '"' + (d.hh >= 20 ? ' disabled' : '') + '>+</button></div><p class="hint">' + esc(t('household_help')) + '</p>'; });
   var exVal = d.allergies.map(function (a) { return nm(JJ.ALLERGENS[a]); }).concat(d.exclude.map(ingName)).join(', ') || t('none');
