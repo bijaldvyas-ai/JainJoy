@@ -545,6 +545,48 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     return {ok: su && si, details: 'Sign Up fields: ' + ids + '; sections: ' + rows.join(', ') + (missing.length ? ' (missing ' + missing.join(', ') + ')' : '') + '; no tradition or sub-sect: ' + noTradition + '; location not asked (detected): ' + locAuto + '. Sign In fields: ' + ids2};
   });
 
+  // ---- v3.0: subscription (7-day trial, then ₹199 for 1 year) ----
+  test('S1', 'Plan rules: 7-day trial, invite days, paid year, expiry', function () {
+    var D = 864e5, now = Date.now(), iso = function (ms) { return new Date(ms).toISOString(); };
+    var cases = [
+      ['new today', {created_at: iso(now)}, 'trial', 7],
+      ['day 6', {created_at: iso(now - 6.5 * D)}, 'trial', 1],
+      ['day 8, never paid', {created_at: iso(now - 8 * D)}, 'expired'],
+      ['day 10 with 7 invite days', {created_at: iso(now - 10 * D), bonus_days: 7}, 'trial', 4],
+      ['paid until next year', {created_at: iso(now - 40 * D), paid_until: iso(now + 300 * D)}, 'paid'],
+      ['paid but ended', {created_at: iso(now - 400 * D), paid_until: iso(now - 2 * D)}, 'expired']
+    ], bad = [];
+    cases.forEach(function (c) { var a = JJ.account.planOf(c[1]); if (a.state !== c[2] || (c[3] && a.daysLeft !== c[3])) bad.push(c[0] + ' → ' + a.state + ' ' + (a.daysLeft || '')); });
+    return {ok: !bad.length && JJ.CONFIG.trialDays === 7 && JJ.CONFIG.price === 199, details: cases.length + ' cases' + (bad.length ? '; wrong: ' + bad.join(', ') : ' correct') + '; trial ' + JJ.CONFIG.trialDays + ' days, price ₹' + JJ.CONFIG.price};
+  });
+  test('S2', 'After the trial only the subscription page shows; during it a banner counts down', function () {
+    var D = 864e5, keepUrl = JJ.CONFIG.supabaseUrl, keepKey = JJ.CONFIG.supabaseKey, keepUpi = JJ.CONFIG.upiId;
+    var fake = {id: 'x', name: 'Test', phone: '9000000000', created_at: new Date(Date.now() - 9 * D).toISOString(), ref_code: 'AB12CD'};
+    JJ.CONFIG.supabaseUrl = 'https://example.supabase.co'; JJ.CONFIG.supabaseKey = 'k'; JJ.CONFIG.upiId = 'test@upi';
+    var keepAccess = JJ.account.access; JJ.account.access = function () { return JJ.account.planOf(fake); };
+    Object.defineProperty(JJ.account, 'user', {get: function () { return fake; }, configurable: true});
+    Object.defineProperty(JJ.account, 'known', {get: function () { return true; }, configurable: true});
+    JJ.app.profile = Object.assign({created: today}, STRICT()); JJ.db.put('profiles', JJ.app.profile);
+    JJ.app.render();
+    var app = document.getElementById('app'), lockedTxt = app.innerText, noTabs = !app.querySelector('.tabbar'), qrBox = !!app.querySelector('#upi-qr'), utr = !!app.querySelector('#pay-utr');
+    var link = app.querySelector('a[href^="upi://pay"]'), upi = link ? link.getAttribute('href') : '';
+    fake.created_at = new Date(Date.now() - 4 * D).toISOString(); JJ.app.render();
+    var banner = app.querySelector('.trial-banner'), bannerTxt = banner ? banner.innerText : '', menu = /Breakfast/.test(app.innerText);
+    JJ.CONFIG.supabaseUrl = keepUrl; JJ.CONFIG.supabaseKey = keepKey; JJ.CONFIG.upiId = keepUpi; JJ.account.access = keepAccess;
+    Object.defineProperty(JJ.account, 'known', {get: function () { return true; }, configurable: true});
+    Object.defineProperty(JJ.account, 'user', {get: function () { return null; }, configurable: true});
+    JJ.app.render();
+    var ok = /trial has ended/.test(lockedTxt) && noTabs && qrBox && utr && /pa=test%40upi/.test(upi) && /am=199\.00/.test(upi) && /3 days left/.test(bannerTxt) && menu;
+    return {ok: ok, details: 'day 9: "trial has ended" page ' + /trial has ended/.test(lockedTxt) + ', tabs hidden ' + noTabs + ', QR ' + qrBox + ', transaction ID box ' + utr + ', UPI link ' + upi.slice(0, 60) + '…; day 4: banner "' + bannerTxt.replace(/\n/g, ' ') + '", menu shown ' + menu};
+  });
+  test('S3', 'Legal pages, invite message and payment texts exist in 3 languages', function () {
+    var keys = ['legal_privacy_body', 'legal_terms_body', 'legal_refund_body', 'invite_msg', 'pay_utr', 'sub_trial_over', 'acc_err_not_registered', 'forgot_pw'], miss = [];
+    ['en', 'hi', 'gu'].forEach(function (l) { JJ.app.setLang(l); keys.forEach(function (k) { var v = JJ.app.t(k, {link: 'L', n: 7, utr: 'U', phone: 'P', name: 'N', price: '₹199'}); if (!v || v === k) miss.push(l + ':' + k); }); });
+    JJ.app.setLang('en');
+    var refund = JJ.app.t('legal_terms_body');
+    return {ok: !miss.length && /₹199/.test(refund) && /7 days/.test(refund), details: keys.length + ' texts × 3 languages' + (miss.length ? '; missing ' + miss.join(', ') : ' all present') + '; terms mention ₹199 and the 7-day trial'};
+  });
+
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();

@@ -472,3 +472,18 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .chog-strip b{font-size:14px}.chog-strip em{font-style:normal;font-size:12px;font-weight:700;color:var(--muted)}.chog-strip em.now{color:var(--green)}
 .tithi-pill .tnum{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 4px;margin-right:2px;border-radius:999px;background:var(--crimson,#d6336c);color:#fff;font-size:12px}
 .tithi-pill.sp .tnum{background:var(--saffron)}
+.tgrid.tg4.tg2{grid-template-columns:repeat(2,minmax(0,1fr))}.tg2 .tcell b{font-size:17px}
+.trial-banner{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin:8px 0;padding:9px 12px;border-radius:14px;border:1px solid var(--line);background:color-mix(in srgb,var(--saffron-soft) 60%,var(--surface-2));font:inherit;color:inherit;cursor:pointer;text-align:left}
+.trial-banner span{font-size:13px;font-weight:700}.trial-banner b{font-size:13px;color:var(--crimson,#d6336c);white-space:nowrap}
+.trial-banner.soon{background:var(--saffron-soft);border-color:var(--saffron)}
+.price-card .price{display:flex;align-items:baseline;gap:8px;justify-content:center;margin-bottom:6px}
+.price-card .price b{font-size:40px;line-height:1}.price-card .price span{font-weight:700;color:var(--muted)}
+.price-card .tlist{list-style:none;padding:0;margin:0}.price-card .tlist li{margin:5px 0;font-size:14px}
+.upi-qr{display:grid;place-items:center;min-height:200px;margin:8px auto;padding:10px;background:#fff;border-radius:14px;width:max-content}
+.acc-actions{display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-top:4px}
+.plan-line{display:block;font-weight:800;color:var(--crimson,#d6336c)}
+.legal-links{width:100%;margin:6px 0 0}.danger-link{color:#c62828}
+.legal p{margin:0 0 10px;line-height:1.5}
+.cust-stats div.hot{background:var(--saffron-soft);outline:1.5px solid var(--saffron)}
+.temp-pw{grid-column:1/-1;font-size:13px;font-weight:800;background:var(--green-soft);padding:6px 8px;border-radius:8px}
+@media (max-width:640px){.cust-stats{grid-template-columns:repeat(3,1fr)}.cust-acts{flex-wrap:wrap}}
