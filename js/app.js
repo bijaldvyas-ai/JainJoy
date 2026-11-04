@@ -950,7 +950,7 @@ function rupees(n) { return '₹' + n; }
 function trialBanner() {
   if (!JJ.account.configured()) return '';
   var a = JJ.account.access();
-  if (a.state !== 'trial') return '';
+  if (a.state !== 'trial' || a.daysLeft > 14) return ''; // a reminder only in the last two weeks of the free period
   return '<button class="trial-banner' + (a.daysLeft <= 2 ? ' soon' : '') + '" data-a="push" data-v="subscribe"><span>⏳ ' + esc(t(a.daysLeft === 1 ? 'trial_last_day' : 'trial_days_left', {n: a.daysLeft})) + '</span><b>' + esc(t('subscribe_short', {price: rupees(JJ.CONFIG.price)})) + ' ›</b></button>';
 }
 function upiLink() {

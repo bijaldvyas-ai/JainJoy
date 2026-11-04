@@ -73,7 +73,7 @@ function access() {
   if (admin) return {state: 'admin'};
   var now = Date.now(), paid = me.paid_until ? new Date(me.paid_until).getTime() : 0;
   if (paid > now) return {state: 'paid', until: paid, daysLeft: Math.ceil((paid - now) / DAY)};
-  var start = me.created_at ? new Date(me.created_at).getTime() : now, days = (JJ.CONFIG.trialDays || 7) + (me.bonus_days || 0), end = start + days * DAY;
+  var start = me.created_at ? new Date(me.created_at).getTime() : now, days = (JJ.CONFIG.trialDays || 90) + (me.bonus_days || 0), end = start + days * DAY;
   if (end > now) return {state: 'trial', until: end, daysLeft: Math.ceil((end - now) / DAY), wasPaid: !!paid};
   return {state: 'expired', until: paid || end, wasPaid: !!paid};
 }
