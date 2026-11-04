@@ -55,6 +55,17 @@ function loadMe() {
 var CACHE_KEY = 'jainjoy.me';
 function readCache(id) { try { var c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return c && c.me && c.me.id === id ? c : null; } catch (e) { return null; } }
 function writeCache() { try { localStorage.setItem(CACHE_KEY, JSON.stringify({me: me, admin: admin})); localStorage.setItem('jainjoy.hasAccount', '1'); } catch (e) {} }
+/* business settings (UPI ID, support WhatsApp, contact) entered by the admin; cached for offline use */
+var SETTING_KEYS = ['upiId', 'upiName', 'supportWhatsApp', 'contactName', 'contactEmail'];
+function applySettings(s) { SETTING_KEYS.forEach(function (k) { if (s && s[k] != null && s[k] !== '') JJ.CONFIG[k] = s[k]; }); }
+try { applySettings(JSON.parse(localStorage.getItem('jainjoy.settings') || 'null')); } catch (e) {}
+function loadSettings() {
+  return sb.from('app_settings').select('key,value').then(function (r) {
+    if (r.error || !r.data) return;
+    var s = {}; r.data.forEach(function (x) { s[x.key] = x.value; }); applySettings(s);
+    try { localStorage.setItem('jainjoy.settings', JSON.stringify(s)); } catch (e) {}
+  }, function () {});
+}
 var DAY = 864e5;
 /* the customer's plan: admin, paid (until a date), trial (days left) or expired */
 function access() {
@@ -97,7 +108,7 @@ JJ.account = {
     ready = loadSdk().then(function () {
       sb = window.supabase.createClient(JJ.CONFIG.supabaseUrl, JJ.CONFIG.supabaseKey, {auth: {persistSession: true, autoRefreshToken: true, storageKey: 'jainjoy.auth'}});
       sb.auth.onAuthStateChange(function (ev) { if (ev === 'SIGNED_OUT') { me = null; admin = false; clearInterval(seenT); if (onChange) onChange(); } });
-      return loadMe().then(function (u) { known = true; startSeen(); if (onChange) onChange(); return u; });
+      return loadSettings().then(loadMe).then(function (u) { known = true; startSeen(); if (onChange) onChange(); return u; });
     }).catch(function () {
       // the sign-in library could not load (no internet and nothing cached): a session saved on this
       // phone still counts, so a signed-in customer is never locked out of their own app
@@ -189,6 +200,9 @@ JJ.account = {
   grantYear: function (id) { return sb.rpc('admin_grant_year', {cid: id}); },
   resetPassword: function (id, pw) { return sb.rpc('admin_reset_password', {cid: id, new_pw: pw}); },
   /* plan of any customer row (for the admin table), same rules as access() */
+  /* admin: save the business settings; returns {ok} or {error} */
+  saveSettings: function (s) { return sb.rpc('admin_set_settings', {s: s}).then(function (r) { if (r.error) return {error: r.error.message}; applySettings(s); try { localStorage.setItem('jainjoy.settings', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('jainjoy.settings') || '{}'), s))); } catch (e) {} return {ok: true}; }); },
+  settingKeys: SETTING_KEYS,
   planOf: function (c) { var keep = me, ka = admin; me = c; admin = false; var a = access(); me = keep; admin = ka; return a; },
   /* live updates: a realtime subscription, with the 5-second poll in the app as a fallback */
   watch: function (cb) {

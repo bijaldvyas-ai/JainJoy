@@ -94,3 +94,29 @@ end $$;
 revoke all on function public.submit_payment(text), public.delete_my_account(), public.admin_decide_payment(bigint, boolean), public.admin_grant_year(uuid), public.admin_reset_password(uuid, text) from public, anon;
 grant execute on function public.submit_payment(text), public.delete_my_account(), public.admin_decide_payment(bigint, boolean), public.admin_grant_year(uuid), public.admin_reset_password(uuid, text) to authenticated;
 grant execute on function public.phone_registered(text) to anon, authenticated;
+
+-- v3.1: business settings the admin enters in the app (UPI ID, support WhatsApp, contact for the legal pages)
+create table if not exists public.app_settings (
+  key   text primary key check (key in ('upiId', 'upiName', 'supportWhatsApp', 'contactName', 'contactEmail')),
+  value text not null default '' check (char_length(value) <= 120),
+  updated_at timestamptz not null default now()
+);
+alter table public.app_settings enable row level security;
+revoke all on public.app_settings from anon, authenticated;
+grant select on public.app_settings to anon, authenticated;
+drop policy if exists "settings: everyone reads" on public.app_settings;
+create policy "settings: everyone reads" on public.app_settings for select using (true);
+create or replace function public.admin_set_settings(s jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+declare k text;
+begin
+  if not public.is_admin() then raise exception 'admin only'; end if;
+  foreach k in array array['upiId', 'upiName', 'supportWhatsApp', 'contactName', 'contactEmail'] loop
+    if s ? k then
+      insert into public.app_settings (key, value, updated_at) values (k, left(trim(s->>k), 120), now())
+      on conflict (key) do update set value = excluded.value, updated_at = now();
+    end if;
+  end loop;
+end $$;
+revoke all on function public.admin_set_settings(jsonb) from public, anon;
+grant execute on function public.admin_set_settings(jsonb) to authenticated;
