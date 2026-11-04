@@ -214,7 +214,7 @@ function render() {
   else if (locked()) body = viewPaywall(false); // trial over and not paid: only the subscription page
   else if (!P) body = viewProfile(true);
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
-    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount, subscribe: function () { return viewPaywall(true); }, legal: viewLegal, invite: viewInvite})[top.k](top);
+    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount, subscribe: function () { return viewPaywall(true); }, legal: viewLegal, invite: viewInvite, visitors: viewVisitors})[top.k](top);
   else body = tab === 'today' ? viewToday() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
   app.innerHTML = '<div class="phone">' + withCredit(body) + (P && !gate && !locked() && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
@@ -502,7 +502,7 @@ function menuText(iso) {
   });
   festiveFor(iso).forEach(function (f) { s += '🪔 ' + t(f.k) + ': ' + f.special.concat(f.nasto).map(function (id) { return rName(JJ.catalog.byId[id]); }).join(', ') + '\n'; });
   var tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar});
-  s += '\n' + t('navkarsi') + ' ' + hm(tm.navkarsi) + ' · ' + t('chauvihar') + ' ' + hm(tm.chauvihar) + '\n\nhttps://bijaldvyas-ai.github.io/JainJoy/';
+  s += '\n' + t('navkarsi') + ' ' + hm(tm.navkarsi) + ' · ' + t('chauvihar') + ' ' + hm(tm.chauvihar) + '\n\nhttps://bijaldvyas-ai.github.io/JainJoy/?s=wa';
   return s;
 }
 /* WhatsApp: the phone's share sheet where available, otherwise WhatsApp's own link */
@@ -758,7 +758,7 @@ function listText(groups) {
   sp.buy.forEach(function (g) { s += '\n🛒 ' + t('grp_' + g.group) + '\n'; g.items.forEach(function (it) { s += line(it); }); });
   // pantry staples are not bought, but listed so the family can check the stock is enough
   if (sp.home.length) { s += '\n🏠 ' + t('pantry_at_home', {n: sp.home.length}) + '\n'; sp.home.forEach(function (it) { s += line(it); }); }
-  return s + '\nhttps://bijaldvyas-ai.github.io/JainJoy/';
+  return s + '\nhttps://bijaldvyas-ai.github.io/JainJoy/?s=wa';
 }
 
 /* ---------------- Choghadiya ---------------- */
@@ -797,7 +797,7 @@ function viewProfileHome() {
   b += '<div class="card glass"><h3>' + esc(t('language')) + '</h3>' + langChip() + '</div><div class="list">' +
     row('push', 'library', 'book', 'recipe_library', 'recipe_library_sub') +
     row('push', 'glossary', 'leaf', 'glossary', 'glossary_sub') + (!JJ.account.configured() || JJ.account.isAdmin ? row('push', 'admin', 'edit', 'admin', 'admin_sub') : '') +
-    row('push', 'glists', 'cart', 'saved_lists', 'saved_lists_sub') + row('push', 'about', 'db', 'about', 'about_sub') + '</div>';
+    row('push', 'glists', 'cart', 'saved_lists', 'saved_lists_sub') + row('push', 'about', 'db', 'about', 'about_sub') + row('push', 'visitors', 'users', 'vis_title', 'vis_row_sub') + '</div>';
   b += '<button class="btn-danger" data-a="resetask">' + esc(t('reset')) + '</button>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
@@ -926,6 +926,7 @@ function createPlan() {
   P = Object.assign({}, draft, {userId: 'local', created: td, planFrom: td, version: 1, seed: hash(String(Date.now())) % 1000});
   delete P.cuisineSet; JJ.db.put('users', {id: 'local', createdAt: Date.now()}); saveProfile();
   JJ.db.put('meta', {key: 'frozen', upto: null}); draft = null; openField = null; tab = 'today'; stack = []; freezeHistory(); ui.showcase = true; ui.showcaseDone = false;
+  JJ.visits.log(P); // counts this phone as having made a meal plan
 }
 function viewAccount() {
   var a = ui.acc, su = a.mode === 'signup', f = a.f;
@@ -1040,6 +1041,62 @@ function viewLegal(top) {
 /* "Install JainJoy" where the phone offers it */
 var installEvt = null;
 window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; if (typeof render === 'function' && tab === 'prof') render(); });
+
+/* ---------------- Visitors: how many people have opened the link (owner only) ---------------- */
+var visitT = null;
+function loadVisitors() {
+  JJ.account.visitorStats().then(function (r) {
+    ui.vis = r.stats || null; ui.visErr = r.error && r.error !== 'admin' ? r.error : null;
+    if (stack.length && stack[stack.length - 1].k === 'visitors') render();
+  });
+}
+function viewVisitors() {
+  var b = '';
+  if (!JJ.account.isAdmin) {
+    // owner sign-in: only the admin account may see the numbers
+    b += '<p class="sub" style="margin-top:8px">' + esc(t('vis_owner_only')) + '</p>' + accGeneral() +
+      '<form id="owner-form" class="card glass" autocomplete="on" novalidate>' +
+      accInput('phone', 'tel', 'acc_phone', ' inputmode="numeric" autocomplete="tel-national" maxlength="14"') +
+      accInput('password', 'password', 'acc_password', ' autocomplete="current-password"') +
+      '<button class="btn primary" type="submit" style="width:100%;margin-top:6px"' + (ui.acc.busy ? ' disabled' : '') + '>' + esc(t(ui.acc.busy ? 'acc_wait' : 'vis_open')) + '</button></form>';
+    return backBar(t('vis_title')) + '<main class="scroll gx" id="scroll">' + b + '</main>';
+  }
+  var s = ui.vis;
+  if (!s) { if (!ui.visLoading) { ui.visLoading = true; loadVisitors(); } b = '<p class="fine" style="margin-top:12px">' + esc(t(ui.visErr ? 'cust_error' : 'cust_loading')) + '</p>'; }
+  else {
+    var max = Math.max.apply(null, [1].concat(s.days.map(function (d) { return d.people; })));
+    var srcName = {direct: t('vis_src_direct'), whatsapp: 'WhatsApp', invite: t('vis_src_invite'), other: t('vis_src_other')};
+    b += '<div class="cust-stats vis-stats" style="margin-top:10px">' +
+      [['total', 'vis_total'], ['today', 'vis_today'], ['new_today', 'vis_new_today'], ['week', 'vis_week'], ['month', 'vis_month'], ['planners', 'vis_planners']].map(function (x) { return '<div' + (x[0] === 'total' ? ' class="hot"' : '') + '><b>' + (s[x[0]] || 0) + '</b><small>' + esc(t(x[1])) + '</small></div>'; }).join('') + '</div>' +
+      '<p class="fine">' + esc(t('vis_opens', {today: s.opens_today || 0, total: s.opens_total || 0})) + ' · <span class="live-dot"></span>' + esc(t('vis_auto')) + '</p>';
+    b += '<section class="card glass"><h3>' + esc(t('vis_days')) + '</h3>' + (s.days.length ? '<div class="vis-bars">' + s.days.map(function (d) {
+      return '<div class="vbar"><span style="height:' + Math.max(4, Math.round(d.people * 100 / max)) + '%"></span><b>' + d.people + '</b><small>' + esc(dfmt(d.day, {day: 'numeric'})) + '</small></div>';
+    }).join('') + '</div>' : '<p class="fine">' + esc(t('vis_none')) + '</p>') + '</section>';
+    b += '<section class="card glass"><h3>' + esc(t('vis_cities')) + '</h3>' + (s.cities.length ? '<div class="list">' + s.cities.map(function (c) {
+      return '<div class="gi" style="cursor:default"><span class="gn">' + esc(c.city + (c.state ? ', ' + c.state : '')) + '</span><span class="gq">' + c.people + '</span></div>';
+    }).join('') + '</div>' : '<p class="fine">' + esc(t('vis_none')) + '</p>') + '</section>';
+    b += '<section class="card glass"><h3>' + esc(t('vis_sources')) + '</h3>' + (s.sources.length ? s.sources.map(function (x) {
+      return '<div class="gi" style="cursor:default"><span class="gn">' + esc(srcName[x.source] || x.source) + '</span><span class="gq">' + x.people + '</span></div>';
+    }).join('') : '<p class="fine">' + esc(t('vis_none')) + '</p>') + '</section>';
+    b += '<p class="fine">' + esc(t('vis_privacy')) + '</p>';
+  }
+  b += '<div class="row" style="gap:8px;justify-content:center;margin:12px 0"><button class="btn small" data-a="visrefresh">↻ ' + esc(t('vis_refresh')) + '</button><button class="btn small" data-a="ownerout">' + esc(t('acc_logout')) + '</button></div>';
+  return backBar(t('vis_title')) + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
+function ownerSubmit() {
+  var a = ui.acc; if (a.busy) return;
+  ['phone', 'password'].forEach(function (k) { var el = document.getElementById('acc-' + k); if (el) a.f[k] = el.value; });
+  JJ.account.ownerMode(); a.busy = true; a.errs = []; render();
+  JJ.account.signIn(a.f).then(function (r) {
+    a.busy = false;
+    if (!r.ok) { a.errs = r.errors || [{field: '', key: 'acc_err_generic'}]; render(); return; }
+    if (!JJ.account.isAdmin) { JJ.account.signOut().then(function () { a.errs = [{field: '', key: 'vis_not_owner'}]; render(); }); return; }
+    try { localStorage.setItem('jainjoy.owner', '1'); } catch (e) {}
+    a.f = {}; ui.vis = null; ui.visLoading = false; render();
+  }, function () { a.busy = false; a.errs = [{field: '', key: 'acc_err_offline'}]; render(); });
+}
+/* while the Visitors page is open the numbers refresh every 30 seconds */
+setInterval(function () { if (stack.length && stack[stack.length - 1].k === 'visitors' && JJ.account.isAdmin) loadVisitors(); }, 30000);
 
 /* ---------------- admin: customers (live) ---------------- */
 var custPoll = null, custUnwatch = null;
@@ -1413,6 +1470,8 @@ app.addEventListener('click', function (e) {
     case 'custyear': if (window.confirm(t('cust_add_year_confirm', {name: el.dataset.n}))) JJ.account.grantYear(v).then(function (r) { toast(r.error ? t('cust_error') : t('cust_year_added')); custRefresh(); }); break;
     case 'custpw': if (window.confirm(t('cust_reset_confirm', {name: el.dataset.n}))) { var tpw = 'Jain' + (1000 + Math.floor(Math.random() * 9000)) + String.fromCharCode(97 + Math.floor(Math.random() * 26)) + String.fromCharCode(97 + Math.floor(Math.random() * 26)); JJ.account.resetPassword(v, tpw).then(function (r) { if (r.error) { toast(t('cust_error')); return; } ui.tempPw = {id: v, pw: tpw}; custPaint(); }); } break;
     case 'custcsv': custCsv(); break;
+    case 'visrefresh': ui.vis = null; ui.visLoading = false; render(); break;
+    case 'ownerout': JJ.account.signOut().then(function () { try { localStorage.removeItem('jainjoy.owner'); } catch (e) {} ui.vis = null; ui.visLoading = false; stack.pop(); render(); toast(t('acc_logged_out')); }); break;
     case 'pantryclear': JJ.db.put('meta', {key: 'pantry', have: {}}); render(); break;
     case 'ayambil': ui.ayambil = ui.ayambil === v ? null : v; render(); break;
     case 'notify': {
@@ -1500,6 +1559,7 @@ app.addEventListener('submit', function (e) {
   if (e.target.id === 'signup-form') signupSubmit();
   if (e.target.id === 'pay-form') submitPay();
   if (e.target.id === 'settings-form') saveSettingsForm();
+  if (e.target.id === 'owner-form') ownerSubmit();
   if (e.target.dataset && e.target.dataset.map != null) {
     var qi = +e.target.dataset.map, q = JJ.db.get('meta', 'ing_reviews') || {key: 'ing_reviews', names: []}, name = q.names[qi], val = (document.getElementById('map-' + qi).value || '').trim();
     var id = JJ.ING[val] ? val : JJ.resolveIngredient(val);
@@ -1573,7 +1633,9 @@ JJ.boot = function () {
     if (P && !P.obsProfile) { P.obsProfile = 'strict'; P.parvaFruit = false; JJ.app.applyProfileChange(); }
     if (P) { lastDay = today(); freezeHistory(); maybeEveningReminder(); }
     render();
+    try { if (localStorage.getItem('jainjoy.owner') === '1') JJ.account.ownerMode(); } catch (e) {}
     JJ.account.init(function () { render(); }); // optional customer account (only when Supabase is set up)
+    JJ.visits.log(P); // one visit for the owner's visitor counter (no personal data)
   });
 };
 /* when the precise astronomy engine finishes loading, recompute with it */

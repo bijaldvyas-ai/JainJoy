@@ -488,3 +488,8 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .temp-pw{grid-column:1/-1;font-size:13px;font-weight:800;background:var(--green-soft);padding:6px 8px;border-radius:8px}
 @media (max-width:640px){.cust-stats{grid-template-columns:repeat(3,1fr)}.cust-acts{flex-wrap:wrap}}
 .settings .flabel{margin-top:2px}
+.vis-bars{display:flex;align-items:flex-end;gap:4px;height:150px;padding-top:6px}
+.vbar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.vbar span{display:block;width:70%;background:var(--crimson,#d6336c);border-radius:6px 6px 2px 2px}
+.vbar b{font-size:11px;margin-top:2px}.vbar small{font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:clip;max-width:100%}
+.vis-stats div.hot{background:var(--green-soft);outline:1.5px solid var(--green)}
