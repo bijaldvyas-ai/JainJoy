@@ -19,6 +19,9 @@ create table if not exists public.admins (
 );
 alter table public.customers enable row level security;
 alter table public.admins enable row level security;
+-- signed-in users may read through row security (below); nobody outside writes directly
+revoke all on public.customers, public.admins from anon, authenticated;
+grant select on public.customers, public.admins to authenticated;
 
 -- 2. Who is an admin ------------------------------------------------------------------------
 create or replace function public.is_admin() returns boolean
