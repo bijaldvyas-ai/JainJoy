@@ -1,6 +1,6 @@
 # JainJoy 2.0 – Test Report
 
-**Run:** 3 Nov 2026, Chrome (desktop app browser), local server · **Result: 57 of 57 passed** (v2.9.0: customer accounts)
+**Run:** 4 Nov 2026, Chrome (desktop app browser), local server and live site · **Result: 59 of 59 passed** (v3.0.0: subscription)
 **Astronomy:** Astronomy Engine 2.1.19 · **Reference city:** Ahmedabad unless stated
 **How to rerun:** open `tests/index.html` from any web server (for example `https://bijaldvyas-ai.github.io/JainJoy/tests/`). The tests use a separate database (`jainjoy-test`) and never touch real app data.
 

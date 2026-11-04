@@ -379,3 +379,11 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 - **Tithi number.** The tithi pill beside the date shows the number as well, for example "🌙 10 Dasham · Krishna paksha".
 - **One compact timings table.** Sunrise · Navkarsi · Chauvihar · Sunset in one row, with the Shubh Choghadiya on a slim row below and "More details" in the heading.
 - **Menu first.** Today's menu comes right under the timings table; the tithi rules card follows the meals.
+
+## 19. Change log – v3.0.0 selling release (4 Nov 2026)
+
+- **Subscription.** 7-day free trial from sign-up (plus invite days), then ₹199 for 1 year. After the trial the app shows only the subscription page: UPI QR code and app link, then the UPI transaction ID. The admin confirms the payment, which adds 1 year from today or from the current end date. Settings: `trialDays`, `price`, `upiId`, `upiName`, `supportWhatsApp` in js/config.js. Database: db/supabase-subscription.sql.
+- **Sign Up / Sign In.** Phones that have used an account open on Sign In. Sign In tells an unregistered number to sign up. "Forgot password?" goes to WhatsApp support, and the admin can set a temporary password.
+- **Customer extras.** Invite link with a reward (7 days per friend, up to 28), Install button, Delete my account, and Privacy / Terms / Refunds pages.
+- **Admin dashboard.** Money cards, payments to confirm, plan per customer, +1 year, reset password, CSV export, and plan filters.
+- **Today.** Sunrise, sunset and household size removed from the Today page (they stay in Panchang); the timings table shows Navkarsi and Chauvihar with the Shubh Choghadiya below.

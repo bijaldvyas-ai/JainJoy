@@ -40,15 +40,31 @@ function loadSdk() {
 function loadMe() {
   return sb.auth.getSession().then(function (r) {
     var s = r.data && r.data.session; if (!s) { me = null; admin = false; return null; }
-    var meta = s.user.user_metadata || {}, fallback = {id: s.user.id, name: meta.name, phone: meta.phone};
-    // without internet the saved session still counts, so the app keeps working offline
-    return sb.from('customers').select('id,name,phone,status').eq('id', s.user.id).maybeSingle().then(function (q) {
-      if (q.error) { me = fallback; return me; }
+    var meta = s.user.user_metadata || {}, cached = readCache(s.user.id);
+    var fallback = cached ? cached.me : {id: s.user.id, name: meta.name, phone: meta.phone, created_at: s.user.created_at};
+    // without internet the saved session (and the last known plan) still counts, so the app keeps working offline
+    function offline() { me = fallback; admin = !!(cached && cached.admin); return me; }
+    return sb.from('customers').select('id,name,phone,status,created_at,paid_until,bonus_days,ref_code').eq('id', s.user.id).maybeSingle().then(function (q) {
+      if (q.error) return offline();
       if (q.data && q.data.status === 'blocked') return sb.auth.signOut().then(function () { me = null; admin = false; return null; });
       me = q.data || fallback;
-      return sb.rpc('is_admin').then(function (a) { admin = !a.error && a.data === true; return me; });
-    }, function () { me = fallback; return me; });
+      return sb.rpc('is_admin').then(function (a) { admin = !a.error && a.data === true; writeCache(); return me; });
+    }, offline);
   });
+}
+var CACHE_KEY = 'jainjoy.me';
+function readCache(id) { try { var c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return c && c.me && c.me.id === id ? c : null; } catch (e) { return null; } }
+function writeCache() { try { localStorage.setItem(CACHE_KEY, JSON.stringify({me: me, admin: admin})); localStorage.setItem('jainjoy.hasAccount', '1'); } catch (e) {} }
+var DAY = 864e5;
+/* the customer's plan: admin, paid (until a date), trial (days left) or expired */
+function access() {
+  if (!me) return {state: 'none'};
+  if (admin) return {state: 'admin'};
+  var now = Date.now(), paid = me.paid_until ? new Date(me.paid_until).getTime() : 0;
+  if (paid > now) return {state: 'paid', until: paid, daysLeft: Math.ceil((paid - now) / DAY)};
+  var start = me.created_at ? new Date(me.created_at).getTime() : now, days = (JJ.CONFIG.trialDays || 7) + (me.bonus_days || 0), end = start + days * DAY;
+  if (end > now) return {state: 'trial', until: end, daysLeft: Math.ceil((end - now) / DAY), wasPaid: !!paid};
+  return {state: 'expired', until: paid || end, wasPaid: !!paid};
 }
 function startSeen() {
   clearInterval(seenT);
@@ -104,7 +120,7 @@ JJ.account = {
     var phone = cleanPhone(f.phone);
     return JJ.account.init().then(function () {
       if (!sb) return {errors: [{field: '', key: 'acc_err_offline'}]};
-      return sb.auth.signUp({email: emailFor(phone), password: f.password, options: {data: {name: String(f.name).trim(), phone: phone}}}).then(function (r) {
+      return sb.auth.signUp({email: emailFor(phone), password: f.password, options: {data: {name: String(f.name).trim(), phone: phone, ref: JJ.account.refCode()}}}).then(function (r) {
         if (r.error) return {errors: [{field: /registered|exists/i.test(r.error.message) ? 'phone' : '', key: errKey(r.error)}]};
         // an existing number comes back as a user with no identities instead of an error
         if (r.data && r.data.user && r.data.user.identities && !r.data.user.identities.length) return {errors: [{field: 'phone', key: 'acc_err_phone_taken'}]};
@@ -123,7 +139,9 @@ JJ.account = {
         if (r.error) {
           var k = errKey(r.error);
           if (k === 'acc_err_wrong') { var fl = fails(); setFails({n: fl.n + 1, at: Date.now()}); }
-          return {errors: [{field: '', key: k}]};
+          // a number that was never registered gets "please sign up" instead of "wrong password"
+          if (k !== 'acc_err_wrong') return {errors: [{field: '', key: k}]};
+          return sb.rpc('phone_registered', {p: phone}).then(function (q) { return {errors: [q.data === false ? {field: 'phone', key: 'acc_err_not_registered'} : {field: '', key: k}]}; }, function () { return {errors: [{field: '', key: k}]}; });
         }
         setFails({n: 0, at: 0});
         return sb.rpc('touch_login').then(loadMe).then(function (u) {
@@ -133,24 +151,49 @@ JJ.account = {
       });
     });
   },
-  signOut: function () { if (!sb) return Promise.resolve(); return sb.auth.signOut().then(function () { me = null; admin = false; clearInterval(seenT); }); },
+  signOut: function () { if (!sb) return Promise.resolve(); return sb.auth.signOut().then(function () { me = null; admin = false; clearInterval(seenT); try { localStorage.removeItem(CACHE_KEY); } catch (e) {} }); },
+  /* true once an account has been used on this phone: Sign In is shown first from then on */
+  get hasAccountHere() { try { return localStorage.getItem('jainjoy.hasAccount') === '1'; } catch (e) { return false; } },
+
+  /* ---- plan and payments ---- */
+  access: access,
+  refresh: function () { if (!sb || !me) return Promise.resolve(me); return loadMe(); },
+  /* invite code of the friend whose link opened the app (kept until sign-up) */
+  refCode: function () { try { return localStorage.getItem('jainjoy.ref') || ''; } catch (e) { return ''; } },
+  submitPayment: function (utr) {
+    utr = String(utr || '').replace(/\s/g, '');
+    if (!/^[A-Za-z0-9]{6,40}$/.test(utr)) return Promise.resolve({error: 'pay_err_utr'});
+    return sb.rpc('submit_payment', {p_utr: utr}).then(function (r) { return r.error ? {error: /pending/.test(r.error.message) ? 'pay_err_pending' : 'acc_err_generic'} : {ok: true}; }, function () { return {error: 'acc_err_offline'}; });
+  },
+  myPayments: function () {
+    if (!sb || !me) return Promise.resolve([]);
+    return sb.from('payments').select('id,utr,amount,status,created_at,decided_at').eq('customer_id', me.id).order('created_at', {ascending: false}).then(function (r) { return r.data || []; }, function () { return []; });
+  },
+  deleteMe: function () { return sb.rpc('delete_my_account').then(function (r) { if (r.error) return {error: r.error.message}; return sb.auth.signOut().then(function () { me = null; try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem('jainjoy.hasAccount'); } catch (e) {} return {ok: true}; }); }); },
 
   /* ---- admin ---- */
   customers: function () {
     if (!sb || !admin) return Promise.resolve({error: 'admin'});
-    return Promise.all([sb.from('customers').select('id,name,phone,status,created_at,last_login,last_seen').order('created_at', {ascending: false}), sb.from('admins').select('user_id')])
+    return Promise.all([sb.from('customers').select('id,name,phone,status,created_at,last_login,last_seen,paid_until,bonus_days,referred_by').order('created_at', {ascending: false}), sb.from('admins').select('user_id'), sb.from('payments').select('id,customer_id,utr,amount,status,created_at,decided_at').order('created_at', {ascending: false})])
       .then(function (r) {
         if (r[0].error) return {error: r[0].error.message};
         var adm = {}; (r[1].data || []).forEach(function (a) { adm[a.user_id] = 1; });
-        return {rows: r[0].data.filter(function (c) { return !adm[c.id]; })};
+        var byId = {}; r[0].data.forEach(function (c) { byId[c.id] = c; });
+        var pays = (r[2].data || []).map(function (p) { var c = byId[p.customer_id] || {}; return Object.assign({}, p, {name: c.name, phone: c.phone}); });
+        return {rows: r[0].data.filter(function (c) { return !adm[c.id]; }), payments: pays};
       });
   },
   setStatus: function (id, status) { return sb.rpc('admin_set_status', {cid: id, new_status: status}); },
   remove: function (id) { return sb.rpc('admin_delete_customer', {cid: id}); },
+  decidePayment: function (pid, ok) { return sb.rpc('admin_decide_payment', {pid: pid, ok: ok}); },
+  grantYear: function (id) { return sb.rpc('admin_grant_year', {cid: id}); },
+  resetPassword: function (id, pw) { return sb.rpc('admin_reset_password', {cid: id, new_pw: pw}); },
+  /* plan of any customer row (for the admin table), same rules as access() */
+  planOf: function (c) { var keep = me, ka = admin; me = c; admin = false; var a = access(); me = keep; admin = ka; return a; },
   /* live updates: a realtime subscription, with the 5-second poll in the app as a fallback */
   watch: function (cb) {
     if (!sb) return function () {};
-    var ch = sb.channel('customers-admin').on('postgres_changes', {event: '*', schema: 'public', table: 'customers'}, function () { cb(); }).subscribe();
+    var ch = sb.channel('customers-admin').on('postgres_changes', {event: '*', schema: 'public', table: 'customers'}, function () { cb(); }).on('postgres_changes', {event: '*', schema: 'public', table: 'payments'}, function () { cb(); }).subscribe();
     return function () { try { sb.removeChannel(ch); } catch (e) {} };
   }
 };

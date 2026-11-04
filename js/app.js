@@ -4,7 +4,7 @@
 var app = document.getElementById('app');
 var MEALS = ['b', 'l', 's', 'd'];
 var P = null, LANG = 'en', tab = 'today', stack = [], draft = null, openField = null, sheet = null;
-var ui = {calMonth: null, gRange: 'week', admin: {status: 'all', meal: 'all', q: ''}, lib: {meal: 'b', q: ''}, geo: {q: '', results: null, busy: false}, ingQ: '', acc: {mode: 'signup', f: {}, errs: [], busy: false}, cust: {rows: null, q: '', filter: 'all', err: ''}};
+var ui = {calMonth: null, gRange: 'week', admin: {status: 'all', meal: 'all', q: ''}, lib: {meal: 'b', q: ''}, geo: {q: '', results: null, busy: false}, ingQ: '', acc: {mode: (function () { try { return localStorage.getItem('jainjoy.hasAccount') === '1' ? 'signin' : 'signup'; } catch (e) { return 'signup'; } })(), f: {}, errs: [], busy: false}, cust: {rows: null, q: '', filter: 'all', err: ''}};
 var previewCache = new Map(), previewPv = -1;
 
 /* ---------------- i18n helpers ---------------- */
@@ -211,11 +211,12 @@ function render() {
   var gate = JJ.account.configured() && !JJ.account.user; // with accounts on, Sign Up / Sign In comes first
   if (JJ.account.configured() && !JJ.account.known) body = viewLoading();
   else if (gate) body = viewGate();
+  else if (locked()) body = viewPaywall(false); // trial over and not paid: only the subscription page
   else if (!P) body = viewProfile(true);
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
-    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount})[top.k](top);
+    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount, subscribe: function () { return viewPaywall(true); }, legal: viewLegal, invite: viewInvite})[top.k](top);
   else body = tab === 'today' ? viewToday() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
-  app.innerHTML = '<div class="phone">' + withCredit(body) + (P && !gate && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
+  app.innerHTML = '<div class="phone">' + withCredit(body) + (P && !gate && !locked() && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
   if (top && top.k === 'about' && JJ.analytics.enabled()) JJ.analytics.total().then(function (n) { var el = document.getElementById('visitors'); if (el) el.textContent = n == null ? t('visitors_unavailable') : t('visitors_total', {n: n}); });
   // first view of a brand-new plan: bring today's menu into view
@@ -436,9 +437,9 @@ function nutritionCard(menu) {
 function compactTimings(iso, live) {
   var p = pan(iso), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar}), now = Date.now();
   function cell(lbl, ms, cls, showUntil) { return '<div class="tcell ' + (cls || '') + '"><small>' + esc(t(lbl)) + '</small><b>' + hm(ms) + '</b>' + (showUntil ? '<em data-until="' + ms + '">' + until(ms) + '</em>' : '') + '</div>'; }
-  // one compact table: Sunrise · Navkarsi · Chauvihar · Sunset, then the Shubh Choghadiya on a slim row
-  return '<section class="card glass timings-card"><div class="tc-head"><h3>' + esc(t('timings_title')) + '</h3><button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></div><div class="tgrid tg4">' +
-    cell('sunrise', tm.sunrise, 'sun') + cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '', live) + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '', live) + cell('sunset', tm.sunset, 'sun') +
+  // one compact table: Navkarsi · Chauvihar, then the Shubh Choghadiya on a slim row
+  return '<section class="card glass timings-card"><div class="tc-head"><h3>' + esc(t('timings_title')) + '</h3><button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></div><div class="tgrid tg4 tg2">' +
+    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '', live) + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '', live) +
     '</div>' + shubhCell(iso, live) + '</section>';
 }
 /* Shubh Choghadiya for the timings card: on today the one running now or the next one (Amrit, Shubh or Labh);
@@ -516,7 +517,7 @@ function currentGroups(listId) {
 }
 function viewToday() {
   var td = today();
-  var b = '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + td + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub date-line"><span>' + esc(dLong(td)) + '</span>' + tithiInline(td) + '<span>' + esc(t('for_members', {n: P.hh})) + '</span></p>' + inviteCard() + dayBody(td, true);
+  var b = '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + td + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub date-line"><span>' + esc(dLong(td)) + '</span>' + tithiInline(td) + '</p>' + inviteCard() + trialBanner() + dayBody(td, true);
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
 function viewDayPushed(top) {
@@ -795,7 +796,7 @@ function viewProfileHome() {
     '</div><button class="btn primary" style="margin-top:12px;width:100%" data-a="push" data-v="profile">' + esc(t('edit_profile_btn')) + '</button></div>';
   b += '<div class="card glass"><h3>' + esc(t('language')) + '</h3>' + langChip() + '</div><div class="list">' +
     row('push', 'library', 'book', 'recipe_library', 'recipe_library_sub') +
-    row('push', 'glossary', 'leaf', 'glossary', 'glossary_sub') + row('push', 'admin', 'edit', 'admin', 'admin_sub') +
+    row('push', 'glossary', 'leaf', 'glossary', 'glossary_sub') + (!JJ.account.configured() || JJ.account.isAdmin ? row('push', 'admin', 'edit', 'admin', 'admin_sub') : '') +
     row('push', 'glists', 'cart', 'saved_lists', 'saved_lists_sub') + row('push', 'about', 'db', 'about', 'about_sub') + '</div>';
   b += '<button class="btn-danger" data-a="resetask">' + esc(t('reset')) + '</button>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
@@ -804,7 +805,16 @@ function viewProfileHome() {
 function accountCard() {
   if (!JJ.account.configured()) return '';
   var u = JJ.account.user;
-  if (u) return '<div class="card glass acc-card"><span class="ficon">👤</span><span class="mtxt grow"><b>' + esc(u.name || '') + '</b><small>' + esc(t('acc_signed_in', {phone: u.phone || ''})) + '</small></span><button class="btn small" data-a="logout">' + esc(t('acc_logout')) + '</button></div>';
+  if (u) {
+    var a = JJ.account.access();
+    var plan = a.state === 'admin' ? t('plan_admin') : a.state === 'paid' ? t('sub_active_until', {date: dLong(new Date(a.until).toISOString().slice(0, 10))}) : a.state === 'trial' ? t('trial_days_left', {n: a.daysLeft}) : t('plan_expired');
+    return '<div class="card glass acc-card"><span class="ficon">👤</span><span class="mtxt grow"><b>' + esc(u.name || '') + '</b><small>' + esc(t('acc_signed_in', {phone: u.phone || ''})) + '</small><small class="plan-line">' + esc(plan) + '</small></span><button class="btn small" data-a="logout">' + esc(t('acc_logout')) + '</button>' +
+      '<div class="acc-actions">' + (a.state === 'trial' || a.state === 'paid' ? '<button class="btn small primary" data-a="push" data-v="subscribe">' + esc(t(a.state === 'paid' ? 'sub_manage' : 'subscribe_short', {price: rupees(JJ.CONFIG.price)})) + '</button>' : '') +
+      (a.state !== 'admin' ? '<button class="btn small" data-a="push" data-v="invite">🎁 ' + esc(t('invite_title')) + '</button>' : '') +
+      (installEvt ? '<button class="btn small" data-a="install">📲 ' + esc(t('install_app')) + '</button>' : '') + '</div>' +
+      '<p class="fine legal-links"><button class="linkbtn" data-a="legal" data-v="privacy">' + esc(t('legal_privacy')) + '</button> · <button class="linkbtn" data-a="legal" data-v="terms">' + esc(t('legal_terms')) + '</button> · <button class="linkbtn" data-a="legal" data-v="refund">' + esc(t('legal_refund')) + '</button>' +
+      (a.state !== 'admin' ? ' · <button class="linkbtn danger-link" data-a="deleteme">' + esc(t('delete_account')) + '</button>' : '') + '</p></div>';
+  }
   return '<div class="card glass acc-card"><span class="ficon">👤</span><span class="mtxt grow"><b>' + esc(t('acc_invite_title')) + '</b><small>' + esc(t('acc_invite_sub')) + '</small></span>' +
     '<div class="row" style="gap:6px"><button class="btn small primary" data-a="acc" data-v="signup">' + esc(t('acc_signup')) + '</button><button class="btn small" data-a="acc" data-v="login">' + esc(t('acc_login')) + '</button></div></div>';
 }
@@ -830,6 +840,7 @@ function viewGate() {
       accInput('phone', 'tel', 'acc_phone', ' inputmode="numeric" autocomplete="tel-national" maxlength="14" placeholder="98XXXXXXXX"') +
       accInput('password', 'password', 'acc_password', ' autocomplete="current-password"') +
       '<button class="btn primary" type="submit" style="width:100%;margin-top:6px"' + (ui.acc.busy ? ' disabled' : '') + '>' + esc(t(ui.acc.busy ? 'acc_wait' : 'acc_login')) + '</button></form>' +
+      '<p class="fine" style="text-align:center"><button class="linkbtn" data-a="forgot">' + esc(t('forgot_pw')) + '</button></p>' +
       '<p class="fine" style="text-align:center">' + esc(t('no_account')) + ' <button class="linkbtn" data-a="gatemode" data-v="signup">' + esc(t('acc_signup')) + '</button></p>';
     return '<main class="scroll gx" id="scroll">' + b + '</main>';
   }
@@ -929,6 +940,88 @@ function submitAccount() {
   }, function () { a.busy = false; a.errs = [{field: '', key: 'acc_err_offline'}]; render(); });
 }
 
+/* ---------------- subscription: 7-day trial, then ₹199 for one year by UPI ---------------- */
+function locked() { return JJ.account.configured() && !!JJ.account.user && JJ.account.access().state === 'expired'; }
+function rupees(n) { return '₹' + n; }
+function trialBanner() {
+  if (!JJ.account.configured()) return '';
+  var a = JJ.account.access();
+  if (a.state !== 'trial') return '';
+  return '<button class="trial-banner' + (a.daysLeft <= 2 ? ' soon' : '') + '" data-a="push" data-v="subscribe"><span>⏳ ' + esc(t(a.daysLeft === 1 ? 'trial_last_day' : 'trial_days_left', {n: a.daysLeft})) + '</span><b>' + esc(t('subscribe_short', {price: rupees(JJ.CONFIG.price)})) + ' ›</b></button>';
+}
+function upiLink() {
+  var c = JJ.CONFIG, u = JJ.account.user || {};
+  return 'upi://pay?pa=' + encodeURIComponent(c.upiId) + '&pn=' + encodeURIComponent(c.upiName || 'JainJoy') + '&am=' + c.price + '.00&cu=INR&tn=' + encodeURIComponent('JainJoy 1 year ' + (u.phone || ''));
+}
+var QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+function drawQr() {
+  var box = document.getElementById('upi-qr'); if (!box || !JJ.CONFIG.upiId) return;
+  function draw() { box.innerHTML = ''; try { new window.QRCode(box, {text: upiLink(), width: 200, height: 200, correctLevel: window.QRCode.CorrectLevel.M}); } catch (e) {} }
+  if (window.QRCode) return draw();
+  var s = document.createElement('script'); s.src = QR_LIB; s.onload = draw; document.head.appendChild(s);
+}
+function supportLink(msg) { var n = String(JJ.CONFIG.supportWhatsApp || '').replace(/\D/g, ''); return n ? 'https://wa.me/91' + n.slice(-10) + '?text=' + encodeURIComponent(msg) : ''; }
+function viewPaywall(pushed) {
+  var a = JJ.account.access(), c = JJ.CONFIG, u = JJ.account.user || {}, pays = ui.pays || [];
+  var pending = pays.filter(function (p) { return p.status === 'pending'; })[0];
+  var head = a.state === 'expired' ? t(a.wasPaid ? 'sub_expired_paid' : 'sub_trial_over', {n: c.trialDays}) : a.state === 'paid' ? t('sub_active_until', {date: dLong(new Date(a.until).toISOString().slice(0, 10))}) : t('trial_days_left', {n: a.daysLeft});
+  var b = '<div class="hero-brand" style="margin-top:6px">' + lotus(56) + WORDMARK + '<h1 class="h1" style="font-size:24px">' + esc(head) + '</h1><p class="sub" style="margin:0">' + esc(t('sub_pitch')) + '</p></div>' +
+    '<section class="card glass price-card"><div class="price"><b>' + esc(rupees(c.price)) + '</b><span>' + esc(t('per_year')) + '</span></div><ul class="tlist">' +
+    ['sub_f1', 'sub_f2', 'sub_f3', 'sub_f4'].map(function (k) { return '<li>✓ ' + esc(t(k)) + '</li>'; }).join('') + '</ul></section>';
+  if (a.state === 'paid') b += '<div class="note ok">' + esc(t('sub_thanks')) + '</div>';
+  else if (!c.upiId) b += '<div class="alert">' + esc(t('sub_setup_pending')) + '</div>';
+  else {
+    b += '<section class="card glass pay-card"><h3>' + esc(t('pay_step1', {price: rupees(c.price)})) + '</h3><div id="upi-qr" class="upi-qr" aria-label="UPI QR code"></div>' +
+      '<p class="fine" style="text-align:center;margin:6px 0">' + esc(c.upiName) + ' · ' + esc(c.upiId) + '</p>' +
+      '<a class="btn primary" style="width:100%;text-align:center" href="' + esc(upiLink()) + '">' + esc(t('pay_open_app')) + '</a></section>';
+    b += '<section class="card glass"><h3>' + esc(t('pay_step2')) + '</h3>' + (pending ?
+      '<div class="note info">' + esc(t('pay_waiting', {utr: pending.utr})) + '</div><button class="btn small" data-a="paycheck">' + esc(t('pay_check')) + '</button>' :
+      '<form id="pay-form" autocomplete="off" novalidate><label class="field"><span class="flabel">' + esc(t('pay_utr')) + '</span><input class="input' + (ui.payErr ? ' bad' : '') + '" id="pay-utr" inputmode="text" maxlength="40" placeholder="e.g. 431234567890"></label>' +
+      (ui.payErr ? '<small class="ferr" role="alert">' + esc(t(ui.payErr)) + '</small>' : '') + '<p class="fine" style="margin:4px 0 8px">' + esc(t('pay_utr_help')) + '</p><button class="btn primary" type="submit" style="width:100%">' + esc(t('pay_submit')) + '</button></form>') + '</section>';
+  }
+  var rej = pays.filter(function (p) { return p.status === 'rejected'; })[0];
+  if (rej && !pending && a.state !== 'paid') b += '<div class="alert">' + esc(t('pay_rejected', {utr: rej.utr})) + '</div>';
+  var help = supportLink(t('help_msg_pay', {name: u.name || '', phone: u.phone || ''}));
+  if (help) b += '<p class="fine" style="text-align:center"><a class="linkbtn" href="' + esc(help) + '" target="_blank" rel="noopener">' + esc(t('pay_help')) + '</a></p>';
+  if (!pushed) b += '<p class="fine" style="text-align:center"><button class="linkbtn" data-a="logout">' + esc(t('acc_logout')) + '</button></p>';
+  setTimeout(drawQr, 0);
+  if (!ui.paysLoaded) { ui.paysLoaded = true; JJ.account.myPayments().then(function (p) { ui.pays = p; render(); }); }
+  return (pushed ? backBar(t('subscribe_title')) : '') + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
+function submitPay() {
+  var el = document.getElementById('pay-utr'); if (!el) return;
+  JJ.account.submitPayment(el.value).then(function (r) {
+    if (r.error) { ui.payErr = r.error; render(); return; }
+    ui.payErr = null; toast(t('pay_sent'));
+    JJ.account.myPayments().then(function (p) { ui.pays = p; render(); });
+  });
+}
+/* while the subscription page is open, check every 30 s whether the admin has confirmed the payment */
+setInterval(function () {
+  if (!JJ.account.configured() || !JJ.account.user || !document.getElementById('upi-qr') && !document.querySelector('[data-a="paycheck"]')) return;
+  var before = JJ.account.access().state;
+  JJ.account.refresh().then(function () { JJ.account.myPayments().then(function (p) { ui.pays = p; if (JJ.account.access().state !== before) { toast(t('sub_thanks')); stack = []; } render(); }); });
+}, 30000);
+
+/* invite friends: a personal link; each friend who joins adds 7 free days (up to 28) */
+function inviteLink() { var u = JJ.account.user || {}; return 'https://bijaldvyas-ai.github.io/JainJoy/' + (u.ref_code ? '?ref=' + u.ref_code : ''); }
+function viewInvite() {
+  var u = JJ.account.user || {};
+  var b = '<div class="hero-brand" style="margin-top:6px">' + lotus(56) + '<h1 class="h1" style="font-size:24px">' + esc(t('invite_title')) + '</h1><p class="sub" style="margin:0">' + esc(t('invite_sub')) + '</p></div>' +
+    '<section class="card glass"><p class="fine">' + esc(t('invite_your_link')) + '</p><p style="word-break:break-all;font-weight:800">' + esc(inviteLink()) + '</p>' +
+    '<button class="btn wa" style="width:100%" data-a="invitewa">' + WA_ICON + ' ' + esc(t('invite_wa')) + '</button>' +
+    (u.bonus_days ? '<div class="note ok" style="margin-top:10px">' + esc(t('invite_earned', {n: u.bonus_days})) + '</div>' : '') + '</section>';
+  return backBar(t('invite_title')) + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
+/* privacy, terms and refund pages */
+function viewLegal(top) {
+  var k = top.page || 'privacy', paras = t('legal_' + k + '_body').split('\n');
+  return backBar(t('legal_' + k)) + '<main class="scroll gx" id="scroll"><section class="card glass legal">' + paras.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '<p class="fine">' + esc(t('legal_updated')) + '</p></section></main>';
+}
+/* "Install JainJoy" where the phone offers it */
+var installEvt = null;
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; if (typeof render === 'function' && tab === 'prof') render(); });
+
 /* ---------------- admin: customers (live) ---------------- */
 var custPoll = null, custUnwatch = null;
 function custStartLive() {
@@ -939,36 +1032,69 @@ function custStartLive() {
 }
 function custStopLive() { clearInterval(custPoll); custPoll = null; if (custUnwatch) { custUnwatch(); custUnwatch = null; } }
 function custRefresh() {
-  JJ.account.customers().then(function (r) { ui.cust.err = r.error || ''; if (r.rows) ui.cust.rows = r.rows; custPaint(); });
+  JJ.account.customers().then(function (r) { ui.cust.err = r.error || ''; if (r.rows) { ui.cust.rows = r.rows; ui.cust.payments = r.payments; } custPaint(); });
 }
 function localDay(ts) { var d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function tsText(ts) { return ts ? new Intl.DateTimeFormat(loc(), {day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', numberingSystem: 'latn'}).format(new Date(ts)) : '—'; }
+function planText(r) {
+  var a = JJ.account.planOf(r);
+  if (a.state === 'paid') return {cls: 'ok', txt: t('plan_paid_till', {date: tsDate(a.until)})};
+  if (a.state === 'trial') return {cls: a.daysLeft <= 2 ? 'warn' : '', txt: t('trial_days_left', {n: a.daysLeft})};
+  return {cls: 'bad', txt: t('plan_expired')};
+}
+function tsDate(ms) { return new Intl.DateTimeFormat(loc(), {day: 'numeric', month: 'short', year: 'numeric', numberingSystem: 'latn'}).format(new Date(ms)); }
 function custLiveHTML() {
-  var c = ui.cust, rows = c.rows;
+  var c = ui.cust, rows = c.rows, pays = c.payments || [];
   if (c.err && !rows) return '<div class="alert">' + esc(t('cust_error')) + '</div>';
   if (!rows) return '<p class="fine">' + esc(t('cust_loading')) + '</p>';
   var td = localDay(Date.now()), now = Date.now();
   var newToday = rows.filter(function (r) { return localDay(r.created_at) === td; }).length;
   var activeNow = rows.filter(function (r) { return r.status === 'active' && r.last_seen && now - new Date(r.last_seen).getTime() < 5 * 6e4; }).length;
-  var q = c.q.trim().toLowerCase(), list = rows.filter(function (r) {
-    if (c.filter !== 'all' && r.status !== c.filter) return false;
+  var plans = rows.map(function (r) { return JJ.account.planOf(r); });
+  var paid = plans.filter(function (a) { return a.state === 'paid'; }).length, ending = plans.filter(function (a) { return a.state === 'trial' && a.daysLeft <= 2; }).length;
+  var confirmed = pays.filter(function (p) { return p.status === 'confirmed'; }), waiting = pays.filter(function (p) { return p.status === 'pending'; });
+  var revenue = confirmed.reduce(function (s, p) { return s + (p.amount || 0); }, 0);
+  var q = c.q.trim().toLowerCase(), list = rows.filter(function (r, i) {
+    if (c.filter === 'blocked') { if (r.status !== 'blocked') return false; }
+    else if (c.filter !== 'all' && plans[i].state !== c.filter) return false;
     return !q || (r.name || '').toLowerCase().indexOf(q) >= 0 || (r.phone || '').indexOf(q.replace(/\D/g, '') || '~') >= 0;
   });
-  return '<div class="cust-stats"><div><b>' + rows.length + '</b><small>' + esc(t('cust_total')) + '</small></div><div><b>' + newToday + '</b><small>' + esc(t('cust_new_today')) + '</small></div><div><b>' + activeNow + '</b><small>' + esc(t('cust_active_now')) + '</small></div></div>' +
-    '<p class="fine">' + esc(t('cust_showing', {n: list.length, total: rows.length})) + ' · <span class="live-dot"></span>' + esc(t('cust_live')) + '</p>' +
-    (list.length ? '<div class="cust-table" role="table"><div class="cust-row head" role="row"><span>' + esc(t('acc_name')) + '</span><span>' + esc(t('acc_phone')) + '</span><span>' + esc(t('cust_status')) + '</span><span>' + esc(t('cust_joined')) + '</span><span>' + esc(t('cust_last_login')) + '</span><span></span></div>' +
+  var h = '<div class="cust-stats"><div><b>' + rows.length + '</b><small>' + esc(t('cust_total')) + '</small></div><div><b>' + newToday + '</b><small>' + esc(t('cust_new_today')) + '</small></div><div><b>' + activeNow + '</b><small>' + esc(t('cust_active_now')) + '</small></div>' +
+    '<div><b>' + paid + '</b><small>' + esc(t('biz_paid')) + '</small></div><div><b>' + esc(rupees(revenue)) + '</b><small>' + esc(t('biz_revenue')) + '</small></div><div class="' + (waiting.length ? 'hot' : '') + '"><b>' + waiting.length + '</b><small>' + esc(t('biz_waiting')) + '</small></div></div>' +
+    (ending ? '<p class="fine">⏳ ' + esc(t('biz_ending', {n: ending})) + '</p>' : '');
+  // payments to confirm come first
+  h += '<h3 style="margin-top:10px">💳 ' + esc(t('pay_title')) + '</h3>' + (pays.length ? '<div class="cust-table">' + pays.slice(0, 50).map(function (p) {
+    return '<div class="cust-row pay-row"><span><b>' + esc(p.name || '—') + '</b></span><span>' + esc(p.phone || '') + '</span><span><span class="tag ' + (p.status === 'confirmed' ? 'ok' : p.status === 'rejected' ? 'bad' : 'warn') + '">' + esc(t('pay_st_' + p.status)) + '</span></span>' +
+      '<span data-l="UTR">' + esc(p.utr) + ' · ' + esc(rupees(p.amount)) + '</span><span data-l="' + esc(t('pay_date')) + '">' + esc(tsText(p.created_at)) + '</span>' +
+      '<span class="cust-acts">' + (p.status === 'pending' ? '<button class="btn small primary" data-a="payok" data-v="' + p.id + '">' + esc(t('pay_confirm')) + '</button><button class="btn small danger" data-a="payno" data-v="' + p.id + '">' + esc(t('pay_reject')) + '</button>' : '') + '</span></div>';
+  }).join('') + '</div>' : '<p class="fine">' + esc(t('pay_none')) + '</p>');
+  h += '<h3 style="margin-top:12px">👥 ' + esc(t('cust_title')) + '</h3><p class="fine">' + esc(t('cust_showing', {n: list.length, total: rows.length})) + ' · <span class="live-dot"></span>' + esc(t('cust_live')) + '</p>' +
+    (list.length ? '<div class="cust-table" role="table"><div class="cust-row head" role="row"><span>' + esc(t('acc_name')) + '</span><span>' + esc(t('acc_phone')) + '</span><span>' + esc(t('cust_plan')) + '</span><span>' + esc(t('cust_joined')) + '</span><span>' + esc(t('cust_last_login')) + '</span><span></span></div>' +
       list.map(function (r) {
-        var blocked = r.status === 'blocked';
-        return '<div class="cust-row" role="row"><span><b>' + esc(r.name) + '</b></span><span>' + esc(r.phone) + '</span><span><span class="tag ' + (blocked ? 'bad' : 'ok') + '">' + esc(t(blocked ? 'cust_blocked' : 'cust_active')) + '</span></span><span data-l="' + esc(t('cust_joined')) + '">' + esc(tsText(r.created_at)) + '</span><span data-l="' + esc(t('cust_last_login')) + '">' + esc(tsText(r.last_login)) + '</span>' +
-          '<span class="cust-acts"><button class="btn small" data-a="custstatus" data-v="' + r.id + '" data-s="' + (blocked ? 'active' : 'blocked') + '">' + esc(t(blocked ? 'cust_unblock' : 'cust_block')) + '</button><button class="btn small danger" data-a="custdel" data-v="' + r.id + '" data-n="' + esc(r.name) + '">' + esc(t('cust_delete')) + '</button></span></div>';
+        var blocked = r.status === 'blocked', pl = planText(r), tmp = ui.tempPw && ui.tempPw.id === r.id ? ui.tempPw.pw : '';
+        return '<div class="cust-row" role="row"><span><b>' + esc(r.name) + '</b>' + (blocked ? ' <span class="tag bad">' + esc(t('cust_blocked')) + '</span>' : '') + '</span><span>' + esc(r.phone) + '</span><span><span class="tag ' + pl.cls + '">' + esc(pl.txt) + '</span></span><span data-l="' + esc(t('cust_joined')) + '">' + esc(tsText(r.created_at)) + '</span><span data-l="' + esc(t('cust_last_login')) + '">' + esc(tsText(r.last_login)) + '</span>' +
+          '<span class="cust-acts"><button class="btn small" data-a="custyear" data-v="' + r.id + '" data-n="' + esc(r.name) + '">' + esc(t('cust_add_year')) + '</button><button class="btn small" data-a="custpw" data-v="' + r.id + '" data-n="' + esc(r.name) + '">' + esc(t('cust_reset_pw')) + '</button><button class="btn small" data-a="custstatus" data-v="' + r.id + '" data-s="' + (blocked ? 'active' : 'blocked') + '">' + esc(t(blocked ? 'cust_unblock' : 'cust_block')) + '</button><button class="btn small danger" data-a="custdel" data-v="' + r.id + '" data-n="' + esc(r.name) + '">' + esc(t('cust_delete')) + '</button></span>' +
+          (tmp ? '<span class="temp-pw">' + esc(t('cust_temp_pw', {pw: tmp, name: r.name})) + '</span>' : '') + '</div>';
       }).join('') + '</div>' : '<div class="empty">' + esc(t(rows.length ? 'cust_none_match' : 'cust_none')) + '</div>');
+  return h;
+}
+/* CSV file of customers and payments, for the admin's records */
+function custCsv() {
+  var c = ui.cust, q = function (v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  var lines = ['Name,Phone,Status,Plan,Joined,Last login,Paid until,Bonus days'];
+  (c.rows || []).forEach(function (r) { lines.push([r.name, r.phone, r.status, planText(r).txt, r.created_at, r.last_login, r.paid_until, r.bonus_days].map(q).join(',')); });
+  lines.push('', 'Payment ID,Name,Phone,UTR,Amount,Status,Reported,Decided');
+  (c.payments || []).forEach(function (p) { lines.push([p.id, p.name, p.phone, p.utr, p.amount, p.status, p.created_at, p.decided_at].map(q).join(',')); });
+  var blob = new Blob(['﻿' + lines.join('\r\n')], {type: 'text/csv'}), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'jainjoy-customers-' + today() + '.csv'; document.body.appendChild(a); a.click(); a.remove();
 }
 function custPaint() { var el = document.getElementById('cust-live'); if (el) el.innerHTML = custLiveHTML(); }
 function customersSection() {
   var c = ui.cust;
-  return '<section class="card glass cust"><h3>👥 ' + esc(t('cust_title')) + '</h3>' +
+  return '<section class="card glass cust"><h3>📊 ' + esc(t('admin_dash')) + '</h3>' +
     '<div class="field"><input class="input" id="cust-q" value="' + esc(c.q) + '" placeholder="' + esc(t('cust_search')) + '" aria-label="' + esc(t('cust_search')) + '"></div>' +
-    '<div class="seg" role="group">' + ['all', 'active', 'blocked'].map(function (s) { return '<button data-a="custf" data-v="' + s + '" aria-pressed="' + (c.filter === s) + '">' + esc(t(s === 'all' ? 'st_all' : 'cust_' + s)) + '</button>'; }).join('') + '</div>' +
+    '<div class="seg" role="group">' + ['all', 'trial', 'paid', 'expired', 'blocked'].map(function (s) { return '<button data-a="custf" data-v="' + s + '" aria-pressed="' + (c.filter === s) + '">' + esc(t(s === 'all' ? 'st_all' : 'cust_f_' + s)) + '</button>'; }).join('') + '</div>' +
+    '<p class="fine" style="text-align:right;margin:6px 0 0"><button class="linkbtn" data-a="custcsv">⬇ ' + esc(t('cust_csv')) + '</button></p>' +
     '<div id="cust-live">' + custLiveHTML() + '</div></section>';
 }
 /* with accounts switched on, the admin area is for admin accounts only */
@@ -1226,13 +1352,23 @@ app.addEventListener('click', function (e) {
     case 'wa': shareText(v === 'list' ? listText(currentGroups(el.dataset.list)) : menuText(v)); break;
     case 'acc': ui.acc.mode = v; ui.acc.errs = []; if (!top || top.k !== 'account') stack.push({k: 'account'}); render(); break;
     case 'accmode': ui.acc.mode = v; ui.acc.errs = []; render(); break;
-    case 'logout': JJ.account.signOut().then(function () { ui.acc = {mode: 'signin', f: {}, errs: [], busy: false}; stack = []; tab = 'today'; render(); toast(t('acc_logged_out')); }); break;
+    case 'logout': JJ.account.signOut().then(function () { ui.paysLoaded = false; ui.pays = null; ui.acc = {mode: 'signin', f: {}, errs: [], busy: false}; stack = []; tab = 'today'; render(); toast(t('acc_logged_out')); }); break;
     case 'invitedone': try { localStorage.setItem('jainjoy.inviteDone', '1'); } catch (x) {} render(); break;
     case 'custf': ui.cust.filter = v; render(); break;
     case 'custstatus': JJ.account.setStatus(v, el.dataset.s).then(function (r) { toast(r.error ? t('cust_error') : t(el.dataset.s === 'blocked' ? 'cust_blocked_toast' : 'cust_unblocked_toast')); custRefresh(); }); break;
     case 'custdel': if (window.confirm(t('cust_delete_confirm', {name: el.dataset.n}))) JJ.account.remove(v).then(function (r) { toast(r.error ? t('cust_error') : t('cust_deleted_toast')); custRefresh(); }); break;
     case 'signupsubmit': signupSubmit(); break;
     case 'gatemode': ui.acc.mode = v; ui.acc.errs = []; ui.acc.f.password = ''; ui.acc.f.confirm = ''; render(); break;
+    case 'legal': stack.push({k: 'legal', page: v}); render(); break;
+    case 'invitewa': shareText(t('invite_msg', {link: inviteLink()})); break;
+    case 'install': if (installEvt) { installEvt.prompt(); installEvt.userChoice.then(function () { installEvt = null; render(); }); } break;
+    case 'paycheck': JJ.account.refresh().then(function () { return JJ.account.myPayments(); }).then(function (p) { ui.pays = p; render(); toast(t(JJ.account.access().state === 'paid' ? 'sub_thanks' : 'pay_still_waiting')); }); break;
+    case 'deleteme': if (window.confirm(t('delete_confirm'))) JJ.account.deleteMe().then(function (r) { if (r.error) { toast(t('acc_err_generic')); return; } ui.acc = {mode: 'signup', f: {}, errs: [], busy: false}; stack = []; render(); toast(t('deleted_done')); }); break;
+    case 'forgot': { var fl = supportLink(t('help_msg_pw', {phone: JJ.account.cleanPhone((document.getElementById('acc-phone') || {}).value || '')})); if (fl) window.open(fl, '_blank', 'noopener'); else toast(t('forgot_no_support')); break; }
+    case 'payok': case 'payno': JJ.account.decidePayment(+v, a === 'payok').then(function (r) { toast(r.error ? t('cust_error') : t(a === 'payok' ? 'pay_confirmed_toast' : 'pay_rejected_toast')); custRefresh(); }); break;
+    case 'custyear': if (window.confirm(t('cust_add_year_confirm', {name: el.dataset.n}))) JJ.account.grantYear(v).then(function (r) { toast(r.error ? t('cust_error') : t('cust_year_added')); custRefresh(); }); break;
+    case 'custpw': if (window.confirm(t('cust_reset_confirm', {name: el.dataset.n}))) { var tpw = 'Jain' + (1000 + Math.floor(Math.random() * 9000)) + String.fromCharCode(97 + Math.floor(Math.random() * 26)) + String.fromCharCode(97 + Math.floor(Math.random() * 26)); JJ.account.resetPassword(v, tpw).then(function (r) { if (r.error) { toast(t('cust_error')); return; } ui.tempPw = {id: v, pw: tpw}; custPaint(); }); } break;
+    case 'custcsv': custCsv(); break;
     case 'pantryclear': JJ.db.put('meta', {key: 'pantry', have: {}}); render(); break;
     case 'ayambil': ui.ayambil = ui.ayambil === v ? null : v; render(); break;
     case 'notify': {
@@ -1318,6 +1454,7 @@ app.addEventListener('submit', function (e) {
   if (e.target.id === 'acc-form') submitAccount();
   if (e.target.id === 'signin-form') signinSubmit();
   if (e.target.id === 'signup-form') signupSubmit();
+  if (e.target.id === 'pay-form') submitPay();
   if (e.target.dataset && e.target.dataset.map != null) {
     var qi = +e.target.dataset.map, q = JJ.db.get('meta', 'ing_reviews') || {key: 'ing_reviews', names: []}, name = q.names[qi], val = (document.getElementById('map-' + qi).value || '').trim();
     var id = JJ.ING[val] ? val : JJ.resolveIngredient(val);
@@ -1380,6 +1517,8 @@ setInterval(function () {
 JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
   get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache};
 JJ.boot = function () {
+  // an invite link (…/JainJoy/?ref=AB12CD) is remembered until this phone signs up
+  try { var ref = (location.search.match(/[?&]ref=([A-Za-z0-9]{6})/) || [])[1]; if (ref) localStorage.setItem('jainjoy.ref', ref.toUpperCase()); } catch (e) {}
   return JJ.db.open().then(function () {
     JJ.seedDatabase(); JJ.migrateV1();
     JJ.customSynonyms = (JJ.db.get('meta', 'custom_synonyms') || {list: []}).list; JJ.rebuildIngredientIndex();
