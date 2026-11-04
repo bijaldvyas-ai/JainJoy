@@ -11,6 +11,9 @@ var LOCK_KEY = 'jainjoy.loginFails', MAX_FAILS = 5, LOCK_MS = 5 * 6e4;
 
 /* accounts (Sign Up, Sign In, subscription, admin customers) run only when switched on in js/config.js */
 function configured() { return !!(JJ.CONFIG && JJ.CONFIG.accountsEnabled && JJ.CONFIG.supabaseUrl && JJ.CONFIG.supabaseKey); }
+/* owner mode: lets the owner sign in (for the Visitors page) while accounts stay off for everyone else */
+var forced = false;
+function canConnect() { return !!(JJ.CONFIG && JJ.CONFIG.supabaseUrl && JJ.CONFIG.supabaseKey && (JJ.CONFIG.accountsEnabled || forced)); }
 /* Supabase Auth signs in with an e-mail address; each phone number gets a private address of its own */
 function emailFor(phone) { return phone + '@phone.jainjoy.app'; }
 function cleanPhone(p) { p = String(p || '').replace(/[\s-]/g, ''); if (/^\+91\d{10}$/.test(p)) p = p.slice(3); if (/^0\d{10}$/.test(p)) p = p.slice(1); return p; }
@@ -104,7 +107,7 @@ JJ.account = {
   get isAdmin() { return admin; },
   /* start once at boot; calls onChange after the session is known and whenever it changes */
   init: function (onChange) {
-    if (!configured()) return Promise.resolve(null);
+    if (!canConnect()) return Promise.resolve(null);
     if (ready) return ready;
     ready = loadSdk().then(function () {
       sb = window.supabase.createClient(JJ.CONFIG.supabaseUrl, JJ.CONFIG.supabaseKey, {auth: {persistSession: true, autoRefreshToken: true, storageKey: 'jainjoy.auth'}});
@@ -120,7 +123,11 @@ JJ.account = {
     return ready;
   },
   /* true once the saved sign-in has been checked (until then the app shows its loading screen) */
-  get known() { return known || !configured(); },
+  get known() { return known || !canConnect(); },
+  /* owner mode on this phone (the owner's Visitors page) */
+  ownerMode: function () { forced = true; },
+  /* visitor numbers for the owner: {total, today, week, month, new_today, opens_today, opens_total, planners, days, cities, sources} */
+  visitorStats: function () { if (!sb || !admin) return Promise.resolve({error: 'admin'}); return sb.rpc('visitor_stats').then(function (r) { return r.error ? {error: r.error.message} : {stats: r.data}; }, function () { return {error: 'offline'}; }); },
   /* the household profile travels with the account, so signing in on a new phone brings it back */
   saveProfile: function (p) { if (!sb || !me) return Promise.resolve(); return sb.rpc('save_profile', {p: p}).then(function () {}, function () {}); },
   loadProfile: function () {

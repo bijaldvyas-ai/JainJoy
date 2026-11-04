@@ -405,3 +405,9 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 - **Sign Up, Sign In, the subscription and the admin customer dashboard are switched off** with one setting: `accountsEnabled: false` in js/config.js. All of that code, the Supabase project, its tables and the existing accounts stay in place. To start the subscription model later, set `accountsEnabled: true` and publish (see SETUP.md).
 - **First page** is the household setup again, opening straight into today's menu ("🎉 Your meal plan is ready!").
 - **Location is detected, never asked.** GPS gives the nearest of the app's Indian cities; if GPS is refused or unavailable, the city is estimated from the internet connection (geojs.io). The city picker appears only if both fail, or if the estimate is more than 150 km from every listed city. The privacy text mentions this.
+
+## 23. Change log – v3.3.0 visitor counter (4 Nov 2026)
+
+- **Every app open is counted** in the owner's Supabase (`visits`, one row per phone per day). Each row holds a random device ID made on the phone, the city and state used for timings, how the phone first arrived (WhatsApp share, invite link, direct, other) and whether it has a meal plan. No names, phone numbers or exact locations. Test pages and the local preview are never counted. WhatsApp share links carry `?s=wa` so they can be told apart.
+- **Profile → Visitors** (owner only): sign in with the admin phone and password, even while Sign Up / Sign In is off for everyone else. It shows people so far, today, new today, last 7 and 30 days, people who made a meal plan, app opens, people per day for 14 days, cities, and how people found JainJoy. The numbers refresh every 30 seconds.
+- **Database:** db/supabase-visitors.sql (`log_visit` callable by anyone and only adds to the counts; `visitor_stats` for admins only).

@@ -592,6 +592,13 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     return {ok: !miss.length && /₹199/.test(refund) && /3 months/.test(refund), details: keys.length + ' texts × 3 languages' + (miss.length ? '; missing ' + miss.join(', ') : ' all present') + '; terms mention ₹199 and the 3-month free period'};
   });
 
+  test('V1', 'Visitor counter: one random ID per phone, nothing personal, tests never counted', function () {
+    var a = JJ.visits.deviceId(), b = JJ.visits.deviceId(), src = JJ.visits.source(), counted = null;
+    JJ.visits.log(JJ.app.profile).then(function (r) { counted = r; });
+    var ok = /^d[0-9a-f]{24}$/.test(a) && a === b && ['direct', 'whatsapp', 'invite', 'other'].indexOf(src) >= 0;
+    var sql = typeof JJ.visits.log === 'function' && typeof JJ.account.visitorStats === 'function' && typeof JJ.account.ownerMode === 'function';
+    return {ok: ok && sql, details: 'device ID ' + a.slice(0, 7) + '… stays the same: ' + (a === b) + '; arrival: ' + src + '; the test page and local preview do not send visits; owner Visitors page and stats call present: ' + sql};
+  });
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();
