@@ -458,3 +458,17 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .tithi-pill.sp{background:var(--saffron-soft);border-color:transparent;color:var(--saffron)}
 .showcase{display:block;margin:12px 0 8px;padding:12px 14px;border-radius:16px;background:var(--green-soft);scroll-margin-top:70px}
 .showcase b{display:block;font-size:16px}.showcase small{display:block;font-size:13px;opacity:.85;margin-top:2px}
+.timings-card{padding-top:10px;padding-bottom:10px}
+.tc-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
+.tc-head h3{margin:0}
+.tgrid.tg4{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.tg4 .tcell{padding:7px 6px;border-radius:12px}
+.tg4 .tcell small{font-size:9.5px;letter-spacing:.02em}
+.tg4 .tcell b{font-size:15px;white-space:nowrap}
+.tg4 .tcell em{font-size:10.5px}
+.tg4 .tcell.sun{background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
+.chog-strip{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;width:100%;margin-top:4px;padding:6px 10px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--green-soft) 70%,var(--surface-2));font:inherit;color:inherit;text-align:left;cursor:pointer}
+.chog-strip small{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.chog-strip b{font-size:14px}.chog-strip em{font-style:normal;font-size:12px;font-weight:700;color:var(--muted)}.chog-strip em.now{color:var(--green)}
+.tithi-pill .tnum{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 4px;margin-right:2px;border-radius:999px;background:var(--crimson,#d6336c);color:#fff;font-size:12px}
+.tithi-pill.sp .tnum{background:var(--saffron)}

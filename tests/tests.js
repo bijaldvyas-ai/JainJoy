@@ -467,12 +467,6 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var last = days[days.length - 1] || '';
     return {ok: days.length === 8 && /Samvatsari/.test(last) && !bad.length, details: days.length + ' days: ' + days.join(', ') + (bad.length ? '; problems: ' + bad.join('; ') : '; all menus follow Parva rules')};
   });
-  test('A3', 'Dinner start time leaves time to cook and eat before Chauvihar', function () {
-    JJ.app.profile = Object.assign({created: today}, STRICT()); JJ.db.put('profiles', JJ.app.profile);
-    var s = JJ.app.dinnerStart(addDays(today, 2)); if (!s) return {ok: false, details: 'no dinner'};
-    var gap = (s.chauvihar - s.at) / 6e4;
-    return {ok: gap >= s.mins && gap < s.mins + 5 && s.mins >= 20, details: 'start ' + new Date(s.at).toISOString().slice(11, 16) + ' UTC for ' + s.dish + ' (' + s.mins + ' min); ' + Math.round(gap) + ' min before Chauvihar'};
-  });
   test('A4', 'Pantry items leave the shopping list', function () {
     var g = JJ.grocery([PARVA_RUN.guj[0], PARVA_RUN.guj[1]]);
     JJ.db.put('meta', {key: 'pantry', have: {atta: 1, salt: 1}});

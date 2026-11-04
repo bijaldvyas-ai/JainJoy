@@ -372,3 +372,10 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 - **Sign In** (phone + password only) is reached from "Already have an account? Log in". The household profile is saved with the account (`customers.profile`), so signing in on a new phone restores it.
 - **Existing households.** Those already using the app see the Sign Up page with their own settings filled in; their plan and history are kept.
 - **Offline.** A customer who signed in before stays signed in without internet.
+
+## 18. Change log – v2.9.4 Today layout (4 Nov 2026)
+
+- **Start-dinner reminder removed.** The "Start dinner by…" line, its alert and its calendar alarms are gone.
+- **Tithi number.** The tithi pill beside the date shows the number as well, for example "🌙 10 Dasham · Krishna paksha".
+- **One compact timings table.** Sunrise · Navkarsi · Chauvihar · Sunset in one row, with the Shubh Choghadiya on a slim row below and "More details" in the heading.
+- **Menu first.** Today's menu comes right under the timings table; the tithi rules card follows the meals.
