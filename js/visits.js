@@ -33,6 +33,13 @@ function placeOf(p) {
 JJ.visits = {
   deviceId: deviceId,
   source: source,
+  /* headline numbers for everyone: {total, today, planners} or null */
+  summary: function () {
+    var c = JJ.CONFIG || {};
+    if (!c.supabaseUrl || !c.supabaseKey) return Promise.resolve(null);
+    return fetch(c.supabaseUrl + '/rest/v1/rpc/visitor_summary', {method: 'POST', headers: {apikey: c.supabaseKey, Authorization: 'Bearer ' + c.supabaseKey, 'Content-Type': 'application/json'}, body: '{}'})
+      .then(function (r) { return r.ok ? r.json() : null; }, function () { return null; });
+  },
   /* record one open of the app; p = the household profile (or null before setup) */
   log: function (p) {
     var c = JJ.CONFIG || {};
