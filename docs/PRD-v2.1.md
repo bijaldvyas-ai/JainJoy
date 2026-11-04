@@ -393,3 +393,9 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 - **Business settings in the app.** Admin dashboard → Business settings: UPI ID, name shown in the UPI app, support WhatsApp number, contact name and email. They are saved in Supabase (`app_settings`, readable by everyone, changeable only by admins through `admin_set_settings`) and apply to every customer at once. A test QR code lets the admin check the UPI ID before customers pay.
 - **Sign Up, then Sign In.** After Sign Up the app shows the Sign In page ("Your account is ready! Please sign in…") with the phone number filled in. On a phone where an account has been used, only the Sign In page is shown; it has no Sign Up link.
 - **Legal pages** show the contact name, email and WhatsApp number once they are entered.
+
+## 21. Change log – v3.1.1 plan change (4 Nov 2026)
+
+- **Free period is now 3 months (90 days) from sign-up**, plus invite days; after that ₹199 for 1 year. Setting: `trialDays: 90` in js/config.js. Terms and refund pages say "3 months" in all three languages.
+- The trial reminder on Today appears only in the last 14 days of the free period; Profile always shows the days left.
+- Customers who signed up on 4 Nov 2026 are free until 2 Feb 2027.
