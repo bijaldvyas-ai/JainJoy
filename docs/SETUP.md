@@ -84,3 +84,12 @@ How it is protected:
 - **Blocking:** a blocked customer is banned in Supabase Auth, so the server refuses their login and ends their open sessions. Unblocking lifts the ban.
 - **Login attempts:** Supabase Auth limits sign-in requests per IP address (Authentication → Rate Limits). The app also locks login on that phone for 5 minutes after 5 wrong passwords.
 - **Live updates:** the admin table refreshes every 5 seconds and also listens for realtime database changes.
+
+## Business settings (before selling)
+
+Sign in with the admin account, open **Profile → Admin dashboard → Business settings**, enter:
+- **UPI ID** – where the ₹199 payments go (for example `name@okhdfcbank`). Scan the test QR with your own UPI app to check that it shows ₹199 to your account.
+- **Support WhatsApp number** – used by "Forgot password?" and "Need help?".
+- **Contact name and email** – shown on the Privacy, Terms and Refunds pages.
+
+Press **Save settings**; every customer gets them straight away. Run `db/supabase-subscription.sql` once in the Supabase SQL Editor if the project is new.

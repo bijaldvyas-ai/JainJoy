@@ -221,7 +221,7 @@ function render() {
   if (top && top.k === 'about' && JJ.analytics.enabled()) JJ.analytics.total().then(function (n) { var el = document.getElementById('visitors'); if (el) el.textContent = n == null ? t('visitors_unavailable') : t('visitors_total', {n: n}); });
   // first view of a brand-new plan: bring today's menu into view
   var show = document.getElementById('showcase'); if (show && !ui.showcaseDone) { ui.showcaseDone = true; show.scrollIntoView({block: 'start'}); }
-  if (top && top.k === 'admin' && JJ.account.isAdmin) custStartLive(); else custStopLive();
+  if (top && top.k === 'admin' && JJ.account.isAdmin) { custStartLive(); setTimeout(drawQr, 0); } else custStopLive();
   tick();
 }
 var toastT = null;
@@ -835,13 +835,13 @@ function accInput(id, type, label, extra) {
 function accGeneral() { var g = ui.acc.errs.filter(function (x) { return !x.field; })[0]; return g ? '<div class="alert" role="alert">' + esc(t(g.key)) + '</div>' : ''; }
 function viewGate() {
   if (ui.acc.mode === 'signin') {
-    var b = '<div class="hero-brand">' + lotus(72) + WORDMARK + '<h1 class="h1">' + esc(t('signin_title')) + '</h1><p class="sub" style="margin:0">' + esc(t('acc_login_sub')) + '</p></div>' + accGeneral() +
+    var b = '<div class="hero-brand">' + lotus(72) + WORDMARK + '<h1 class="h1">' + esc(t('signin_title')) + '</h1><p class="sub" style="margin:0">' + esc(t('acc_login_sub')) + '</p></div>' + (ui.acc.notice && !ui.acc.errs.length ? '<div class="note ok">' + esc(t(ui.acc.notice)) + '</div>' : '') + accGeneral() +
       '<form id="signin-form" class="card glass" autocomplete="on" novalidate>' +
       accInput('phone', 'tel', 'acc_phone', ' inputmode="numeric" autocomplete="tel-national" maxlength="14" placeholder="98XXXXXXXX"') +
       accInput('password', 'password', 'acc_password', ' autocomplete="current-password"') +
       '<button class="btn primary" type="submit" style="width:100%;margin-top:6px"' + (ui.acc.busy ? ' disabled' : '') + '>' + esc(t(ui.acc.busy ? 'acc_wait' : 'acc_login')) + '</button></form>' +
       '<p class="fine" style="text-align:center"><button class="linkbtn" data-a="forgot">' + esc(t('forgot_pw')) + '</button></p>' +
-      '<p class="fine" style="text-align:center">' + esc(t('no_account')) + ' <button class="linkbtn" data-a="gatemode" data-v="signup">' + esc(t('acc_signup')) + '</button></p>';
+      (JJ.account.hasAccountHere ? '' : '<p class="fine" style="text-align:center">' + esc(t('no_account')) + ' <button class="linkbtn" data-a="gatemode" data-v="signup">' + esc(t('acc_signup')) + '</button></p>');
     return '<main class="scroll gx" id="scroll">' + b + '</main>';
   }
   if (!ui.loc) autoLocate();
@@ -888,7 +888,11 @@ function signupSubmit() {
       if (changed) { P = Object.assign({}, draft, keep); delete P.cuisineSet; applyProfileChange(); }
       draft = null; openField = null; stack = []; tab = 'today';
     } else createPlan();
-    JJ.account.saveProfile(P); render(); toast(t('acc_welcome', {name: name}));
+    // the account is made: save the household with it, then ask the person to sign in with phone + password
+    var phone = JJ.account.cleanPhone(a.f.phone);
+    JJ.account.saveProfile(P).then(function () { return JJ.account.signOut(); }).then(function () {
+      ui.acc = {mode: 'signin', f: {phone: phone}, errs: [], busy: false, notice: 'acc_created'}; stack = []; render();
+    });
   }, function () { a.busy = false; a.errs = [{field: '', key: 'acc_err_offline'}]; render(); });
 }
 function signinSubmit() {
@@ -1013,10 +1017,14 @@ function viewInvite() {
     (u.bonus_days ? '<div class="note ok" style="margin-top:10px">' + esc(t('invite_earned', {n: u.bonus_days})) + '</div>' : '') + '</section>';
   return backBar(t('invite_title')) + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
+function legalContact() {
+  var c = JJ.CONFIG, bits = [c.contactName, c.contactEmail, c.supportWhatsApp ? 'WhatsApp +91 ' + c.supportWhatsApp : ''].filter(Boolean);
+  return bits.length ? '<p><b>' + esc(t('legal_contact')) + '</b> ' + esc(bits.join(' · ')) + '</p>' : '';
+}
 /* privacy, terms and refund pages */
 function viewLegal(top) {
   var k = top.page || 'privacy', paras = t('legal_' + k + '_body').split('\n');
-  return backBar(t('legal_' + k)) + '<main class="scroll gx" id="scroll"><section class="card glass legal">' + paras.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '<p class="fine">' + esc(t('legal_updated')) + '</p></section></main>';
+  return backBar(t('legal_' + k)) + '<main class="scroll gx" id="scroll"><section class="card glass legal">' + paras.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + legalContact() + '<p class="fine">' + esc(t('legal_updated')) + '</p></section></main>';
 }
 /* "Install JainJoy" where the phone offers it */
 var installEvt = null;
@@ -1097,6 +1105,31 @@ function customersSection() {
     '<p class="fine" style="text-align:right;margin:6px 0 0"><button class="linkbtn" data-a="custcsv">⬇ ' + esc(t('cust_csv')) + '</button></p>' +
     '<div id="cust-live">' + custLiveHTML() + '</div></section>';
 }
+/* business settings the admin types in once: UPI ID for the QR code, support WhatsApp, contact for the legal pages */
+function settingsSection() {
+  var c = JJ.CONFIG, missing = ['upiId', 'supportWhatsApp', 'contactName', 'contactEmail'].filter(function (k) { return !c[k]; });
+  function fld(k, label, extra) { return '<label class="field"><span class="flabel">' + esc(t(label)) + '</span><input class="input" id="set-' + k + '" value="' + esc(c[k] || '') + '"' + (extra || '') + '></label>'; }
+  return '<section class="card glass settings"><h3>⚙️ ' + esc(t('set_title')) + '</h3>' +
+    (missing.length ? '<div class="alert">' + esc(t('set_missing')) + '</div>' : '<div class="note ok">' + esc(t('set_ready')) + '</div>') +
+    (ui.setErr ? '<div class="alert" role="alert">' + esc(t(ui.setErr)) + '</div>' : '') +
+    '<form id="settings-form" autocomplete="off" novalidate>' +
+    fld('upiId', 'set_upi', ' placeholder="yourname@okhdfcbank" autocapitalize="off"') + fld('upiName', 'set_upi_name', ' placeholder="JainJoy" maxlength="60"') +
+    fld('supportWhatsApp', 'set_wa', ' inputmode="numeric" placeholder="98XXXXXXXX" maxlength="14"') +
+    fld('contactName', 'set_contact_name', ' placeholder="JainJoy by BiNaiSa" maxlength="80"') + fld('contactEmail', 'set_contact_email', ' type="email" placeholder="name@example.com" maxlength="120"') +
+    '<button class="btn primary" type="submit" style="width:100%">' + esc(t('set_save')) + '</button></form>' +
+    (c.upiId ? '<p class="fine" style="text-align:center;margin-top:10px">' + esc(t('set_qr_test', {price: rupees(c.price)})) + '</p><div id="upi-qr" class="upi-qr"></div>' : '') + '</section>';
+}
+function saveSettingsForm() {
+  var s = {};
+  JJ.account.settingKeys.forEach(function (k) { var el = document.getElementById('set-' + k); if (el) s[k] = el.value.trim(); });
+  s.supportWhatsApp = JJ.account.cleanPhone(s.supportWhatsApp);
+  if (s.upiId && !/^[A-Za-z0-9._-]{2,}@[A-Za-z][A-Za-z0-9.]{1,}$/.test(s.upiId)) { ui.setErr = 'set_err_upi'; render(); return; }
+  if (s.supportWhatsApp && !/^[0-9]{10}$/.test(s.supportWhatsApp)) { ui.setErr = 'set_err_wa'; render(); return; }
+  if (s.contactEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.contactEmail)) { ui.setErr = 'set_err_email'; render(); return; }
+  if (!s.upiName) s.upiName = 'JainJoy';
+  ui.setErr = null;
+  JJ.account.saveSettings(s).then(function (r) { if (r.error) { ui.setErr = 'cust_error'; render(); return; } render(); toast(t('set_saved')); setTimeout(drawQr, 50); });
+}
 /* with accounts switched on, the admin area is for admin accounts only */
 function adminGate() {
   if (!JJ.account.configured() || JJ.account.isAdmin) return '';
@@ -1176,7 +1209,7 @@ function viewAdmin() {
     rev.map(function (n, i) { return '<form class="addrow" data-map="' + i + '" autocomplete="off"><span style="flex:1;font-weight:800;align-self:center">' + esc(n) + '</span><input id="map-' + i + '" placeholder="' + esc(t('map_placeholder')) + '" aria-label="' + esc(t('map_placeholder')) + '"><button type="submit">' + esc(t('map_btn')) + '</button></form>'; }).join('') + '</div>' : '';
   var segS = '<div class="seg">' + ['all', 'approved', 'pending', 'rejected', 'invalid'].map(function (s) { return '<button data-a="adstatus" data-v="' + s + '" aria-pressed="' + (f.status === s) + '">' + esc(t('st_' + s)) + '</button>'; }).join('') + '</div>';
   var segM = '<div class="seg" style="margin-top:8px">' + ['all'].concat(MEALS).map(function (m) { return '<button data-a="admeal" data-v="' + m + '" aria-pressed="' + (f.meal === m) + '">' + esc(m === 'all' ? t('st_all') : t('meal_' + m)) + '</button>'; }).join('') + '</div>';
-  var b = (JJ.account.isAdmin ? customersSection() : '') + '<p class="sub" style="margin-top:8px">' + esc(t('admin_intro')) + '</p><button class="btn primary" data-a="adnew">' + esc(t('add_recipe')) + '</button>' + revHtml + '<div style="margin-top:12px">' + segS + segM + '</div>' +
+  var b = (JJ.account.isAdmin ? settingsSection() + customersSection() : '') + '<p class="sub" style="margin-top:8px">' + esc(t('admin_intro')) + '</p><button class="btn primary" data-a="adnew">' + esc(t('add_recipe')) + '</button>' + revHtml + '<div style="margin-top:12px">' + segS + segM + '</div>' +
     '<div class="field"><input class="input" id="ad-q" value="' + esc(f.q) + '" placeholder="' + esc(t('search_recipes')) + '" aria-label="' + esc(t('search_recipes')) + '"></div><p class="fine">' + esc(t('n_recipes', {n: list.length})) + '</p><div class="list">' +
     list.slice(0, 200).map(function (r) {
       var tg = !r.valid ? '<span class="tag bad">' + esc(t('st_invalid')) + '</span>' : '<span class="tag ' + (r.status === 'approved' ? 'ok' : r.status === 'pending' ? 'warn' : 'bad') + '">' + esc(t('st_' + r.status)) + '</span>';
@@ -1455,6 +1488,7 @@ app.addEventListener('submit', function (e) {
   if (e.target.id === 'signin-form') signinSubmit();
   if (e.target.id === 'signup-form') signupSubmit();
   if (e.target.id === 'pay-form') submitPay();
+  if (e.target.id === 'settings-form') saveSettingsForm();
   if (e.target.dataset && e.target.dataset.map != null) {
     var qi = +e.target.dataset.map, q = JJ.db.get('meta', 'ing_reviews') || {key: 'ing_reviews', names: []}, name = q.names[qi], val = (document.getElementById('map-' + qi).value || '').trim();
     var id = JJ.ING[val] ? val : JJ.resolveIngredient(val);

@@ -487,3 +487,4 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .cust-stats div.hot{background:var(--saffron-soft);outline:1.5px solid var(--saffron)}
 .temp-pw{grid-column:1/-1;font-size:13px;font-weight:800;background:var(--green-soft);padding:6px 8px;border-radius:8px}
 @media (max-width:640px){.cust-stats{grid-template-columns:repeat(3,1fr)}.cust-acts{flex-wrap:wrap}}
+.settings .flabel{margin-top:2px}

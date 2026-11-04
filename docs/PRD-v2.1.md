@@ -387,3 +387,9 @@ Acceptance: tests H1–H5 (see TEST-REPORT.md).
 - **Customer extras.** Invite link with a reward (7 days per friend, up to 28), Install button, Delete my account, and Privacy / Terms / Refunds pages.
 - **Admin dashboard.** Money cards, payments to confirm, plan per customer, +1 year, reset password, CSV export, and plan filters.
 - **Today.** Sunrise, sunset and household size removed from the Today page (they stay in Panchang); the timings table shows Navkarsi and Chauvihar with the Shubh Choghadiya below.
+
+## 20. Change log – v3.1.0 (4 Nov 2026)
+
+- **Business settings in the app.** Admin dashboard → Business settings: UPI ID, name shown in the UPI app, support WhatsApp number, contact name and email. They are saved in Supabase (`app_settings`, readable by everyone, changeable only by admins through `admin_set_settings`) and apply to every customer at once. A test QR code lets the admin check the UPI ID before customers pay.
+- **Sign Up, then Sign In.** After Sign Up the app shows the Sign In page ("Your account is ready! Please sign in…") with the phone number filled in. On a phone where an account has been used, only the Sign In page is shown; it has no Sign Up link.
+- **Legal pages** show the contact name, email and WhatsApp number once they are entered.
