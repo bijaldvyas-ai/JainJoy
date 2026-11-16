@@ -3,6 +3,17 @@
 'use strict';
 var K = {
 // navigation
+tab_explore:['Explore','खोजें','શોધો'], your_city:['Your city','आपका शहर','તમારું શહેર'],
+search_hint:['Search “puri”, “dal”, “paneer”…','खोजें “पूरी”, “दाल”, “पनीर”…','શોધો “પૂરી”, “દાળ”, “પનીર”…'],
+explore_title:['Explore recipes','रेसिपी खोजें','વાનગીઓ શોધો'], search_dish:['Search dish or ingredient','व्यंजन या सामग्री खोजें','વાનગી કે સામગ્રી શોધો'],
+clear_search:['Clear search','खोज साफ़ करें','શોધ સાફ કરો'], choose_meal:['Choose a meal','भोजन चुनें','ભોજન પસંદ કરો'], filters:['Filters','फ़िल्टर','ફિલ્ટર'],
+all_meals:['All','सभी','બધું'], f_today_ok:['OK for today’s tithi','आज की तिथि के अनुसार','આજની તિથિ મુજબ'], f_quick:['Under 20 min','20 मिनट से कम','20 મિનિટથી ઓછું'],
+f_protein:['High protein','अधिक प्रोटीन','વધુ પ્રોટીન'], ex_note:['your allergies and exclusions are always left out','आपकी एलर्जी और परहेज़ हमेशा हटाए जाते हैं','તમારી એલર્જી અને પરહેજ હંમેશાં બાકાત રહે છે'],
+in_plan:['In plan · {d}','योजना में · {d}','યોજનામાં · {d}'], no_recipes_found:['No recipes found','कोई रेसिपी नहीं मिली','કોઈ વાનગી મળી નહીં'],
+no_results_hint:['Try another word, or turn off a filter.','दूसरा शब्द आज़माएँ या कोई फ़िल्टर हटाएँ।','બીજો શબ્દ અજમાવો અથવા કોઈ ફિલ્ટર બંધ કરો.'],
+show_more:['Show {n} more','{n} और दिखाएँ','વધુ {n} બતાવો'], whats_on_mind:['What’s on your mind?','आज क्या बनाने का मन है?','આજે શું બનાવવાનું મન છે?'],
+menu_for:['Menu for {date}','{date} का मेनू','{date} નું મેનૂ'], choose_day:['Choose a day','दिन चुनें','દિવસ પસંદ કરો'],
+parva_dot:['Parva tithi, Aatham or Chaudas: special food rules','पर्व तिथि, आठम या चौदस: विशेष भोजन नियम','પર્વ તિથિ, આઠમ કે ચૌદસ: ખાસ ભોજન નિયમો'],
 tab_today:['Today','आज','આજે'], tab_calendar:['Calendar','कैलेंडर','કેલેન્ડર'], tab_panchang:['Panchang','पंचांग','પંચાંગ'], tab_grocery:['Grocery','किराना','કરિયાણું'], tab_more:['More','और','વધુ'],
 main_nav:['Main navigation','मुख्य नेविगेशन','મુખ્ય નેવિગેશન'], back:['Back','वापस','પાછળ'], language:['Language','भाषा','ભાષા'], language_sub:['English, हिंदी, ગુજરાતી','English, हिंदी, ગુજરાતી','English, हिंदी, ગુજરાતી'],
 change_city:['Change city in profile','प्रोफ़ाइल में शहर बदलें','પ્રોફાઇલમાં શહેર બદલો'],

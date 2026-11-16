@@ -4,7 +4,7 @@
 var app = document.getElementById('app');
 var MEALS = ['b', 'l', 's', 'd'];
 var P = null, LANG = 'en', tab = 'today', stack = [], draft = null, openField = null, sheet = null;
-var ui = {calMonth: null, gRange: 'week', admin: {status: 'all', meal: 'all', q: ''}, lib: {meal: 'b', q: ''}, geo: {q: '', results: null, busy: false}, ingQ: '', acc: {mode: (function () { try { return localStorage.getItem('jainjoy.hasAccount') === '1' ? 'signin' : 'signup'; } catch (e) { return 'signup'; } })(), f: {}, errs: [], busy: false}, cust: {rows: null, q: '', filter: 'all', err: ''}};
+var ui = {sel: null, ex: {q: '', meal: 'all', f: {today: false, quick: false, protein: false}, limit: 60}, calMonth: null, gRange: 'week', admin: {status: 'all', meal: 'all', q: ''}, lib: {meal: 'b', q: ''}, geo: {q: '', results: null, busy: false}, ingQ: '', acc: {mode: (function () { try { return localStorage.getItem('jainjoy.hasAccount') === '1' ? 'signin' : 'signup'; } catch (e) { return 'signup'; } })(), f: {}, errs: [], busy: false}, cust: {rows: null, q: '', filter: 'all', err: ''}};
 var previewCache = new Map(), previewPv = -1;
 
 /* ---------------- i18n helpers ---------------- */
@@ -174,6 +174,9 @@ var IC = {
  edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/>', db:'<ellipse cx="12" cy="5.5" rx="7.5" ry="2.5"/><path d="M4.5 5.5v13c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5v-13M4.5 12c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5"/>',
  info:'<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>', plus:'<path d="M12 5v14M5 12h14"/>'
 };
+IC.search = '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>';
+IC.grid = '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>';
+IC.user = '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"/>';
 function ic(n, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + (IC[n] || '') + '</svg>'; }
 function lotus(s) { return '<svg class="lotus" width="' + s + '" height="' + Math.round(s * 52 / 64) + '" viewBox="0 0 64 52" aria-hidden="true"><use href="#jjLotus"/></svg>'; }
 var WORDMARK = '<span class="wm">Jain<em>Joy</em></span>';
@@ -192,12 +195,13 @@ function plate(r, size) {
 
 /* ---------------- shell ---------------- */
 function langChip() { return '<div class="lang-chip" role="group" aria-label="' + esc(t('language')) + '">' + [['en', 'EN'], ['hi', 'हि'], ['gu', 'ગુ']].map(function (l) { return '<button data-a="lang" data-v="' + l[0] + '" aria-pressed="' + (LANG === l[0]) + '">' + l[1] + '</button>'; }).join('') + '</div>'; }
-function brandBar() { return '<header class="appbar gx"><div class="brand-sm">' + lotus(30) + WORDMARK + '</div><button class="city-chip" data-a="tab" data-v="prof" aria-label="' + esc(t('change_city')) + '">' + ic('pin') + '<span>' + esc(cityLabel()) + '</span></button>' + langChip() + '</header>'; }
+/* Zomato-style header: your city on the left, language and profile on the right */
+function brandBar() { return '<header class="appbar gx"><button class="loc-btn" data-a="tab" data-v="prof" aria-label="' + esc(t('change_city')) + '">' + lotus(28) + '<span class="loc-txt"><small>' + esc(t('your_city')) + '</small><b>' + ic('pin') + '<span>' + esc(cityLabel()) + '</span></b></span></button>' + langChip() + '<button class="avatar" data-a="tab" data-v="prof" aria-label="' + esc(t('tab_profile')) + '">' + ic('user') + '</button></header>'; }
 function backBar(title, sub, extra) { return '<header class="appbar gx"><button class="icon-btn" data-a="back" aria-label="' + esc(t('back')) + '">' + ic('back') + '</button><div class="ab-title"><b>' + esc(title) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>' + (extra || '') + '</header>'; }
 function tabbar() {
-  var cur = tab;
+  var cur = tab === 'chog' ? 'pan' : tab; // Choghadiya lives under Panchang; Profile opens from the header
   function b(v, i, l) { return '<button class="tab" data-a="tab" data-v="' + v + '"' + (cur === v ? ' aria-current="page"' : '') + '><span class="pill">' + ic(i) + '</span>' + esc(t(l)) + '</button>'; }
-  return '<nav class="tabbar gx" aria-label="' + esc(t('main_nav')) + '">' + b('today', 'today', 'tab_today') + b('cal', 'cal', 'tab_calendar') + b('pan', 'moon', 'tab_panchang') + b('chog', 'clock', 'tab_choghadiya') + b('shop', 'cart', 'tab_grocery') + b('prof', 'users', 'tab_profile') + '</nav>';
+  return '<nav class="tabbar gx" aria-label="' + esc(t('main_nav')) + '">' + b('today', 'today', 'tab_today') + b('explore', 'grid', 'tab_explore') + b('cal', 'cal', 'tab_calendar') + b('pan', 'moon', 'tab_panchang') + b('shop', 'cart', 'tab_grocery') + '</nav>';
 }
 /* signature shown at the end of every screen */
 var CREDIT = '<p class="credit">' + '<svg class="lotus" width="18" height="15" viewBox="0 0 64 52" aria-hidden="true"><use href="#jjLotus"/></svg> Made by <span>BiNaiSa</span></p>';
@@ -215,15 +219,31 @@ function render() {
   else if (!P) body = viewProfile(true);
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
     admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount, subscribe: function () { return viewPaywall(true); }, legal: viewLegal, invite: viewInvite, visitors: viewVisitors})[top.k](top);
-  else body = tab === 'today' ? viewToday() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
+  else body = tab === 'today' ? viewToday() : tab === 'explore' ? viewExplore() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
   app.innerHTML = '<div class="phone">' + withCredit(body) + (P && !gate && !locked() && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
+  syncHistory();
   if (top && top.k === 'about') JJ.visits.summary().then(function (s) { var el = document.getElementById('visitors'); if (el) el.textContent = s ? t(s.total === 1 ? 'visitors_now_one' : 'visitors_now', {n: s.total, today: s.today, plans: s.planners}) : t('visitors_unavailable'); });
   // first view of a brand-new plan: bring today's menu into view
   var show = document.getElementById('showcase'); if (show && !ui.showcaseDone) { ui.showcaseDone = true; show.scrollIntoView({block: 'start'}); }
   if (top && top.k === 'admin' && JJ.account.isAdmin) { custStartLive(); setTimeout(drawQr, 0); } else custStopLive();
   tick();
 }
+/* Each screen opened on top of a tab gets a browser-history entry, so the phone's Back button steps back inside the app */
+var histN = 0, ignorePop = 0;
+function syncHistory() {
+  try {
+    while (histN < stack.length) { history.pushState({jj: histN + 1}, ''); histN++; }
+    if (histN > stack.length) { ignorePop++; history.go(stack.length - histN); histN = stack.length; }
+  } catch (e) { histN = stack.length; }
+}
+window.addEventListener('popstate', function () {
+  if (ignorePop > 0) { ignorePop--; return; }
+  if (histN > 0) histN--;
+  if (sheet) sheet = null;
+  if (stack.length) { var gone = stack.pop(); if (gone.k === 'profile') { draft = null; openField = null; } }
+  render();
+});
 var toastT = null;
 function toast(msg) { var el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { el.classList.remove('show'); }, 2800); }
 
@@ -393,13 +413,14 @@ function mealCard(iso, k, menu) {
 }
 function timeText(r) { return (r.prep || 0) >= 240 ? t('min_soak', {n: r.cook || 0}) : t('min_total', {n: (r.prep || 0) + (r.cook || 0)}); }
 function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hist">' + ic('lock') + esc(t('status_hist')) + '</span>' : st === 'plan' ? '<span class="status-pill st-plan">' + ic('check') + esc(t('status_plan')) + '</span>' : st === 'prev' ? '<span class="status-pill st-prev">' + esc(t('status_prev')) + '</span>' : ''; }
-function dayBody(iso, isToday) {
+function dayBody(iso, isToday, root) {
   // order: timings, then the 4 meals right away, then the tithi rules, quick links and nutrition
   var menu = menuFor(iso), b = '';
   b += compactTimings(iso, isToday);
   if (!menu) { b += tithiCard(iso) + '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   if (isToday && ui.showcase) b += '<div class="showcase" id="showcase"><b>🎉 ' + esc(t('plan_ready')) + '</b><small>' + esc(t('plan_ready_sub')) + '</small></div>';
   b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + (hasOptions(menu, k) ? optionPair(iso, k, menu) : mealCard(iso, k, menu)) + '</div>'; }).join('') + '</div>';
+  if (root) b += catRow();
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
   b += tithiCard(iso);
@@ -516,8 +537,61 @@ function currentGroups(listId) {
   var r = rangeFor(ui.gRange); return JJ.grocery(menusIn(r[0], r[1]));
 }
 function viewToday() {
-  var td = today();
-  var b = '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + td + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(t('todays_menu')) + '</h1><p class="sub date-line"><span>' + esc(dLong(td)) + '</span>' + tithiInline(td) + '</p>' + inviteCard() + trialBanner() + dayBody(td, true);
+  var td = today(), iso = ui.sel && ui.sel > td && ui.sel <= JJ.addDays(td, 6) ? ui.sel : td, isT = iso === td;
+  var b = '<button class="search-bar" data-a="search">' + ic('search') + '<span>' + esc(t('search_hint')) + '</span></button>' +
+    '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + iso + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(isT ? t('todays_menu') : t('menu_for', {date: dShort(iso)})) + '</h1><p class="sub date-line"><span>' + esc(dLong(iso)) + '</span>' + tithiInline(iso) + '</p>' + dayStrip(iso) + inviteCard() + trialBanner() + dayBody(iso, isT, true);
+  return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
+/* 7-day strip: switch the day without leaving Today. A saffron dot marks a Parva tithi, Aatham or Chaudas. */
+function dayStrip(sel) {
+  var td = today(), any = false, h = '<div class="dstrip" role="tablist" aria-label="' + esc(t('choose_day')) + '">';
+  for (var k = 0; k < 7; k++) {
+    var d = JJ.addDays(td, k), p = pan(d), r = JJ.dayRules(p, P), sp = !!(r.parva || p.aatham || p.chaudas); if (sp) any = true;
+    h += '<button class="dpill' + (d === sel ? ' on' : '') + '" role="tab" aria-selected="' + (d === sel) + '" data-a="sel" data-v="' + d + '" aria-label="' + esc(dLong(d) + (sp ? ' · ' + t('parva_dot') : '')) + '"><small>' + esc(k === 0 ? t('today') : dfmt(d, {weekday: 'short'})) + '</small><b>' + esc(dfmt(d, {day: 'numeric'})) + '</b><i class="dot' + (sp ? ' sp' : '') + '"></i></button>';
+  }
+  return h + '</div>' + (any ? '<p class="strip-note"><i></i>' + esc(t('parva_dot')) + '</p>' : '');
+}
+/* "What's on your mind?" circles open Explore with that choice */
+var CAT_ROW = [['b', 'meal_b'], ['l', 'meal_l'], ['s', 'meal_s'], ['d', 'meal_d'], ['quick', 'f_quick'], ['today', 'f_today_ok']];
+function exPreset(v) { var e = {q: '', meal: 'all', f: {today: false, quick: false, protein: false}, limit: 60}; if (MEALS.indexOf(v) >= 0) e.meal = v; else if (v in e.f) e.f[v] = true; return e; }
+function catRow() {
+  return '<h2 class="h2">' + esc(t('whats_on_mind')) + '</h2><div class="cats">' + CAT_ROW.map(function (c) {
+    var L = exploreList(exPreset(c[0]), true).list, r = L.length ? L[hash(c[0] + today()) % L.length] : null;
+    return '<button class="cat" data-a="cat" data-v="' + c[0] + '">' + plate(r, 62) + '<span>' + esc(t(c[1])) + '</span></button>';
+  }).join('') + '</div>';
+}
+/* ---------------- Explore (all recipes, search and quick filters) ---------------- */
+function recipeMinutes(r) { return (r.prep || 0) >= 240 ? null : (r.prep || 0) + (r.cook || 0); }
+function exploreList(ex, light) {
+  var q = (ex.q || '').trim().toLowerCase(), td = today(), rules = ex.f.today ? JJ.dayRules(pan(td), P) : {}, planned = {};
+  if (!light) for (var k = 0; k < 7; k++) { var d = JJ.addDays(td, k), m = menuFor(d); if (m && !m.legacy) JJ.menuRecipeIds(m).forEach(function (id) { if (!planned[id]) planned[id] = k === 0 ? t('today') : dfmt(d, {weekday: 'short'}); }); }
+  var list = JJ.catalog.list.filter(function (r) { return r.valid && r.status === 'approved' && JJ.allowed(r, rules, P) !== null; });
+  if (ex.meal !== 'all') list = list.filter(function (r) { return r.meal === ex.meal; });
+  if (ex.f.quick) list = list.filter(function (r) { var mn = recipeMinutes(r); return mn !== null && mn <= 20; });
+  if (ex.f.protein) list = list.filter(function (r) { return JJ.recipeNutrition(r, [])[1] >= 12; });
+  if (q) list = list.filter(function (r) {
+    return [r.en, r.hi, r.gu, r.orig || ''].join(' ').toLowerCase().indexOf(q) >= 0 ||
+      r.ings.some(function (x) { var g = JJ.ING[x.id]; return g && [g.en, g.hi, g.gu].join(' ').toLowerCase().indexOf(q) >= 0; });
+  });
+  if (!light) list = list.slice().sort(function (a, b) { return (planned[b.id] ? 1 : 0) - (planned[a.id] ? 1 : 0) || MEALS.indexOf(a.meal) - MEALS.indexOf(b.meal) || rName(a).localeCompare(rName(b)); });
+  return {list: list, planned: planned};
+}
+function exploreResults() {
+  var R = exploreList(ui.ex), n = R.list.length;
+  if (!n) return '<div class="empty"><b>' + esc(t('no_recipes_found')) + '</b>' + esc(t('no_results_hint')) + '</div>';
+  var shown = R.list.slice(0, ui.ex.limit);
+  return '<p class="fine">' + esc(t('n_recipes', {n: n})) + ' · ' + esc(t('ex_note')) + '</p><div class="rgrid">' + shown.map(function (r) {
+    var sub = r.meal === 'l' && JJ.SLOT_NAMES[r.comp] ? nm(JJ.SLOT_NAMES[r.comp]) + ' · ' : '';
+    return '<button class="rcard" data-a="librecipe" data-v="' + esc(r.id) + '">' + plate(r, 76) + '<span class="mtag mt-' + r.meal + '">' + esc(t('meal_' + r.meal)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(sub + timeText(r)) + '</small>' + (R.planned[r.id] ? '<em class="inplan">' + esc(t('in_plan', {d: R.planned[r.id]})) + '</em>' : '') + '</button>';
+  }).join('') + '</div>' + (n > shown.length ? '<button class="btn" style="width:100%;margin-top:12px" data-a="exmore">' + esc(t('show_more', {n: n - shown.length})) + '</button>' : '');
+}
+function viewExplore() {
+  var ex = ui.ex;
+  var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('explore_title')) + '</h1>' +
+    '<div class="sbox">' + ic('search') + '<input id="explore-q" type="search" enterkeyhint="search" autocomplete="off" value="' + esc(ex.q) + '" placeholder="' + esc(t('search_dish')) + '" aria-label="' + esc(t('search_dish')) + '"><button class="sclear" data-a="exclear" aria-label="' + esc(t('clear_search')) + '">×</button></div>' +
+    '<div class="hscroll" role="group" aria-label="' + esc(t('choose_meal')) + '">' + ['all'].concat(MEALS).map(function (m) { return '<button class="chip" data-a="exmeal" data-v="' + m + '" aria-pressed="' + (ex.meal === m) + '">' + esc(t(m === 'all' ? 'all_meals' : 'meal_' + m)) + '</button>'; }).join('') + '</div>' +
+    '<div class="hscroll" role="group" aria-label="' + esc(t('filters')) + '">' + [['today', 'f_today_ok'], ['quick', 'f_quick'], ['protein', 'f_protein']].map(function (f) { return '<button class="chip fchip" data-a="exf" data-v="' + f[0] + '" aria-pressed="' + !!ex.f[f[0]] + '">' + (ex.f[f[0]] ? ic('check') : '') + esc(t(f[1])) + '</button>'; }).join('') + '</div>' +
+    '<div id="ex-results">' + exploreResults() + '</div>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
 function viewDayPushed(top) {
@@ -634,9 +708,11 @@ function viewCal() {
 }
 
 /* ---------------- Panchang ---------------- */
+/* Panchang and Choghadiya share one tab: a switch at the top moves between them */
+function panSeg(cur) { return '<div class="seg" style="margin-top:6px" role="group" aria-label="' + esc(t('tab_panchang')) + '">' + [['pan', 'tab_panchang'], ['chog', 'tab_choghadiya']].map(function (x) { return '<button data-a="tab" data-v="' + x[0] + '" aria-pressed="' + (cur === x[0]) + '">' + esc(t(x[1])) + '</button>'; }).join('') + '</div>'; }
 function viewPan() {
   var td = today(), p = pan(td), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar});
-  var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('panchang_title')) + '</h1><p class="sub">' + esc(dLong(td)) + ' · ' + esc(cityLabel()) + '</p>';
+  var b = panSeg('pan') + '<h1 class="h1" style="margin-top:12px">' + esc(t('panchang_title')) + '</h1><p class="sub">' + esc(dLong(td)) + ' · ' + esc(cityLabel()) + '</p>';
   b += tithiCard(td) + timingCard(td, true);
   b += '<div class="card glass"><h3>' + esc(t('details')) + '</h3><div class="kv">' +
     '<b>' + esc(t('tithi')) + '</b><span>' + esc(JJ.tithiName(p.t, LANG)) + ' (' + p.n + ')</span>' +
@@ -765,7 +841,7 @@ function listText(groups) {
 function viewChog() {
   var td = today(), iso = ui.chogDate || td, list = JJ.choghadiya(iso, city()), now = Date.now();
   var nav = '<div class="cal-nav"><button class="icon-btn" data-a="chogday" data-v="-1" aria-label="' + esc(t('prev_day')) + '">' + ic('back') + '</button><h1 class="h1" style="font-size:22px">' + esc(dLong(iso)) + '</h1><button class="icon-btn" data-a="chogday" data-v="1" aria-label="' + esc(t('next_day')) + '">' + ic('next') + '</button></div>';
-  var b = '<p class="eyebrow">' + esc(t('tab_choghadiya')) + '</p>' + nav + '<p class="sub">' + esc(cityLabel()) + ' · ' + esc(t('chog_sub')) + '</p>';
+  var b = panSeg('chog') + '<p class="eyebrow" style="margin-top:12px">' + esc(t('tab_choghadiya')) + '</p>' + nav + '<p class="sub">' + esc(cityLabel()) + ' · ' + esc(t('chog_sub')) + '</p>';
   var cur = list.filter(function (c) { return now >= c.start && now < c.end; })[0];
   if (cur) b += '<div class="card glass chog-now chog-' + cur.q + '"><h3>' + esc(t('chog_now')) + '</h3><b>' + esc(t('chog_' + cur.k)) + '</b> · ' + esc(t('chog_q_' + cur.q)) + '<p class="fine" style="margin:4px 0 0">' + esc(hm(cur.start) + ' – ' + hm(cur.end)) + ' · <span data-until="' + cur.end + '">' + until(cur.end) + '</span></p></div>';
   ['day', 'night'].forEach(function (part) {
@@ -1429,7 +1505,14 @@ app.addEventListener('click', function (e) {
   var a = el.dataset.a, v = el.dataset.v, top = stack[stack.length - 1];
   switch (a) {
     case 'lang': setLang(v); break;
-    case 'tab': tab = v; stack = []; ui.showcase = false; render(); break;
+    case 'tab': tab = v; stack = []; ui.showcase = false; if (v === 'today') ui.sel = null; render(); break;
+    case 'sel': ui.sel = v; render(); break;
+    case 'search': ui.ex = exPreset(''); tab = 'explore'; stack = []; render(); setTimeout(function () { var q = document.getElementById('explore-q'); if (q) q.focus(); }, 30); break;
+    case 'cat': ui.ex = exPreset(v); tab = 'explore'; stack = []; render(); break;
+    case 'exmeal': ui.ex.meal = v; ui.ex.limit = 60; render(); break;
+    case 'exf': ui.ex.f[v] = !ui.ex.f[v]; ui.ex.limit = 60; render(); break;
+    case 'exclear': ui.ex.q = ''; ui.ex.limit = 60; render(); setTimeout(function () { var q = document.getElementById('explore-q'); if (q) q.focus(); }, 30); break;
+    case 'exmore': ui.ex.limit += 60; render(); break;
     case 'back': stack.pop(); if (!stack.length || stack[stack.length - 1].k !== 'profile') { if (top && top.k === 'profile') draft = null; } render(); break;
     case 'push': if (v === 'profile') { draft = null; openField = null; } stack.push({k: v}); render(); break;
     case 'day': stack.push({k: 'day', date: v}); render(); break;
@@ -1543,6 +1626,7 @@ var inputT = null;
 app.addEventListener('input', function (e) {
   var el = e.target, id = el.id;
   function later(fn) { clearTimeout(inputT); inputT = setTimeout(function () { fn(); render(); var n = document.getElementById(id); if (n) { n.focus(); try { n.setSelectionRange(n.value.length, n.value.length); } catch (x) {} } }, 250); }
+  if (id === 'explore-q') { ui.ex.q = el.value; ui.ex.limit = 60; clearTimeout(inputT); inputT = setTimeout(function () { var box = document.getElementById('ex-results'); if (box) box.innerHTML = exploreResults(); }, 150); return; }
   if (id === 'lib-q') later(function () { ui.lib.q = el.value; });
   else if (id === 'ad-q') later(function () { ui.admin.q = el.value; });
   else if (id === 'ex-q' || id === 'ing-q') later(function () { ui.ingQ = el.value; });
@@ -1569,7 +1653,7 @@ app.addEventListener('submit', function (e) {
     q.names.splice(qi, 1); JJ.db.put('meta', q); toast(t('map_done', {name: name, ing: ingName(id)})); render();
   }
 });
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet) { sheet = null; render(); } });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet) { sheet = null; render(); } if (e.key === 'Enter' && e.target && e.target.id === 'explore-q') e.target.blur(); });
 function refreshCounts() {
   var total = 0, done = 0; document.querySelectorAll('[data-tick]').forEach(function (i) { total++; if (i.checked) done++; });
   var pct = total ? Math.round(done * 100 / total) : 0, r = document.getElementById('ring'); if (r) r.style.setProperty('--p', pct);
