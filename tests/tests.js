@@ -128,7 +128,7 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var stepMiss = Object.keys(JJ.STEP_T).filter(function (k) { return JJ.STEP_T[k].length !== 3 || JJ.STEP_T[k].some(function (s) { return !s; }); }).length;
     var stateMiss = Object.keys(JJ.STATES.IN).filter(function (k) { return !JJ.STATES.IN[k].hi || !JJ.STATES.IN[k].gu; }).length;
     // render every main screen in each language and look for untranslated keys
-    var leaks = [], screens = ['today', 'cal', 'pan', 'chog', 'shop', 'prof'];
+    var leaks = [], screens = ['today', 'explore', 'cal', 'pan', 'chog', 'shop', 'prof'];
     JJ.app.profile = Object.assign({created: today}, Pg);
     ['hi', 'gu'].forEach(function (l) {
       JJ.app.setLang(l);
@@ -262,10 +262,11 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
   test(20, 'Every screen shows the Made by BiNaiSa signature', function () {
     JJ.app.profile = Object.assign({created: today}, Pg); JJ.app.setLang('gu');
     var miss = [];
-    ['today', 'cal', 'pan', 'chog', 'shop', 'prof'].forEach(function (s) { document.querySelector('[data-a="tab"][data-v="' + s + '"]').click(); if (!/Made by\s*BiNaiSa/.test(document.getElementById('app').innerText)) miss.push(s); });
+    ['today', 'explore', 'cal', 'pan', 'chog', 'shop', 'prof'].forEach(function (s) { document.querySelector('[data-a="tab"][data-v="' + s + '"]').click(); if (!/Made by\s*BiNaiSa/.test(document.getElementById('app').innerText)) miss.push(s); });
     JJ.app.setLang('en');
     var tabs = Array.prototype.map.call(document.querySelectorAll('.tabbar [data-a="tab"]'), function (b) { return b.dataset.v; }).join(',');
-    return {ok: !miss.length && tabs === 'today,cal,pan,chog,shop,prof', details: 'Screens missing the signature: ' + (miss.join(', ') || 'none') + '; tab bar: ' + tabs};
+    // v3.4 navigation: Choghadiya opens from Today and Panchang, Profile from the header
+    return {ok: !miss.length && tabs === 'today,explore,cal,pan,shop' && !!document.querySelector('.avatar[data-v="prof"]'), details: 'Screens missing the signature: ' + (miss.join(', ') || 'none') + '; tab bar: ' + tabs};
   });
 
   // ===================== Parva Tithi engine (PRD 2.1) =====================
