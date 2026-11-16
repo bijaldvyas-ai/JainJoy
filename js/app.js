@@ -727,7 +727,7 @@ function viewCal() {
 }
 
 /* ---------------- Panchang ---------------- */
-/* Pachkhan texts (Roman, Gujarati, Hindi) as supplied by the JainJoy team; Ekasna/Biyasna and Atthai are Roman only */
+/* Pachkhan texts for Navkarsi and Chauvihar (Roman, Gujarati, Hindi) as supplied by the JainJoy team */
 var PACHKHAN = [
  {
   "k": "navkarsi",
@@ -749,39 +749,6 @@ var PACHKHAN = [
    "Chauvihar Pachkhan",
    "चौविहार पच्चक्खाण",
    "ચોવિહાર પચ્ચક્ખાણ"
-  ]
- },
- {
-  "k": "upvas",
-  "ro": "Sure Uggae, Abbhattattham, Pachchakkhaai (Pachchakkhaami), Chauviham Pi Aahaaram, Asanam, Paanam, Khaaimam, Saaimam, Annatthanaabhogenam, Sahasaagaarenam, Paaritthaavaniyaagaarenam, Mahattaraagarenam, Savvasamaahivattiyaa-Gaarenam, Vosirai (Vosiraami).",
-  "gu": "સૂરે ઉગ્ગએ અબ્ભત્તટ્ઠં પચ્ચક્ ખાઇ (પચ્ચક્ ખામિ); ચઉવ્વિહં પિ આહારં, અસણં, પાણં, ખાઇમં, સાઇમં, અન્નત્થણાભોગેણં, સહસાગારેણં, પારિટ્ઠાવણિયાગારેણં, મહત્તરાગારેણં, સવ્વસમાહિ-વત્તિયાગારેણં, વોસિરઈ (વોસિરામિ).",
-  "hi": "सूरे उग्गए अब्भत्तट्ठं पच्चक् खाइ (पच्चक् खामि); चउव्विहं पि आहारं, असणं, पाणं, खाइमं, साइमं, अन्नत्थणाभोगेणं, सहसागारेणं, पारिट्ठावणियागारेणं, महत्तरागारेणं, सव्वसमाहि-वत्तियागारेणं, वोसिरई (वोसिरामि).",
-  "t": [
-   "Chouvihar Upvas (Nirjal – without water)",
-   "चौविहार उपवास (निर्जल – बिना पानी)",
-   "ચોવિહાર ઉપવાસ (નિર્જળ – પાણી વગર)"
-  ]
- },
- {
-  "k": "ekasna",
-  "ro": "Uggae Sure, Namukkaar-Sahiam, Porisim, Saaddhaporisim, Mutthisahim, Pachchakkhaai (Pachchakkhaami) … Ekaasanam / Biyaasanam, Pachchakkhaai (Pachchakkhaami) … Vosirai (Vosiraami).",
-  "gu": null,
-  "hi": null,
-  "t": [
-   "Ekasna / Biyasna",
-   "एकासना / बियासना",
-   "એકાસણું / બિયાસણું"
-  ]
- },
- {
-  "k": "atthai",
-  "ro": "Aaj thi aath divas sudhi Chouvihar Upvas no pachkhan levu chhu. Aath divas sudhi anna-jal no tyag karish. Micchami Dukkadam.",
-  "gu": null,
-  "hi": null,
-  "t": [
-   "Atthai",
-   "अट्ठाई",
-   "અઠ્ઠાઈ"
   ]
  }
 ];
@@ -923,9 +890,7 @@ function viewPachkhan() {
     '<div class="seg" role="group" aria-label="' + esc(t('pk_script')) + '">' + [['ro', t('pk_roman')], ['gu', 'ગુજરાતી'], ['hi', 'हिंदी']].map(function (x) { return '<button data-a="pkscript" data-v="' + x[0] + '" aria-pressed="' + (sc === x[0]) + '">' + esc(x[1]) + '</button>'; }).join('') + '</div>';
   b += PACHKHAN.map(function (p, i) {
     var txt = p[sc] || p.ro, only = !p[sc], when = p.k === 'navkarsi' ? t('pk_today_nav', {time: hm(tm.navkarsi)}) : p.k === 'chauvihar' ? t('pk_today_cha', {time: hm(tm.chauvihar)}) : '';
-    var note = p.k === 'ekasna' ? t('pk_ekasna_note') : p.k === 'atthai' ? t('pk_atthai_note') : '';
     return '<details class="card glass fold pk-card"' + (i === 0 ? ' open' : '') + '><summary><span class="ficon">' + ic(p.k === 'chauvihar' ? 'moon' : 'clock') + '</span><span class="mtxt grow"><b>' + esc(p.t[li]) + '</b>' + (when ? '<small>' + esc(when) + '</small>' : '') + '</span>' + ic('next', 'chev fold-chev') + '</summary>' +
-      (note ? '<p class="fine" style="margin:10px 0 0">' + esc(note) + '</p>' : '') + (only && sc !== 'ro' ? '<p class="fine" style="margin:10px 0 0">' + esc(t('pk_roman_only')) + '</p>' : '') +
       '<p class="pk-text" lang="' + (only ? 'en' : sc === 'gu' ? 'gu' : sc === 'hi' ? 'hi' : 'en') + '">' + esc(txt) + '</p>' +
       '<button class="btn small" data-a="pkcopy" data-v="' + i + '">' + ic('copy') + ' ' + esc(t('pk_copy')) + '</button></details>';
   }).join('');
