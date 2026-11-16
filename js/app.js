@@ -437,19 +437,19 @@ function dayBody(iso, isToday, root) {
   if (isToday) b += tomorrowCard();
   if (!menu.legacy) b += nutritionCard(menu);
   b += '<details class="card glass fold more-today"><summary><span class="ficon">' + ic('moon') + '</span><span class="mtxt grow"><b>' + esc(t('more_today')) + '</b><small>' + esc(t('more_today_sub')) + '</small></span>' + ic('next', 'chev fold-chev') + '</summary>' +
-    shubhCell(iso, isToday) + tithiTags(iso) +
+    tithiTags(iso) +
     '<div class="row share-row">' + (isToday ? '' : '<button class="btn small wa" data-a="wa" data-v="' + iso + '">' + esc(t('share_whatsapp')) + '</button>') +
     (oli ? '' : '<button class="btn small" data-a="ayambil" data-v="' + iso + '">' + esc(t(ui.ayambil === iso ? 'ayambil_hide' : 'ayambil_show')) + '</button>') + '</div>' +
     '<div class="row" style="margin-top:12px">' + statusPill(menuStatus(iso, menu)) + '</div>' +
     '<p class="fine">' + esc(menu.status === 'history' ? t('hist_note') : menu.status === 'planned' ? t('plan_note') : t('prev_note')) + '</p></details>';
   return b;
 }
-/* essentials card: Navkarsi and Chauvihar, plus the day's food rule (Parva, Aatham/Chaudas or the base Jain rules) */
+/* essentials card: Navkarsi and Chauvihar, the live Shubh Choghadiya, plus the day's food rule (Parva, Aatham/Chaudas or the base Jain rules) */
 function essentials(iso, live) {
   var p = pan(iso), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar}), now = Date.now();
   function cell(lbl, ms, cls) { return '<div class="tcell ' + (cls || '') + '"><small>' + esc(t(lbl)) + '</small><b>' + hm(ms) + '</b>' + (live ? '<em data-until="' + ms + '">' + until(ms) + '</em>' : '') + '</div>'; }
   return '<section class="card glass timings-card"><div class="tc-head"><h3>' + esc(t('timings_title')) + '</h3><button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></div><div class="tgrid tg4 tg2">' +
-    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '') + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '') + '</div>' + tithiRule(iso) + '<button class="linkbtn pk-link" data-a="tab" data-v="pk">' + esc(t('pk_open')) + ' ›</button></section>';
+    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '') + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '') + '</div>' + shubhCell(iso, live) + tithiRule(iso) + '<button class="linkbtn pk-link" data-a="tab" data-v="pk">' + esc(t('pk_open')) + ' ›</button></section>';
 }
 /* the chosen meal shows first; "Change meal" opens the alternative beside it */
 function changeMeal(iso, k, menu) {

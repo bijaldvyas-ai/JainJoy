@@ -17,7 +17,7 @@ setup_why:['Answer once, in about a minute. Your city sets sunrise and tithi, yo
 loc_or_choose:['Or choose your city','या अपना शहर चुनें','અથવા તમારું શહેર પસંદ કરો'],
 change_meal:['Change meal','भोजन बदलें','ભોજન બદલો'], change_meal_close:['Keep this meal','यही भोजन रखें','આ જ ભોજન રાખો'],
 more_today:['More about today','आज के बारे में और','આજ વિશે વધુ'],
-more_today_sub:['Shubh Choghadiya, tithi details, Ayambil thali and status','शुभ चौघड़िया, तिथि विवरण, आयंबिल थाली और स्थिति','શુભ ચોઘડિયું, તિથિ વિગતો, આયંબિલ થાળી અને સ્થિતિ'],
+more_today_sub:['Tithi details, Ayambil thali and status','तिथि विवरण, आयंबिल थाली और स्थिति','તિથિ વિગતો, આયંબિલ થાળી અને સ્થિતિ'],
 tab_explore:['Explore','खोजें','શોધો'], your_city:['Your city','आपका शहर','તમારું શહેર'],
 search_hint:['Search “puri”, “dal”, “paneer”…','खोजें “पूरी”, “दाल”, “पनीर”…','શોધો “પૂરી”, “દાળ”, “પનીર”…'],
 explore_title:['Explore recipes','रेसिपी खोजें','વાનગીઓ શોધો'], search_dish:['Search dish or ingredient','व्यंजन या सामग्री खोजें','વાનગી કે સામગ્રી શોધો'],
