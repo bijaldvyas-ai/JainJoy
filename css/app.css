@@ -551,3 +551,6 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .pk-text{margin:12px 0;font-size:16px;line-height:1.75;font-weight:600;color:var(--fg);white-space:normal}
 .pk-text[lang="gu"],.pk-text[lang="hi"]{font-size:17px;line-height:1.9}
 .pk-link{display:block;margin-top:8px;padding:4px 0 0}
+
+/* v3.4.5 dish pictures */
+.dish-photo{border-radius:50%;object-fit:cover;flex:none;box-shadow:0 3px 8px var(--plate-shadow)}

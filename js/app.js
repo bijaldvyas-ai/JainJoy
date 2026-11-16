@@ -183,7 +183,211 @@ function lotus(s) { return '<svg class="lotus" width="' + s + '" height="' + Mat
 var WORDMARK = '<span class="wm">Jain<em>Joy</em></span>';
 var PAL = {veg: ['#8fbf6a', '#5a9e45', '#e04b36', '#c9e29a'], leafy: ['#2f8f46', '#3a9a4e'], grain: ['#f4ecd8', '#d9a25e', '#ead9a0'], pulse: ['#e8c23a', '#e3b02f', '#e17a3a'], dairy: ['#fbf8ef', '#f7efd0'], fruit: ['#e5584a', '#f6dc5b', '#c4264b'], nuts: ['#c99a5b', '#b98a54'], spice: ['#d97800'], pantry: ['#f2cf5b']};
 function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+/* ---------------- dish pictures: every recipe is drawn as its own kind of dish ----------------
+   A real photo wins when one is listed here: PHOTOS['recipe_id'] = 'img/recipes/recipe_id.webp' */
+var PHOTOS = {};
+var DISH_RULES = [
+  ['rice', /pulao|biryani|bisi bele/],
+  ['salad', /kosambari|koshimbir/],
+  ['sabzi', /(sev|papad).*(shaak|sabzi)|mangodi/],
+  ['crispy', /chakli|chakri|peanuts|chorafali|shakk?arpara/],
+  ['upma', /idiyappam|sevai|semiya/],
+  ['idli', /paniyaram|appe\b/],
+  ['sweet', /laddoo|ladoo|ladu|sukhdi/],
+  ['porridge', /dalia|daliya/],
+  ['soup', /\bstew\b/],
+  ['crepe', /dhirde|ghavan|dosa|uttapam|uthappam|chill?a\b|cheela|pudla|puda\b|panki|pesarattu|crepe|pancake|\badai\b/],
+  ['dhokla', /dhokla|khaman|handvo|ondhvo|muthia|khandvi|idada/],
+  ['idli', /idli/],
+  ['khichdi', /khichdi|khichu|pongal|khichdo/],
+  ['bread', /rotti|bhakar|luchi|litti|roti|phulka|rotli|rotla|bhakri|bhakhri|paratha|thepla|chapati|naan|kulcha|\bpuri\b|poori|dhebra|thalipeeth|tikkad|\bbaati?\b|bhatura/],
+  ['poha', /pohe|poha|chivd|chevd/],
+  ['drink', /nimbu pani|lemonade|shake|milk|chai|\btea\b|kadha|sharbat|thandai|lassi|chaas|buttermilk|smoothie|panak|coffee|kesar doodh|haldi doodh/],
+  ['soup', /bassaru|soup|rasam|sambar|saar\b|osaman|shorba/],
+  ['kadhi', /kadhi/],
+  ['curd', /raita|curd|dahi|shrikhand|yogurt|matho/],
+  ['sweetbowl', /kesari|kheer|payas|basundi|halwa|sheera|lapsi|kansar|shiro|rabdi|d(oo|u)dh ?pak|sevaiyan/],
+  ['sweet', /laddoo|ladoo|ladu|barfi|mohanthal|sukhdi|\bpak\b|chikki|peda|mithai|gulab|jalebi|mysore|ghughra|magas|halwasan|energy ball/],
+  ['porridge', /raab|porridge|daliya|dalia|\boats\b|ragi malt|ambli/],
+  ['upma', /ukadpendi|\bbath\b|sevai|upma|uppit|rava|semolina|sooji|suji/],
+  ['rice', /rice|pulao|bhaat|bhath|biryani|tahri|bisi bele|chitranna/],
+  ['fritter', /kothimbir vadi|pakod|bhajia|bhajiya|\bvada\b|wada|tikki|cutlet|kachori|bonda|fritter|gota|kofta balls/],
+  ['legume', /kabuli|kadala|sundal|kala chana|usal|misal|chole|chana masala|kathol|matki|rajma|lobia|chawli|\bvaal\b|sprout|ragda|dana|whole moong|akha mag/],
+  ['dal', /\bdal\b|varan|amti|\bmag\b|toor|dal fry|dal tadka|panchmel/],
+  ['paneer', /paneer|tofu/],
+  ['crispy', /shakarpara|khakhra|papad|\bsev\b|mathri|mathiya|chakri|farsi|khari|toast|makhana|namkeen|chakli|chips|wafer|fafda/],
+  ['salad', /bhel|salad|kachumber|chaat|koshimbir|kosambari/],
+  ['corn', /bhutte|corn|bhutta|makai/],
+  ['sabzi', /shaak|sabzi|subzi|bhaji|poriyal|curry|kofta|masala|thoran|kootu|stir|fry|bharta|\bdum\b|jhol|ghassi|kosha|gojju|palya|ringan/],
+  ['fruit', /fruit|banana|apple|papaya|chikoo|guava|\bmango\b|pomegranate|melon/]
+];
+var COMP_KIND = {dal: 'dal', rice: 'rice', bread: 'bread', sabzi: 'sabzi', kadhi: 'kadhi', sambar: 'soup', rasam: 'soup', raita: 'curd', salad: 'salad', sweet: 'sweet', farsan: 'fritter'};
+function dishKind(r) {
+  if (!r) return null;
+  // "Palak Paneer with Phulka" is pictured as the palak paneer: the main dish comes first
+  var full = ((r.en || '') + ' ' + (r.orig || '')).toLowerCase(), main = (r.en || '').toLowerCase().split(' with ')[0], i;
+  for (i = 0; i < DISH_RULES.length; i++) if (DISH_RULES[i][1].test(main)) return DISH_RULES[i][0];
+  for (i = 0; i < DISH_RULES.length; i++) if (DISH_RULES[i][1].test(full)) return DISH_RULES[i][0];
+  return COMP_KIND[r.comp] || null;
+}
+function dishArt(r, size) {
+  var kind = dishKind(r); if (!kind || !DRAW[kind]) return null;
+  var id = r.id, n = (r.en || '').toLowerCase().split(' with ')[0] + ' ' + (r.orig || '').toLowerCase();
+  var rnd = function (k) { return (hash(id + k) % 1000) / 1000; };
+  // random point inside a circle of radius rad around (50,50)
+  var pt = function (k, rad) { var a = rnd(k + 'a') * 6.2832, d = Math.sqrt(rnd(k + 'd')) * rad; return [50 + Math.cos(a) * d, 50 + Math.sin(a) * d]; };
+  var f = function (x) { return x.toFixed(1); };
+  var kit = {r: r, n: n, rnd: rnd, pt: pt, f: f, cols: vegCols(r)};
+  return '<svg class="plate dish dish-' + kind + '" viewBox="0 0 100 100" width="' + size + '" height="' + size + '" aria-hidden="true">' + DRAW[kind](kit) +
+    '<ellipse cx="36" cy="30" rx="11" ry="4" fill="#ffffff" opacity=".22" transform="rotate(-32 36 30)"/></svg>';
+}
+function vegCols(r) {
+  var c = [];
+  (r.ings || []).forEach(function (x) { var g = JJ.ING[x.id]; if (!g || (g.cat !== 'veg' && g.cat !== 'leafy' && g.cat !== 'fruit')) return; var p = PAL[g.cat] || PAL.veg; var col = p[hash(x.id) % p.length]; if (c.indexOf(col) < 0) c.push(col); });
+  return c.length ? c : ['#8fbf6a', '#e04b36'];
+}
+/* shared pieces */
+function dPlate() { return '<circle cx="50" cy="53" r="46" fill="var(--plate-shadow)"/><circle cx="50" cy="50" r="46" fill="var(--plate)" stroke="var(--plate-line)" stroke-width="1.5"/><circle cx="50" cy="50" r="37" fill="var(--plate-in)"/>'; }
+function dBowl(fill) { return '<circle cx="50" cy="53" r="45" fill="var(--plate-shadow)"/><circle cx="50" cy="50" r="45" fill="#c9d0d8"/><circle cx="50" cy="50" r="41" fill="#eef1f4"/><circle cx="50" cy="50" r="36" fill="' + fill + '"/><path d="M22 34a36 36 0 0 1 22-18" stroke="#ffffff" stroke-width="2.5" fill="none" opacity=".35" stroke-linecap="round"/>'; }
+function dCup(cx, cy, rr, fill) { return '<circle cx="' + cx + '" cy="' + (cy + 1.5) + '" r="' + (rr + 1.5) + '" fill="var(--plate-shadow)"/><circle cx="' + cx + '" cy="' + cy + '" r="' + (rr + 1.5) + '" fill="#d5dbe1"/><circle cx="' + cx + '" cy="' + cy + '" r="' + rr + '" fill="' + fill + '"/>'; }
+function dots(k, n, rad, col, rr, op) { var s = ''; for (var i = 0; i < n; i++) { var p = k.pt('dt' + col + i, rad); s += '<circle cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" r="' + (rr * (0.7 + k.rnd('dr' + col + i) * 0.6)).toFixed(2) + '" fill="' + col + '"' + (op ? ' opacity="' + op + '"' : '') + '/>'; } return s; }
+function flecks(k, n, rad, cols, rx, ry) { var s = ''; for (var i = 0; i < n; i++) { var p = k.pt('fl' + i, rad), c = cols[i % cols.length]; s += '<ellipse cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" rx="' + rx + '" ry="' + ry + '" fill="' + c + '" transform="rotate(' + Math.round(k.rnd('fr' + i) * 180) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; } return s; }
+function chunks(k, n, rad, cols, sz) { var s = ''; for (var i = 0; i < n; i++) { var p = k.pt('ch' + i, rad), c = cols[i % cols.length], w = sz * (0.8 + k.rnd('cw' + i) * 0.5); s += '<rect x="' + k.f(p[0] - w / 2) + '" y="' + k.f(p[1] - w / 2) + '" width="' + k.f(w) + '" height="' + k.f(w * 0.85) + '" rx="' + k.f(w * 0.3) + '" fill="' + c + '" transform="rotate(' + Math.round(k.rnd('cr' + i) * 90) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; } return s; }
+function chutney(cx, cy, col) { return dCup(cx, cy, 8, col) + '<circle cx="' + (cx - 2) + '" cy="' + (cy - 2) + '" r="2" fill="#ffffff" opacity=".25"/>'; }
+function lemon(cx, cy) { return '<path d="M' + (cx - 8) + ' ' + cy + 'a8 8 0 0 0 16 0z" fill="#f4e04d" stroke="#e2c52f" stroke-width="1"/><path d="M' + (cx - 5.5) + ' ' + (cy + 0.6) + 'a5.5 5.5 0 0 0 11 0z" fill="#fbf1a8"/>'; }
+function tadka(k, rad) { return dots(k, 9, rad, '#3b2a1a', 0.9) + flecks(k, 3, rad, ['#c0392b'], 3.2, 1.2); }
+var DRAW = {
+  poha: function (k) {
+    var base = /kanda|onion/.test(k.n) ? '#f1d36b' : '#f2d45f';
+    return dBowl(base) + flecks(k, 48, 31, ['#f8e48f', '#e9c44a', '#fbeeb5', '#f0d061'], 3, 1.4) + dots(k, 7, 26, '#6cb94a', 1.9) + flecks(k, 5, 24, ['#c4904e'], 2.4, 1.6) +
+      flecks(k, 9, 22, ['#f0a52b'], 3.4, 0.6) + lemon(64, 66);
+  },
+  upma: function (k) {
+    var sweet = /sheera|halwa|kesari/.test(k.n);
+    return dPlate() + '<ellipse cx="50" cy="51" rx="29" ry="25" fill="' + (sweet ? '#e8b25a' : '#efdca8') + '"/><ellipse cx="46" cy="45" rx="16" ry="10" fill="#ffffff" opacity=".18"/>' +
+      dots(k, 60, 25, sweet ? '#d39a3e' : '#e1c483', 0.8) + (sweet ? '' : dots(k, 6, 20, '#6cb94a', 1.8) + dots(k, 3, 18, '#e04b36', 1.6)) + lemon(70, 72);
+  },
+  porridge: function (k) { return dBowl(/ragi|nachni/.test(k.n) ? '#8a5a44' : '#c79a62') + '<path d="M30 50q10-8 20 0t20 0" stroke="#ffffff" stroke-width="2" fill="none" opacity=".25"/>' + dots(k, 30, 30, '#00000022', 1) + flecks(k, 5, 22, ['#b98a54'], 2.4, 1.2); },
+  khichdi: function (k) {
+    return dBowl('#e7c057') + flecks(k, 40, 31, ['#f4dc9a', '#f7e7b5', '#e3b84a'], 2.6, 1.2) + dots(k, 18, 30, '#d39a1e', 1.3) + dots(k, 6, 26, '#6cb94a', 1.6) +
+      '<circle cx="43" cy="44" r="7" fill="#ffd95e" opacity=".85"/><circle cx="41" cy="42" r="2.2" fill="#ffffff" opacity=".6"/>' + (/papad/.test(k.n) ? '<circle cx="76" cy="76" r="13" fill="#f1d9a0" stroke="#d9b977"/>' + dots({rnd: k.rnd, pt: function (x, r) { var p = k.pt(x, r); return [p[0] + 26, p[1] + 26]; }, f: k.f}, 10, 10, '#5a4632', 0.6) : '');
+  },
+  bread: function (k) {
+    var n = k.n, puri = /\bpuri\b|poori|bhatura/.test(n), millet = /bajra|jowar|rotla|bhakri|bhakhri|nachni|ragi|makai/.test(n), thepla = /thepla|methi|palak|dhebra/.test(n), paratha = /paratha|thalipeeth/.test(n);
+    var col = millet ? '#c49a62' : paratha ? '#dea24f' : puri ? '#efb244' : '#e6b672', edge = millet ? '#9b7448' : '#c8914a', s = dPlate();
+    if (puri) { [[38, 42], [62, 44], [50, 64]].forEach(function (c, i) { s += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="15" fill="' + col + '" stroke="#d48f22" stroke-width="1.2"/><ellipse cx="' + (c[0] - 4) + '" cy="' + (c[1] - 5) + '" rx="6" ry="3.5" fill="#ffffff" opacity=".35"/>' + dots({rnd: k.rnd, pt: function (x, r) { var p = k.pt(x + i, r); return [p[0] - 50 + c[0], p[1] - 50 + c[1]]; }, f: k.f}, 4, 10, '#c97a1c', 1.2, '.6'); }); return s; }
+    [[-7, -5], [0, 0], [6, 5]].forEach(function (o, i) {
+      var cx = 50 + o[0], cy = 50 + o[1];
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (millet ? 25 : 27) + '" fill="' + col + '" stroke="' + edge + '" stroke-width="1.2"/>';
+      if (i === 2) {
+        var off = {rnd: k.rnd, pt: function (x, r) { var p = k.pt(x, r); return [p[0] + o[0], p[1] + o[1]]; }, f: k.f};
+        s += dots(off, 14, 22, millet ? '#7a5634' : '#9c6128', 1.9, '.55') + (thepla ? dots(off, 18, 22, '#4f7f32', 1, '.8') : '') + (paratha ? '<path d="M' + (cx - 14) + ' ' + cy + 'a14 14 0 0 1 28 0" stroke="#f6d48a" stroke-width="1.5" fill="none" opacity=".7"/>' : '');
+      }
+    });
+    return s;
+  },
+  crepe: function (k) {
+    var n = k.n, s = dPlate();
+    if (/dosa/.test(n)) {
+      s += '<rect x="14" y="40" width="72" height="22" rx="11" fill="#d9993a" transform="rotate(-18 50 51)"/><rect x="16" y="43" width="68" height="8" rx="4" fill="#f0c066" opacity=".8" transform="rotate(-18 50 51)"/>' +
+        '<path d="M22 60l56-18" stroke="#b9742a" stroke-width="1" opacity=".5"/>';
+      return s + chutney(26, 78, '#f4f0e2') + chutney(74, 80, '#5aa64a');
+    }
+    var col = /moong|mag|green/.test(n) ? '#cbbf54' : /palak|methi/.test(n) ? '#a3b84e' : /rava|rice|panki/.test(n) ? '#efd9a0' : '#e8b44c';
+    s += '<circle cx="48" cy="48" r="29" fill="' + col + '" stroke="#c98f2f" stroke-width="1"/>' + dots(k, 26, 25, '#c2862c', 1.1, '.6') + dots(k, 18, 24, '#ffffff', 0.9, '.35');
+    if (/uttapam|uthappam/.test(n)) s += chunks(k, 10, 20, ['#e04b36', '#5a9e45', '#f2e2a0'], 4);
+    else s += dots(k, 8, 20, '#4f8f3a', 1.2);
+    return s + chutney(77, 77, '#5aa64a');
+  },
+  dhokla: function (k) {
+    var n = k.n, s = dPlate();
+    if (/handvo|ondhvo/.test(n)) return s + '<path d="M50 50L22 30A34 34 0 0 1 78 30Z" fill="#c9933f" stroke="#a87428"/><path d="M50 50L78 70A34 34 0 0 1 22 70Z" fill="#d6a04a" stroke="#a87428"/>' + dots(k, 24, 26, '#f5ecd2', 0.8) + dots(k, 10, 26, '#2b2b2b', 0.6);
+    if (/muthia/.test(n)) { for (var i = 0; i < 7; i++) { var p = k.pt('m' + i, 20); s += '<ellipse cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" rx="7" ry="5" fill="' + (/methi|palak/.test(n) ? '#a8b45a' : '#dcb45a') + '" stroke="#b18a34"/>'; } return s + dots(k, 14, 22, '#2b2b2b', 0.6) + dots(k, 8, 22, '#f5ecd2', 0.7); }
+    if (/khandvi/.test(n)) { for (var j = 0; j < 7; j++) { var q = k.pt('k' + j, 20); s += '<circle cx="' + k.f(q[0]) + '" cy="' + k.f(q[1]) + '" r="6" fill="#f2d071" stroke="#d7ac3c"/><circle cx="' + k.f(q[0]) + '" cy="' + k.f(q[1]) + '" r="3" fill="none" stroke="#d7ac3c"/>'; } return s + dots(k, 10, 22, '#2b2b2b', 0.6); }
+    var col = /rava|white|idada/.test(n) ? '#f4ecd0' : '#f3d34a';
+    [[30, 30], [52, 30], [30, 52], [52, 52], [41, 70], [63, 70], [63, 48]].slice(0, 6).forEach(function (c) { s += '<rect x="' + c[0] + '" y="' + c[1] + '" width="18" height="16" rx="3" fill="' + col + '" stroke="#d9b53a"/><rect x="' + (c[0] + 2) + '" y="' + (c[1] + 2) + '" width="14" height="4" rx="2" fill="#ffffff" opacity=".35"/>'; });
+    return s + dots(k, 20, 26, '#2b2b2b', 0.65) + flecks(k, 5, 24, ['#3f9c3a'], 3.2, 0.8);
+  },
+  idli: function (k) { var s = dPlate(), gold = /paniyaram|appe/.test(k.n); [[36, 38], [60, 36], [40, 62]].forEach(function (c) { s += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="13" fill="' + (gold ? '#e0a64a' : '#fbf8ef') + '" stroke="' + (gold ? '#b8782a' : '#e3dccb') + '" stroke-width="1.2"/><ellipse cx="' + (c[0] - 3) + '" cy="' + (c[1] - 4) + '" rx="6" ry="3" fill="#ffffff"/>'; }); return s + chutney(68, 66, '#d9622b'); },
+  soup: function (k) {
+    var n = k.n, col = /rasam|saar/.test(n) ? '#c8462f' : /sambar/.test(n) ? '#d6742e' : /tomato/.test(n) ? '#d8452f' : /palak|green/.test(n) ? '#4f8f3a' : '#e0a14a';
+    return dBowl(col) + '<path d="M28 46q11-7 22 0t22 0" stroke="#ffffff" stroke-width="1.6" fill="none" opacity=".25"/>' + chunks(k, 7, 26, k.cols, 4.2) + tadka(k, 26);
+  },
+  dal: function (k) {
+    var n = k.n, col = /masoor/.test(n) ? '#e7853a' : /chana/.test(n) ? '#e6b94a' : /moong|mag/.test(n) ? '#ecc63e' : /urad|dal makhani/.test(n) ? '#8a5a3c' : /palak|methi/.test(n) ? '#9fae3c' : '#e5b22f';
+    return dBowl(col) + '<path d="M26 52q12-9 24 0t24 0" stroke="#ffffff" stroke-width="1.8" fill="none" opacity=".25"/><circle cx="44" cy="44" r="6" fill="#ffd95e" opacity=".55"/>' + tadka(k, 26) + dots(k, 5, 22, '#3f9c3a', 1.1);
+  },
+  kadhi: function (k) { return dBowl(/sindhi|tomato/.test(k.n) ? '#e0a03c' : '#f3dc8a') + '<path d="M26 52q12-8 24 0t24 0" stroke="#ffffff" stroke-width="1.8" fill="none" opacity=".35"/>' + (/pakod/.test(k.n) ? dots(k, 6, 22, '#d98d2b', 4) : '') + tadka(k, 26) + dots(k, 4, 22, '#3f9c3a', 1.1); },
+  curd: function (k) {
+    var n = k.n, shri = /shrikhand|matho/.test(n), col = shri ? (/mango|aamra/.test(n) ? '#f5c24a' : '#f6e3a8') : '#fbf8f1';
+    return dBowl(col) + '<path d="M30 48q10-6 20 0t20 0" stroke="#ffffff" stroke-width="2" fill="none" opacity=".6"/>' + (shri ? flecks(k, 6, 22, ['#e07a1f'], 3, 0.5) + dots(k, 8, 22, '#7fb35c', 1.4) : chunks(k, 8, 24, /boondi/.test(n) ? ['#e9b44c'] : k.cols, 3.4) + dots(k, 10, 26, '#b5462a', 0.6));
+  },
+  drink: function (k) {
+    var n = k.n, col = /chai|tea|kadha/.test(n) ? '#c99a6b' : /banana/.test(n) ? '#f2e2a0' : /mango/.test(n) ? '#f6b93b' : /chikoo|date|khajur|dry fruit/.test(n) ? '#c9a27a' : /kesar|saffron|haldi/.test(n) ? '#f5d97a' : /sharbat|panak|kokum/.test(n) ? '#c2304a' : /chaas|buttermilk/.test(n) ? '#f2f5ec' : '#fbf8ef';
+    return '<circle cx="50" cy="53" r="38" fill="var(--plate-shadow)"/><circle cx="50" cy="50" r="38" fill="#e3e9ef" stroke="#c9d3dc" stroke-width="2"/><circle cx="50" cy="50" r="32" fill="' + col + '"/><circle cx="50" cy="50" r="24" fill="#ffffff" opacity=".18"/>' +
+      (/chaas|buttermilk/.test(n) ? dots(k, 12, 24, '#5a9e45', 1) + dots(k, 8, 24, '#7a4a2a', 0.6) : /dry fruit|badam|kesar/.test(n) ? flecks(k, 6, 20, ['#b98a54', '#7fb35c'], 2.6, 1.1) : dots(k, 10, 26, '#ffffff', 1.4, '.5'));
+  },
+  sweetbowl: function (k) {
+    var n = k.n, col = /kheer|payas|basundi|rabdi|doodh/.test(n) ? '#f5ead2' : /lapsi|kansar/.test(n) ? '#c98a3e' : '#e2a54a';
+    return dBowl(col) + (/kheer|payas|sevaiyan/.test(n) ? flecks(k, 26, 28, ['#fffaf0'], 2.6, 1) : dots(k, 40, 30, '#00000018', 1)) + flecks(k, 6, 22, ['#f5e6c8', '#b98a54'], 3, 1.6) + dots(k, 5, 20, '#7fb35c', 1.2) + dots(k, 4, 20, '#6b3f2a', 1.3);
+  },
+  sweet: function (k) {
+    var n = k.n, s = dPlate();
+    if (/ladd|ladu|energy ball|magas/.test(n)) { var col = /besan|magas/.test(n) ? '#e9a83a' : /til|sesame/.test(n) ? '#c9a06a' : /coconut/.test(n) ? '#f7efdc' : '#d99a4a'; [[38, 38], [62, 38], [38, 62], [62, 62], [50, 50]].forEach(function (c, i) { s += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="11" fill="' + col + '" stroke="#b8741f" stroke-width=".8"/><circle cx="' + (c[0] - 3) + '" cy="' + (c[1] - 4) + '" r="3" fill="#ffffff" opacity=".3"/>'; }); return s + dots(k, 20, 24, '#a8661f', 0.6, '.6'); }
+    var c2 = /mohanthal|besan/.test(n) ? '#d9a046' : /sukhdi|gol|jaggery/.test(n) ? '#b8742e' : /chikki/.test(n) ? '#c98a32' : '#f0e2c0';
+    [[30, 32], [52, 32], [30, 54], [52, 54]].forEach(function (c) { s += '<rect x="' + c[0] + '" y="' + c[1] + '" width="18" height="18" rx="2.5" fill="' + c2 + '" stroke="#b8862f" stroke-width=".8"/>'; });
+    return s + flecks(k, 10, 24, ['#f5e6c8', '#7fb35c'], 2.4, 0.9);
+  },
+  rice: function (k) {
+    var n = k.n, col = /lemon|chitranna|turmeric/.test(n) ? '#f4dc6a' : /tomato|masala bhaat|bisi|tahri/.test(n) ? '#e4864a' : /jeera|plain|steamed|bhaat|bhath/.test(n) ? '#f8f3e6' : /palak|green|methi/.test(n) ? '#a8c26a' : '#f6efdc';
+    var s = dPlate() + '<ellipse cx="50" cy="50" rx="30" ry="27" fill="' + col + '"/>' + flecks(k, 46, 27, ['#ffffff', '#fffaf0'], 2.4, 0.9);
+    if (/jeera/.test(n)) s += dots(k, 14, 24, '#6b4a2a', 0.7);
+    if (/pulao|biryani|veg/.test(n)) s += chunks(k, 10, 22, ['#6cb94a', '#5a9e45', '#e04b36'], 3.4);
+    if (/lemon|chitranna/.test(n)) s += dots(k, 8, 22, '#c4904e', 1.6) + dots(k, 10, 24, '#2b2b2b', 0.6);
+    return s;
+  },
+  legume: function (k) {
+    var n = k.n, grain = /chole|chana|kabuli|ragda/.test(n) ? '#d9b36b' : /rajma/.test(n) ? '#8e2f2a' : /moong|mag|sprout/.test(n) ? '#7a9a3a' : /vaal|lobia|chawli/.test(n) ? '#e7d3a8' : '#9a6a3a';
+    return dBowl(/chole|chana|rajma/.test(n) ? '#a5502a' : '#b8742e') + dots(k, 26, 28, grain, 2.6) + dots(k, 26, 28, '#ffffff', 0.7, '.35') + tadka(k, 24) + dots(k, 5, 22, '#3f9c3a', 1.1);
+  },
+  paneer: function (k) {
+    var n = k.n, col = /palak|saag/.test(n) ? '#3d7a35' : /butter|makhani|shahi|tikka masala/.test(n) ? '#e0702f' : /bhurji/.test(n) ? '#f2d48a' : /capsicum|kadai|tomato/.test(n) ? '#d0552b' : '#d86a2e';
+    if (/bhurji/.test(n)) return dPlate() + '<ellipse cx="50" cy="50" rx="29" ry="26" fill="' + col + '"/>' + dots(k, 40, 25, '#fff8e6', 2.2) + chunks(k, 8, 22, k.cols, 3.4);
+    if (/tikka|bites/.test(n) && !/masala/.test(n)) { var s = dPlate(); for (var i = 0; i < 6; i++) { var p = k.pt('pt' + i, 20); s += '<rect x="' + k.f(p[0] - 6) + '" y="' + k.f(p[1] - 6) + '" width="12" height="11" rx="2" fill="#f7d79a" stroke="#d0782a" stroke-width="1.6"/>'; } return s + chunks(k, 6, 24, k.cols, 4) + lemon(70, 72); }
+    return dBowl(col) + chunks(k, 7, 24, ['#fffaf0'], 8) + '<path d="M32 58q8 5 16 0" stroke="#ffffff" stroke-width="1.8" fill="none" opacity=".55"/>' + dots(k, 5, 24, '#3f9c3a', 1.1);
+  },
+  fritter: function (k) {
+    var n = k.n, s = dPlate(), col = /tikki|cutlet/.test(n) ? '#c8843a' : /moong|mag/.test(n) ? '#c99a3a' : '#d98d2b', round = /vada|tikki|cutlet|kachori|bonda/.test(n);
+    for (var i = 0; i < 7; i++) { var p = k.pt('fr' + i, 20); s += round ? '<circle cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" r="9" fill="' + col + '" stroke="#a8601a"/>' : '<path d="M' + k.f(p[0] - 8) + ' ' + k.f(p[1]) + 'q3-8 8-6t8 3q-1 7-8 8t-8-5z" fill="' + col + '" stroke="#a8601a"/>'; }
+    return s + dots(k, 16, 22, '#8a4a12', 0.8, '.6') + chutney(76, 76, '#5aa64a');
+  },
+  crispy: function (k) {
+    var n = k.n, s = dPlate();
+    if (/makhana/.test(n)) { for (var i = 0; i < 16; i++) { var p = k.pt('mk' + i, 26); s += '<circle cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" r="5" fill="#f6eedb" stroke="#e1d2ad"/><circle cx="' + k.f(p[0] + 1.5) + '" cy="' + k.f(p[1] + 1.2) + '" r="1.4" fill="#b98a54" opacity=".6"/>'; } return s + dots(k, 14, 26, '#c0392b', 0.6, '.6'); }
+    if (/\bsev\b/.test(n) && !/tameta|shaak/.test(n)) return s + flecks(k, 70, 28, ['#f0c24a', '#e8b23a', '#f6d46a'], 4, 0.6);
+    if (/khakhra|papad|fafda/.test(n)) return s + '<circle cx="46" cy="46" r="27" fill="#e7c486" stroke="#c99a52"/><circle cx="56" cy="56" r="27" fill="#ecca8e" stroke="#c99a52"/>' + dots(k, 26, 22, '#b07a36', 1, '.55') + dots(k, 10, 22, '#4f3a22', 0.6);
+    for (var j = 0; j < 8; j++) { var q = k.pt('mt' + j, 22); s += '<circle cx="' + k.f(q[0]) + '" cy="' + k.f(q[1]) + '" r="8" fill="#ecd093" stroke="#c9a05a"/>'; }
+    return s + dots(k, 20, 24, '#a87a3a', 0.6, '.7');
+  },
+  salad: function (k) { return dPlate() + chunks(k, 18, 26, (/fruit/.test(k.n) ? ['#e5584a', '#f6dc5b', '#f2933b', '#8e5fa8'] : ['#a6d49b', '#e04b36', '#7fb35c', '#f2e2a0']), 6) + dots(k, 14, 26, '#7a3a1a', 0.6) + dots(k, 6, 22, '#c4264b', 1.3) + lemon(72, 72); },
+  corn: function (k) { var s = dCup(50, 50, 34, '#fbf4dc'); for (var i = 0; i < 46; i++) { var p = k.pt('cn' + i, 28); s += '<rect x="' + k.f(p[0] - 2.2) + '" y="' + k.f(p[1] - 2) + '" width="4.4" height="4" rx="1.4" fill="' + (i % 4 ? '#f3c63a' : '#f8d860') + '"/>'; } return s + chunks(k, 5, 22, k.cols.filter(function (c) { return c !== '#f3c63a'; }).concat(['#4fa34a']), 3.4) + dots(k, 14, 26, '#c0392b', 0.5); },
+  sabzi: function (k) {
+    var n = k.n, gravy = /masala|curry|kofta|gravy|rasila|dum|jhol|ghassi|makhani|kosha|gojju/.test(n), green = /palak|saag/.test(n);
+    var base = green ? '#3d7a35' : gravy ? '#c8642e' : '#e4b45c', s = gravy || green ? dBowl(base) : dPlate() + '<ellipse cx="50" cy="50" rx="30" ry="27" fill="' + base + '" opacity=".55"/>';
+    if (/bhindi|okra/.test(n)) { for (var i = 0; i < 12; i++) { var p = k.pt('bh' + i, 24); s += '<ellipse cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" rx="6.5" ry="3.2" fill="#5f9a3a" stroke="#3f7a2a" transform="rotate(' + Math.round(k.rnd('bhr' + i) * 180) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; } return s + dots(k, 18, 24, '#e9f2c9', 0.7); }
+    if (/gavar|beans|fansi|tindora|tondli/.test(n)) return s + flecks(k, 26, 26, ['#6e9c4a', '#5a9e45', '#7fb35c'], 6, 1.6) + dots(k, 10, 24, '#e04b36', 1);
+    return s + chunks(k, 16, 26, k.cols, 6) + dots(k, 8, 26, '#3f9c3a', 1) + dots(k, 6, 24, '#2b2b2b', 0.6);
+  },
+  fruit: function (k) {
+    var s = dPlate();
+    for (var i = 0; i < 6; i++) { var p = k.pt('ap' + i, 20); s += '<path d="M' + k.f(p[0] - 7) + ' ' + k.f(p[1]) + 'a7 7 0 0 0 14 0z" fill="#fbf2d8" stroke="#d64a3a" stroke-width="1.6" transform="rotate(' + Math.round(k.rnd('apr' + i) * 360) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; }
+    for (var j = 0; j < 5; j++) { var q = k.pt('bn' + j, 22); s += '<circle cx="' + k.f(q[0]) + '" cy="' + k.f(q[1]) + '" r="4.5" fill="#f8eab0" stroke="#e8d27a"/><circle cx="' + k.f(q[0]) + '" cy="' + k.f(q[1]) + '" r="1" fill="#c9a24a"/>'; }
+    return s + dots(k, 10, 24, '#c4264b', 1.4) + chunks(k, 4, 22, ['#f2933b'], 5);
+  }
+};
 function plate(r, size) {
+  if (r && PHOTOS[r.id]) return '<img class="plate dish-photo" src="' + esc(PHOTOS[r.id]) + '" width="' + size + '" height="' + size + '" alt="" loading="lazy">';
+  var art = dishArt(r, size); if (art) return art;
   var cols = [];
   (r ? r.ings : []).forEach(function (x) { var g = JJ.ING[x.id]; if (!g || g.cat === 'spice' || g.cat === 'pantry') return; var p = PAL[g.cat] || PAL.veg; var c = p[hash(x.id) % p.length]; if (cols.indexOf(c) < 0 && cols.length < 5) cols.push(c); });
   if (!cols.length) cols = ['#e8c23a'];
@@ -1795,5 +1999,6 @@ JJ.boot = function () {
   });
 };
 /* when the precise astronomy engine finishes loading, recompute with it */
+JJ.dish = {kind: dishKind, plate: plate, PHOTOS: PHOTOS};
 window.addEventListener('jj-astro-ready', function () { JJ.panchangReset(); if (P) render(); });
 })(window.JJ = window.JJ || {});
