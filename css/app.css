@@ -532,3 +532,16 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .rcard b{font-size:14.5px;line-height:1.25;font-weight:800}
 .rcard small{font-size:12px;color:var(--muted);font-weight:600}
 .inplan{font-style:normal;font-size:11px;font-weight:800;color:var(--green);background:var(--green-soft);padding:2px 8px;border-radius:999px;margin-top:2px}
+
+/* v3.4.1: benefit statement, city choice, chosen meal first, folded extras */
+.benefit{width:100%;margin:14px 0 4px;padding:14px 16px;border-radius:20px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left}
+.benefit h2{font-family:var(--display);font-size:20px;line-height:1.2;margin:0 0 8px;color:var(--navy);text-wrap:balance}
+.benefit ul{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.benefit li{display:flex;gap:8px;align-items:flex-start;font-weight:700;font-size:14px;line-height:1.35}
+.benefit li .ic{color:var(--green);width:18px;height:18px;flex:none;margin-top:1px;stroke-width:2.6}
+.loc-or{margin:12px 2px 2px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.change-meal{justify-self:start;align-self:flex-start;width:auto;display:inline-flex;align-items:center;gap:6px;margin:6px 2px 0;padding:6px 12px;min-height:34px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--crimson);font-weight:800;font-size:13px;cursor:pointer}
+.change-meal .ic{width:16px;height:16px}
+.alt-pick{margin-top:8px;padding:10px;border-radius:18px;border:1px dashed var(--line);background:var(--surface-2)}
+.timings-card .rule-note,.timings-card .parva-box{margin-top:10px}
+.more-today .obs{margin-top:10px}

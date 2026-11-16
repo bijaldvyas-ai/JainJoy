@@ -174,6 +174,7 @@ var IC = {
  edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/>', db:'<ellipse cx="12" cy="5.5" rx="7.5" ry="2.5"/><path d="M4.5 5.5v13c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5v-13M4.5 12c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5"/>',
  info:'<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>', plus:'<path d="M12 5v14M5 12h14"/>'
 };
+IC.swap = '<path d="M7 7h12l-3.5-3.5M17 17H5l3.5 3.5"/>';
 IC.search = '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>';
 IC.grid = '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>';
 IC.user = '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"/>';
@@ -263,7 +264,17 @@ function chogLine() {
   if (!c) return '';
   return '<button class="lrow chog-row chog-' + c.q + '" style="margin-top:8px" data-a="tab" data-v="chog"><span class="chog-dot"></span><span class="mtxt grow"><b>' + esc(t('chog_now_line', {name: t('chog_' + c.k), q: t('chog_q_' + c.q)})) + '</b><small>' + esc(t('chog_until', {time: hm(c.end)})) + '</small></span>' + ic('next', 'chev') + '</button>';
 }
-function tithiCard(iso) {
+function tithiCard(iso) { return tithiTags(iso) + tithiRule(iso); }
+/* the day's food rule: always visible near the top of the day */
+function tithiRule(iso) {
+  var p = pan(iso), r = JJ.dayRules(p, P);
+  if (r.parva) return parvaBox(r);
+  if (r.noGreen) return '<p class="rule-note sp">' + ic('noleaf') + '<span><b>' + esc(t('no_green_today')) + '</b> ' + esc(t('no_green_why')) + '</span></p>';
+  if (r.noLeafy) return '<p class="rule-note sp">' + ic('noleaf') + '<span><b>' + esc(t('no_leafy_today', {day: t(p.aatham ? 'aatham' : 'chaudas')})) + '</b> ' + esc(t('always_on')) + '</span></p>';
+  return '<p class="rule-note">' + ic('check') + '<span><b>' + esc(t('base_rules')) + '</b> ' + esc(t('base_rules_text')) + '</span></p>';
+}
+/* month, paksha, end time and observances: extra detail, shown folded */
+function tithiTags(iso) {
   var p = pan(iso), r = JJ.dayRules(p, P), sp = r.parva || p.aatham || p.chaudas;
   var pk = JJ.parvaKeys(p), title = pk.length ? pk.map(function (k) { return t(k); }).join(' · ') : JJ.tithiName(p.t, LANG);
   var mo = JJ.MONTHS[p.month][{en: 0, hi: 1, gu: 2}[LANG]];
@@ -274,10 +285,6 @@ function tithiCard(iso) {
   if (p.skipped) tags.push(t('kshaya', {name: JJ.tithiName(p.skipped, LANG)}));
   p.observances.forEach(function (o) { tags.push(nm(o)); });
   if (tags.length) h += '<div class="obs">' + tags.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div>';
-  if (r.parva) h += parvaBox(r);
-  else if (r.noGreen) h += '<p class="rule-note sp">' + ic('noleaf') + '<span><b>' + esc(t('no_green_today')) + '</b> ' + esc(t('no_green_why')) + '</span></p>';
-  else if (r.noLeafy) h += '<p class="rule-note sp">' + ic('noleaf') + '<span><b>' + esc(t('no_leafy_today', {day: t(p.aatham ? 'aatham' : 'chaudas')})) + '</b> ' + esc(t('always_on')) + '</span></p>';
-  else h += '<p class="rule-note">' + ic('check') + '<span><b>' + esc(t('base_rules')) + '</b> ' + esc(t('base_rules_text')) + '</span></p>';
   return h;
 }
 /* the day's tithi for the page header: "Vad Aatham · Krishna paksha", highlighted on Parva days */
@@ -415,29 +422,41 @@ function timeText(r) { return (r.prep || 0) >= 240 ? t('min_soak', {n: r.cook ||
 function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hist">' + ic('lock') + esc(t('status_hist')) + '</span>' : st === 'plan' ? '<span class="status-pill st-plan">' + ic('check') + esc(t('status_plan')) + '</span>' : st === 'prev' ? '<span class="status-pill st-prev">' + esc(t('status_prev')) + '</span>' : ''; }
 function dayBody(iso, isToday, root) {
   // order: timings, then the 4 meals right away, then the tithi rules, quick links and nutrition
+  // order: the essentials (Navkarsi, Chauvihar, today's food rule), then the chosen meals, then tomorrow,
+  // then everything extra folded away. Discovery and history live in Explore, Calendar and Profile.
   var menu = menuFor(iso), b = '';
-  b += compactTimings(iso, isToday);
-  if (!menu) { b += tithiCard(iso) + '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
+  b += essentials(iso, isToday);
+  if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   if (isToday && ui.showcase) b += '<div class="showcase" id="showcase"><b>🎉 ' + esc(t('plan_ready')) + '</b><small>' + esc(t('plan_ready_sub')) + '</small></div>';
-  b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + (hasOptions(menu, k) ? optionPair(iso, k, menu) : mealCard(iso, k, menu)) + '</div>'; }).join('') + '</div>';
-  if (root) b += catRow();
+  b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + changeMeal(iso, k, menu) + '</div>'; }).join('') + '</div>';
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
-  b += tithiCard(iso);
   var oli = isOli(iso);
   b += festiveCard(iso);
   if (oli || ui.ayambil === iso) b += ayambilCard(iso);
-  b += '<div class="row share-row">' + (isToday ? '' : '<button class="btn small wa" data-a="wa" data-v="' + iso + '">' + esc(t('share_whatsapp')) + '</button>') +
-    (oli ? '' : '<button class="btn small" data-a="ayambil" data-v="' + iso + '">' + esc(t(ui.ayambil === iso ? 'ayambil_hide' : 'ayambil_show')) + '</button>') + '</div>';
-  if (isToday) b += '<div class="quick">' +
-    '<button data-a="tab" data-v="shop">' + ic('cart') + '<span>' + esc(t('quick_grocery')) + '</span></button>' +
-    '<button data-a="tab" data-v="chog">' + ic('clock') + '<span>' + esc(t('tab_choghadiya')) + '</span></button>' +
-    '<button data-a="tab" data-v="cal">' + ic('cal') + '<span>' + esc(t('quick_month')) + '</span></button></div>';
   if (isToday) b += tomorrowCard();
   if (!menu.legacy) b += nutritionCard(menu);
-  b += '<div class="row" style="margin-top:12px">' + statusPill(menuStatus(iso, menu)) + '</div>';
-  b += '<p class="fine">' + esc(menu.status === 'history' ? t('hist_note') : menu.status === 'planned' ? t('plan_note') : t('prev_note')) + '</p>';
+  b += '<details class="card glass fold more-today"><summary><span class="ficon">' + ic('moon') + '</span><span class="mtxt grow"><b>' + esc(t('more_today')) + '</b><small>' + esc(t('more_today_sub')) + '</small></span>' + ic('next', 'chev fold-chev') + '</summary>' +
+    shubhCell(iso, isToday) + tithiTags(iso) +
+    '<div class="row share-row">' + (isToday ? '' : '<button class="btn small wa" data-a="wa" data-v="' + iso + '">' + esc(t('share_whatsapp')) + '</button>') +
+    (oli ? '' : '<button class="btn small" data-a="ayambil" data-v="' + iso + '">' + esc(t(ui.ayambil === iso ? 'ayambil_hide' : 'ayambil_show')) + '</button>') + '</div>' +
+    '<div class="row" style="margin-top:12px">' + statusPill(menuStatus(iso, menu)) + '</div>' +
+    '<p class="fine">' + esc(menu.status === 'history' ? t('hist_note') : menu.status === 'planned' ? t('plan_note') : t('prev_note')) + '</p></details>';
   return b;
+}
+/* essentials card: Navkarsi and Chauvihar, plus the day's food rule (Parva, Aatham/Chaudas or the base Jain rules) */
+function essentials(iso, live) {
+  var p = pan(iso), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar}), now = Date.now();
+  function cell(lbl, ms, cls) { return '<div class="tcell ' + (cls || '') + '"><small>' + esc(t(lbl)) + '</small><b>' + hm(ms) + '</b>' + (live ? '<em data-until="' + ms + '">' + until(ms) + '</em>' : '') + '</div>'; }
+  return '<section class="card glass timings-card"><div class="tc-head"><h3>' + esc(t('timings_title')) + '</h3><button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></div><div class="tgrid tg4 tg2">' +
+    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '') + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '') + '</div>' + tithiRule(iso) + '</section>';
+}
+/* the chosen meal shows first; "Change meal" opens the alternative beside it */
+function changeMeal(iso, k, menu) {
+  if (!hasOptions(menu, k) || (menu.status === 'history' && iso !== today())) return '';
+  var key = iso + '|' + k, open = ui.chg === key;
+  return '<button class="change-meal" data-a="chg" data-v="' + key + '" aria-expanded="' + open + '">' + ic('swap') + esc(t(open ? 'change_meal_close' : 'change_meal')) + '</button>' +
+    (open ? '<div class="alt-pick">' + optionPair(iso, k, menu) + '</div>' : '');
 }
 function nutriGrid(n) {
   n = n.map(function (v, i) { return i === 0 || v >= 10 ? Math.round(v) : v; });
@@ -538,8 +557,7 @@ function currentGroups(listId) {
 }
 function viewToday() {
   var td = today(), iso = ui.sel && ui.sel > td && ui.sel <= JJ.addDays(td, 6) ? ui.sel : td, isT = iso === td;
-  var b = '<button class="search-bar" data-a="search">' + ic('search') + '<span>' + esc(t('search_hint')) + '</span></button>' +
-    '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + iso + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(isT ? t('todays_menu') : t('menu_for', {date: dShort(iso)})) + '</h1><p class="sub date-line"><span>' + esc(dLong(iso)) + '</span>' + tithiInline(iso) + '</p>' + dayStrip(iso) + inviteCard() + trialBanner() + dayBody(iso, isT, true);
+  var b = '<div class="greet-row"><p class="eyebrow">' + esc(t('greeting')) + '</p><button class="btn small wa" data-a="wa" data-v="' + iso + '">' + WA_ICON + esc(t('share_whatsapp')) + '</button></div><h1 class="h1">' + esc(isT ? t('todays_menu') : t('menu_for', {date: dShort(iso)})) + '</h1><p class="sub date-line"><span>' + esc(dLong(iso)) + '</span>' + tithiInline(iso) + '</p>' + dayStrip(iso) + inviteCard() + trialBanner() + dayBody(iso, isT);
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
 /* 7-day strip: switch the day without leaving Today. A saffron dot marks a Parva tithi, Aatham or Chaudas. */
@@ -588,6 +606,7 @@ function exploreResults() {
 function viewExplore() {
   var ex = ui.ex;
   var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('explore_title')) + '</h1>' +
+    (ex.q || ex.meal !== 'all' || ex.f.today || ex.f.quick || ex.f.protein ? '' : catRow()) +
     '<div class="sbox">' + ic('search') + '<input id="explore-q" type="search" enterkeyhint="search" autocomplete="off" value="' + esc(ex.q) + '" placeholder="' + esc(t('search_dish')) + '" aria-label="' + esc(t('search_dish')) + '"><button class="sclear" data-a="exclear" aria-label="' + esc(t('clear_search')) + '">×</button></div>' +
     '<div class="hscroll" role="group" aria-label="' + esc(t('choose_meal')) + '">' + ['all'].concat(MEALS).map(function (m) { return '<button class="chip" data-a="exmeal" data-v="' + m + '" aria-pressed="' + (ex.meal === m) + '">' + esc(t(m === 'all' ? 'all_meals' : 'meal_' + m)) + '</button>'; }).join('') + '</div>' +
     '<div class="hscroll" role="group" aria-label="' + esc(t('filters')) + '">' + [['today', 'f_today_ok'], ['quick', 'f_quick'], ['protein', 'f_protein']].map(function (f) { return '<button class="chip fchip" data-a="exf" data-v="' + f[0] + '" aria-pressed="' + !!ex.f[f[0]] + '">' + (ex.f[f[0]] ? ic('check') : '') + esc(t(f[1])) + '</button>'; }).join('') + '</div>' +
@@ -951,7 +970,7 @@ function autoLocate() {
     if (best) pickCity(best);
     // GPS far from every listed city: keep the exact spot for sunrise times, with the nearest city's state and cuisine
     if (best && bd > 40 && !rough) { var nc = JJ.CITIES[best]; draft.custom = {name: (nc[LANG] || nc.en) + ' ' + t('area'), en: nc.en + ' area', lat: la, lon: lo, tz: JJ.tz.deviceTz()}; draft.cityId = ''; }
-    ui.loc = {state: 'ok'}; openField = null; render();
+    ui.loc = {state: 'ok'}; if (P) openField = null; render();
   }
 }
 function locRow(d) {
@@ -1421,12 +1440,14 @@ function frow(key, icon, title, value, done, bodyFn) {
 }
 function stateName(c, s) { return c === 'IN' && JJ.STATES.IN[s] ? nm(JJ.STATES.IN[s]) : ''; }
 function locationBody(d) {
-  var countries = Object.keys(JJ.COUNTRIES);
-  var h = '<div class="field"><label for="pf-country">' + esc(t('country')) + '</label><select class="select" id="pf-country">' + countries.map(function (c) { return '<option value="' + c + '"' + (d.country === c ? ' selected' : '') + '>' + esc(nm(JJ.COUNTRIES[c])) + '</option>'; }).join('') + '</select></div>';
+  var countries = Object.keys(JJ.COUNTRIES), ls = ui.loc ? ui.loc.state : '';
+  var h = '<div class="row" style="flex-wrap:wrap;align-items:center;gap:10px"><button class="btn small" data-a="gps">' + ic('pin') + ' ' + esc(t('use_location')) + '</button>' +
+    (ls === 'busy' ? '<span class="hint" style="margin:0">' + esc(t('loc_detecting')) + '</span>' : '') + '</div><p class="loc-or">' + esc(t('loc_or_choose')) + '</p>';
+  h += '<div class="field"><label for="pf-country">' + esc(t('country')) + '</label><select class="select" id="pf-country">' + countries.map(function (c) { return '<option value="' + c + '"' + (d.country === c ? ' selected' : '') + '>' + esc(nm(JJ.COUNTRIES[c])) + '</option>'; }).join('') + '</select></div>';
   if (d.country === 'IN') h += '<div class="field"><label for="pf-state">' + esc(t('state')) + '</label><select class="select" id="pf-state"><option value="">' + esc(t('select_state')) + '</option>' + Object.keys(JJ.STATES.IN).sort(function (a, b) { return JJ.STATES.IN[a].en.localeCompare(JJ.STATES.IN[b].en); }).map(function (s) { return '<option value="' + s + '"' + (d.state === s ? ' selected' : '') + '>' + esc(nm(JJ.STATES.IN[s])) + '</option>'; }).join('') + '</select></div>';
   var cities = Object.keys(JJ.CITIES).map(function (k) { return JJ.CITIES[k]; }).filter(function (c) { return c.country === d.country && (d.country !== 'IN' || c.state === d.state); }).sort(function (a, b) { return a.en.localeCompare(b.en); });
   if (d.country !== 'IN' || d.state) h += '<div class="field"><label for="pf-city">' + esc(t('city')) + '</label><select class="select" id="pf-city"><option value="">' + esc(t('select_city')) + '</option>' + cities.map(function (c) { return '<option value="' + c.id + '"' + (d.cityId === c.id ? ' selected' : '') + '>' + esc(c[LANG] || c.en) + '</option>'; }).join('') + '</select></div>';
-  h += '<p class="hint">' + esc(t('city_missing')) + '</p><div class="row" style="flex-wrap:wrap;margin-top:8px"><button class="btn small" data-a="gps">' + ic('pin') + ' ' + esc(t('use_location')) + '</button></div>';
+  h += '<p class="hint">' + esc(t('city_missing')) + '</p>';
   h += '<form class="addrow" id="geo-form" autocomplete="off"><input id="geo-q" maxlength="60" value="' + esc(ui.geo.q) + '" placeholder="' + esc(t('search_place')) + '" aria-label="' + esc(t('search_place')) + '"><button type="submit">' + esc(t('search')) + '</button></form>';
   if (ui.geo.busy) h += '<p class="hint">' + esc(t('searching')) + '</p>';
   if (ui.geo.results) h += '<div class="search-results">' + (ui.geo.results.length ? ui.geo.results.map(function (r, i) { return '<button class="lrow" data-a="geopick" data-v="' + i + '"><span class="mtxt grow"><b>' + esc(r.name) + '</b><small>' + esc([r.admin1, r.country].filter(Boolean).join(', ') + ' · ' + r.timezone) + '</small></span></button>'; }).join('') : '<p class="hint">' + esc(t('no_results')) + '</p>') + '</div>';
@@ -1436,11 +1457,12 @@ function locationBody(d) {
 }
 function viewProfile(onboard) {
   var signup = onboard === 'signup';
-  if (!draft) { draft = signup ? (P ? fromProfile(P) : blankDraft()) : onboard ? blankDraft() : fromProfile(P); if (onboard && !ui.loc) autoLocate(); }
+  if (!draft) { draft = signup ? (P ? fromProfile(P) : blankDraft()) : onboard ? blankDraft() : fromProfile(P); if (onboard) openField = 'city'; if (onboard && !ui.loc) autoLocate(); }
   var d = draft, rows = '';
   rows += '<section class="frow done"><div class="frow-h static"><span class="ficon">' + ic('globe') + '</span><span class="ftext"><b>' + esc(t('language')) + '</b><small>' + esc(t('language_sub')) + '</small></span>' + langChip() + '</div></section>';
   var cityObj = d.custom || JJ.CITIES[d.cityId];
-  if (onboard && !(ui.loc && ui.loc.state === 'failed' && !cityObj)) rows += locRow(d); else rows += frow('city', 'pin', t('location'), cityObj ? (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
+  if (onboard) rows += frow('city', 'pin', t('location'), cityObj ? t('loc_detected', {place: (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '')}) : ui.loc && ui.loc.state === 'busy' ? t('loc_detecting') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
+  else rows += frow('city', 'pin', t('location'), cityObj ? (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
   rows += frow('cuisine', 'thali', t('cuisine'), d.cuisine ? nm(JJ.CUISINES[d.cuisine]) : t('cuisine_hint'), !!d.cuisine, function () { return '<div class="chips">' + Object.keys(JJ.CUISINES).map(function (k) { return '<button class="chip" data-a="cuisine" data-v="' + k + '" aria-pressed="' + (d.cuisine === k) + '">' + esc(nm(JJ.CUISINES[k])) + '</button>'; }).join('') + '</div><p class="hint">' + esc(t('cuisine_help')) + '</p>'; });
   rows += frow('hh', 'users', t('household'), t('for_members', {n: d.hh}), d.hh >= 1, function () { return '<div class="stepper"><button data-a="hh" data-v="-1" aria-label="' + esc(t('fewer')) + '"' + (d.hh <= 1 ? ' disabled' : '') + '>−</button><output aria-live="polite">' + esc(t('for_members', {n: d.hh})) + '</output><button data-a="hh" data-v="1" aria-label="' + esc(t('more')) + '"' + (d.hh >= 20 ? ' disabled' : '') + '>+</button></div><p class="hint">' + esc(t('household_help')) + '</p>'; });
   var exVal = d.allergies.map(function (a) { return nm(JJ.ALLERGENS[a]); }).concat(d.exclude.map(ingName)).join(', ') || t('none');
@@ -1470,7 +1492,9 @@ function viewProfile(onboard) {
     head = '';
     bottom = '<div class="cta-bar gx"><button class="btn-primary" data-a="signupsubmit"' + (ready(d) && !ui.acc.busy ? '' : ' disabled') + '>' + esc(t(ui.acc.busy ? 'acc_wait' : 'signup_cta')) + '</button><p>' + esc(t('have_account')) + ' <button class="linkbtn" data-a="gatemode" data-v="signin" style="padding:0">' + esc(t('acc_login')) + '</button></p></div>';
   } else if (onboard) {
-    top = '<div class="hero-brand">' + lotus(72) + WORDMARK + '<h1 class="h1">' + esc(t('your_profile')) + '</h1><p class="sub" style="margin:0">' + esc(t('asked_once')) + '</p></div>';
+    top = '<div class="hero-brand">' + lotus(64) + WORDMARK +
+      '<section class="benefit" aria-label="' + esc(t('benefit_title')) + '"><h2>' + esc(t('benefit_title')) + '</h2><ul>' + ['benefit_1', 'benefit_2', 'benefit_3'].map(function (k) { return '<li>' + ic('check') + '<span>' + esc(t(k)) + '</span></li>'; }).join('') + '</ul></section>' +
+      '<h1 class="h1">' + esc(t('your_profile')) + '</h1><p class="sub" style="margin:0">' + esc(t('setup_why')) + '</p></div>';
     head = '';
     bottom = '<div class="cta-bar gx"><button class="btn-primary" data-a="submit"' + (ready(d) ? '' : ' disabled') + '>' + esc(t('get_plan')) + '</button><p>' + esc(ready(d) ? t('plan_starts_today') : t('complete_fields')) + '</p></div>';
   } else {
@@ -1506,7 +1530,8 @@ app.addEventListener('click', function (e) {
   switch (a) {
     case 'lang': setLang(v); break;
     case 'tab': tab = v; stack = []; ui.showcase = false; if (v === 'today') ui.sel = null; render(); break;
-    case 'sel': ui.sel = v; render(); break;
+    case 'sel': ui.sel = v; ui.chg = null; render(); break;
+    case 'chg': ui.chg = ui.chg === v ? null : v; render(); break;
     case 'search': ui.ex = exPreset(''); tab = 'explore'; stack = []; render(); setTimeout(function () { var q = document.getElementById('explore-q'); if (q) q.focus(); }, 30); break;
     case 'cat': ui.ex = exPreset(v); tab = 'explore'; stack = []; render(); break;
     case 'exmeal': ui.ex.meal = v; ui.ex.limit = 60; render(); break;
@@ -1526,7 +1551,7 @@ app.addEventListener('click', function (e) {
       cm.choice = Object.assign({b: 0, l: 0, s: 0, d: 0}, cm.choice); cm.choice[el.dataset.m] = +v;
       if (cm.status === 'history') JJ.db.put('menu_history', cm);
       else { cm = Object.assign({}, cm, {status: 'planned', month: ym(cm.date), savedAt: Date.now()}); JJ.db.put('daily_menus', cm); previewCache.delete(cm.date); }
-      render(); toast(t('option_saved')); break;
+      ui.chg = null; render(); toast(t('option_saved')); break;
     }
     case 'ics': {
       var blob = new Blob([parvaIcs()], {type: 'text/calendar'}), a2 = document.createElement('a');

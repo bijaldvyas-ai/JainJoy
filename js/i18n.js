@@ -3,6 +3,15 @@
 'use strict';
 var K = {
 // navigation
+benefit_title:['Never wonder what to cook again','अब कभी न सोचें कि क्या बनाएँ','હવે ક્યારેય ન વિચારો કે શું બનાવવું'],
+benefit_1:['4 Jain meals planned for your family every day','हर दिन आपके परिवार के लिए 4 जैन भोजन की योजना','દરરોજ તમારા પરિવાર માટે 4 જૈન ભોજનનું આયોજન'],
+benefit_2:['Aatham, Chaudas and Parva tithi rules applied for your city','आपके शहर के अनुसार आठम, चौदस और पर्व तिथि के नियम लागू','તમારા શહેર મુજબ આઠમ, ચૌદસ અને પર્વ તિથિના નિયમો લાગુ'],
+benefit_3:['Navkarsi and Chauvihar times, plus a ready grocery list','नवकारसी और चौविहार का समय, साथ में तैयार किराना सूची','નવકારશી અને ચોવિહારનો સમય, સાથે તૈયાર કરિયાણાની યાદી'],
+setup_why:['Answer once, in about a minute. Your city sets sunrise and tithi, your cuisine shapes the thali, and family size sets quantities.','एक बार, लगभग एक मिनट में जवाब दें। आपका शहर सूर्योदय और तिथि तय करता है, व्यंजन थाली तय करता है और परिवार का आकार मात्रा तय करता है।','એક જ વાર, લગભગ એક મિનિટમાં જવાબ આપો. તમારું શહેર સૂર્યોદય અને તિથિ નક્કી કરે છે, વ્યંજન થાળી નક્કી કરે છે અને પરિવારનું કદ માત્રા નક્કી કરે છે.'],
+loc_or_choose:['Or choose your city','या अपना शहर चुनें','અથવા તમારું શહેર પસંદ કરો'],
+change_meal:['Change meal','भोजन बदलें','ભોજન બદલો'], change_meal_close:['Keep this meal','यही भोजन रखें','આ જ ભોજન રાખો'],
+more_today:['More about today','आज के बारे में और','આજ વિશે વધુ'],
+more_today_sub:['Shubh Choghadiya, tithi details, Ayambil thali and status','शुभ चौघड़िया, तिथि विवरण, आयंबिल थाली और स्थिति','શુભ ચોઘડિયું, તિથિ વિગતો, આયંબિલ થાળી અને સ્થિતિ'],
 tab_explore:['Explore','खोजें','શોધો'], your_city:['Your city','आपका शहर','તમારું શહેર'],
 search_hint:['Search “puri”, “dal”, “paneer”…','खोजें “पूरी”, “दाल”, “पनीर”…','શોધો “પૂરી”, “દાળ”, “પનીર”…'],
 explore_title:['Explore recipes','रेसिपी खोजें','વાનગીઓ શોધો'], search_dish:['Search dish or ingredient','व्यंजन या सामग्री खोजें','વાનગી કે સામગ્રી શોધો'],
@@ -159,7 +168,7 @@ veg_trips:['Fresh vegetables in two trips','ताज़ी सब्ज़ी �
 trip_n:['Trip {n} · for {from} – {to}','{n}वीं ख़रीद · {from} – {to} के लिए','{n}મી ખરીદી · {from} – {to} માટે'],
 app_updated:['JainJoy updated to the latest version','JainJoy नए संस्करण में अपडेट हो गया','JainJoy નવા સંસ્કરણમાં અપડેટ થઈ ગયું'],
 plan_ready:['Your meal plan is ready!','आपकी भोजन योजना तैयार है!','તમારી ભોજન યોજના તૈયાર છે!'],
-plan_ready_sub:['Here is today\'s menu. Tap any dish for the recipe, or pick option 1 or 2.','यह आज का मेनू है। रेसिपी के लिए किसी भी व्यंजन पर टैप करें, या विकल्प 1 या 2 चुनें।','આ આજનું મેનુ છે. રેસીપી માટે કોઈ પણ વાનગી પર ટૅપ કરો, અથવા વિકલ્પ 1 કે 2 પસંદ કરો.'],
+plan_ready_sub:['Here is today\'s menu. Tap a dish for the recipe, or tap Change meal to pick the other option.','यह आज का मेनू है। रेसिपी के लिए व्यंजन पर टैप करें, या दूसरा विकल्प चुनने के लिए “भोजन बदलें” दबाएँ।','આ આજનું મેનૂ છે. રેસીપી માટે વાનગી પર ટૅપ કરો, અથવા બીજો વિકલ્પ પસંદ કરવા “ભોજન બદલો” દબાવો.'],
 shubh_chog:['Shubh Choghadiya','शुभ चौघड़िया','શુભ ચોઘડિયું'], chog_now_short:['now','अभी','હમણાં'],
 paryushan:['Paryushan','पर्युषण','પર્યુષણ'], samvatsari:['Samvatsari','संवत्सरी','સંવત્સરી'], das_lakshan:['Das Lakshan','दशलक्षण','દશલક્ષણ'],
 meal_a:['Ayambil','आयंबिल','આયંબિલ'],

@@ -542,12 +542,13 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var rows = [].map.call(div.querySelectorAll('.frow b'), function (b) { return b.textContent; });
     var want = ['Language', 'Location', 'Regional cuisine', 'Household size', 'Allergies and exclusions', 'Tithi observances', 'Timing convention'];
     var missing = want.filter(function (w) { return rows.indexOf(w) < 0; });
-    var noTradition = !/Tradition|Sub-sect/.test(div.textContent), locAuto = !div.querySelector('#pf-state') && !div.querySelector('#pf-city');
+    // v3.4.1: the city picker is shown right away, beside "Use my location" (detection still runs in the background)
+    var noTradition = !/Tradition|Sub-sect/.test(div.textContent), locAuto = !!div.querySelector('#pf-country') && !!div.querySelector('[data-a="gps"]');
     var su = ids === 'name,phone,password,confirm' && !missing.length && noTradition && locAuto && !!div.querySelector('[data-a="signupsubmit"]');
     div.innerHTML = JJ.app.gateHTML('signin');
     var ids2 = [].map.call(div.querySelectorAll('input'), function (i) { return i.id.slice(4); }).join(','), si = ids2 === 'phone,password' && !div.querySelector('.frow');
     JJ.app.gateHTML('signup');
-    return {ok: su && si, details: 'Sign Up fields: ' + ids + '; sections: ' + rows.join(', ') + (missing.length ? ' (missing ' + missing.join(', ') + ')' : '') + '; no tradition or sub-sect: ' + noTradition + '; location not asked (detected): ' + locAuto + '. Sign In fields: ' + ids2};
+    return {ok: su && si, details: 'Sign Up fields: ' + ids + '; sections: ' + rows.join(', ') + (missing.length ? ' (missing ' + missing.join(', ') + ')' : '') + '; no tradition or sub-sect: ' + noTradition + '; city picker shown with Use my location: ' + locAuto + '. Sign In fields: ' + ids2};
   });
 
   // ---- v3.0: subscription (7-day trial, then ₹199 for 1 year) ----
