@@ -200,7 +200,7 @@ function langChip() { return '<div class="lang-chip" role="group" aria-label="' 
 function brandBar() { return '<header class="appbar gx"><button class="loc-btn" data-a="tab" data-v="prof" aria-label="' + esc(t('change_city')) + '">' + lotus(28) + '<span class="loc-txt"><small>' + esc(t('your_city')) + '</small><b>' + ic('pin') + '<span>' + esc(cityLabel()) + '</span></b></span></button>' + langChip() + '<button class="avatar" data-a="tab" data-v="prof" aria-label="' + esc(t('tab_profile')) + '">' + ic('user') + '</button></header>'; }
 function backBar(title, sub, extra) { return '<header class="appbar gx"><button class="icon-btn" data-a="back" aria-label="' + esc(t('back')) + '">' + ic('back') + '</button><div class="ab-title"><b>' + esc(title) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>' + (extra || '') + '</header>'; }
 function tabbar() {
-  var cur = tab === 'chog' ? 'pan' : tab; // Choghadiya lives under Panchang; Profile opens from the header
+  var cur = tab === 'chog' || tab === 'pk' ? 'pan' : tab; // Choghadiya lives under Panchang; Profile opens from the header
   function b(v, i, l) { return '<button class="tab" data-a="tab" data-v="' + v + '"' + (cur === v ? ' aria-current="page"' : '') + '><span class="pill">' + ic(i) + '</span>' + esc(t(l)) + '</button>'; }
   return '<nav class="tabbar gx" aria-label="' + esc(t('main_nav')) + '">' + b('today', 'today', 'tab_today') + b('explore', 'grid', 'tab_explore') + b('cal', 'cal', 'tab_calendar') + b('pan', 'moon', 'tab_panchang') + b('shop', 'cart', 'tab_grocery') + '</nav>';
 }
@@ -220,7 +220,7 @@ function render() {
   else if (!P) body = viewProfile(true);
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
     admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount, subscribe: function () { return viewPaywall(true); }, legal: viewLegal, invite: viewInvite, visitors: viewVisitors})[top.k](top);
-  else body = tab === 'today' ? viewToday() : tab === 'explore' ? viewExplore() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'shop' ? viewShop() : viewProfileHome();
+  else body = tab === 'today' ? viewToday() : tab === 'explore' ? viewExplore() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'pk' ? viewPachkhan() : tab === 'shop' ? viewShop() : viewProfileHome();
   app.innerHTML = '<div class="phone">' + withCredit(body) + (P && !gate && !locked() && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
   syncHistory();
@@ -449,7 +449,7 @@ function essentials(iso, live) {
   var p = pan(iso), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar}), now = Date.now();
   function cell(lbl, ms, cls) { return '<div class="tcell ' + (cls || '') + '"><small>' + esc(t(lbl)) + '</small><b>' + hm(ms) + '</b>' + (live ? '<em data-until="' + ms + '">' + until(ms) + '</em>' : '') + '</div>'; }
   return '<section class="card glass timings-card"><div class="tc-head"><h3>' + esc(t('timings_title')) + '</h3><button class="linkbtn" data-a="tab" data-v="pan" style="padding:0">' + esc(t('more_details')) + '</button></div><div class="tgrid tg4 tg2">' +
-    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '') + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '') + '</div>' + tithiRule(iso) + '</section>';
+    cell('navkarsi', tm.navkarsi, live && now < tm.navkarsi ? 'hi' : '') + cell('chauvihar', tm.chauvihar, live && now < tm.chauvihar ? 'warn' : '') + '</div>' + tithiRule(iso) + '<button class="linkbtn pk-link" data-a="tab" data-v="pk">' + esc(t('pk_open')) + ' ›</button></section>';
 }
 /* the chosen meal shows first; "Change meal" opens the alternative beside it */
 function changeMeal(iso, k, menu) {
@@ -727,8 +727,66 @@ function viewCal() {
 }
 
 /* ---------------- Panchang ---------------- */
+/* Pachkhan texts (Roman, Gujarati, Hindi) as supplied by the JainJoy team; Ekasna/Biyasna and Atthai are Roman only */
+var PACHKHAN = [
+ {
+  "k": "navkarsi",
+  "ro": "Uggae Sure, Namukkaara-Sahiam, Porisim, Saaddhaporisim, Sure Uggae, Purimaddha, Avaddha, Mutthisahiam, Pachchakkhaai (Pachchakkhaami), Chauviham Pi Aahaaram, Asanam, Paanam, Khaaimam, Saaimam, Annathanaabhogenam, Sahasaagaarenam, Pachchhanakaalenam, Disaamohenam, Saahuvayanenam, Mahattaraagaarenam, Savvasamaahivattiyaa-Gaarenam, Vosirai (Vosiraami).",
+  "gu": "ઉગ્ગએ સૂરે, નમુક્કાર-સહિઅં, પોરિસિં, સાડ્ઢપોરિસિં, સૂરે ઉગ્ગએ પુરિમડ્ઢ, અવડ્ઢ મુટ્ઠિસહિઅં, પચ્ચક્ખાઇ (પચ્ચક્ખામિ); ચઉવ્વિહં પિ આહારં, અસણં, પાણં, ખાઇમં, સાઇમં, અન્નત્થણાભોગેણં, સહસાગારેણં, પચ્છન્નકાલેણં, દિસામોહેણં, સાહુવયણેણં, મહત્તરાગારેણં, સવ્વસમાહિ-વત્તિયાગારેણં વોસિરઈ (વોસિરામિ).",
+  "hi": "उग्गए सूरे, नमुक्कार-सहिअं, पोरिसिं, साड्ढपोरिसिं, सूरे उग्गए पुरिमड्ढ, अवड्ढ मुट्ठिसहिअं, पच्चक्खाइ (पच्चक्खामि); चउव्विहं पि आहारं, असणं, पाणं, खाइमं, साइमं, अन्नत्थणाभोगेणं, सहसागारेणं, पच्छन्नकालेणं, दिसामोहेणं, साहुवयणेणं, महत्तरागारेणं, सव्वसमाहि-वत्तियागारेणं वोसिरई (वोसिरामि).",
+  "t": [
+   "Navkarsi Pachkhan",
+   "नवकारसी पच्चक्खाण",
+   "નવકારશી પચ્ચક્ખાણ"
+  ]
+ },
+ {
+  "k": "chauvihar",
+  "ro": "Divasacharimam, Pachchakkhaai (Pachchakkhaami), Chauviham Pi Aahaaram, Asanam, Paanam, Khaaimam, Saaimam, Annatthanaabhogenam, Sahasaagaarenam, Mahattaraagarenam, Savvasamaahivattiyaa-Gaarenam, Vosirai (Vosiraami).",
+  "gu": "દિવસચરિમં પચ્ચક્ ખાઇ (પચ્ચક્ ખામિ); ચઉવ્વિહં પિ આહારં, અસણં, પાણં, ખાઇમં, સાઇમં, અન્નત્થણાભોગેણં, સહસાગારેણં, મહત્તરાગારેણં, સવ્વસમાહિ-વત્તિયાગારેણં વોસિરઈ (વોસિરામિ).",
+  "hi": "दिवसचरिमं पच्चक् खाइ (पच्चक् खामि); चउव्विहं पि आहारं, असणं, पाणं, खाइमं, साइमं, अन्नत्थणाभोगेणं, सहसागारेणं, महत्तरागारेणं, सव्वसमाहि-वत्तियागारेणं वोसिरई (वोसिरामि).",
+  "t": [
+   "Chauvihar Pachkhan",
+   "चौविहार पच्चक्खाण",
+   "ચોવિહાર પચ્ચક્ખાણ"
+  ]
+ },
+ {
+  "k": "upvas",
+  "ro": "Sure Uggae, Abbhattattham, Pachchakkhaai (Pachchakkhaami), Chauviham Pi Aahaaram, Asanam, Paanam, Khaaimam, Saaimam, Annatthanaabhogenam, Sahasaagaarenam, Paaritthaavaniyaagaarenam, Mahattaraagarenam, Savvasamaahivattiyaa-Gaarenam, Vosirai (Vosiraami).",
+  "gu": "સૂરે ઉગ્ગએ અબ્ભત્તટ્ઠં પચ્ચક્ ખાઇ (પચ્ચક્ ખામિ); ચઉવ્વિહં પિ આહારં, અસણં, પાણં, ખાઇમં, સાઇમં, અન્નત્થણાભોગેણં, સહસાગારેણં, પારિટ્ઠાવણિયાગારેણં, મહત્તરાગારેણં, સવ્વસમાહિ-વત્તિયાગારેણં, વોસિરઈ (વોસિરામિ).",
+  "hi": "सूरे उग्गए अब्भत्तट्ठं पच्चक् खाइ (पच्चक् खामि); चउव्विहं पि आहारं, असणं, पाणं, खाइमं, साइमं, अन्नत्थणाभोगेणं, सहसागारेणं, पारिट्ठावणियागारेणं, महत्तरागारेणं, सव्वसमाहि-वत्तियागारेणं, वोसिरई (वोसिरामि).",
+  "t": [
+   "Chouvihar Upvas (Nirjal – without water)",
+   "चौविहार उपवास (निर्जल – बिना पानी)",
+   "ચોવિહાર ઉપવાસ (નિર્જળ – પાણી વગર)"
+  ]
+ },
+ {
+  "k": "ekasna",
+  "ro": "Uggae Sure, Namukkaar-Sahiam, Porisim, Saaddhaporisim, Mutthisahim, Pachchakkhaai (Pachchakkhaami) … Ekaasanam / Biyaasanam, Pachchakkhaai (Pachchakkhaami) … Vosirai (Vosiraami).",
+  "gu": null,
+  "hi": null,
+  "t": [
+   "Ekasna / Biyasna",
+   "एकासना / बियासना",
+   "એકાસણું / બિયાસણું"
+  ]
+ },
+ {
+  "k": "atthai",
+  "ro": "Aaj thi aath divas sudhi Chouvihar Upvas no pachkhan levu chhu. Aath divas sudhi anna-jal no tyag karish. Micchami Dukkadam.",
+  "gu": null,
+  "hi": null,
+  "t": [
+   "Atthai",
+   "अट्ठाई",
+   "અઠ્ઠાઈ"
+  ]
+ }
+];
 /* Panchang and Choghadiya share one tab: a switch at the top moves between them */
-function panSeg(cur) { return '<div class="seg" style="margin-top:6px" role="group" aria-label="' + esc(t('tab_panchang')) + '">' + [['pan', 'tab_panchang'], ['chog', 'tab_choghadiya']].map(function (x) { return '<button data-a="tab" data-v="' + x[0] + '" aria-pressed="' + (cur === x[0]) + '">' + esc(t(x[1])) + '</button>'; }).join('') + '</div>'; }
+function panSeg(cur) { return '<div class="seg" style="margin-top:6px" role="group" aria-label="' + esc(t('tab_panchang')) + '">' + [['pan', 'tab_panchang'], ['chog', 'tab_choghadiya'], ['pk', 'tab_pachkhan']].map(function (x) { return '<button data-a="tab" data-v="' + x[0] + '" aria-pressed="' + (cur === x[0]) + '">' + esc(t(x[1])) + '</button>'; }).join('') + '</div>'; }
 function viewPan() {
   var td = today(), p = pan(td), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar});
   var b = panSeg('pan') + '<h1 class="h1" style="margin-top:12px">' + esc(t('panchang_title')) + '</h1><p class="sub">' + esc(dLong(td)) + ' · ' + esc(cityLabel()) + '</p>';
@@ -857,6 +915,23 @@ function listText(groups) {
 }
 
 /* ---------------- Choghadiya ---------------- */
+/* Pachkhan: daily vows in the script the reader prefers, with today's Navkarsi and Chauvihar times */
+function pkScript() { return ui.pkScript || {en: 'ro', hi: 'hi', gu: 'gu'}[LANG] || 'ro'; }
+function viewPachkhan() {
+  var td = today(), tm = JJ.timings(pan(td), {navkarsi: P.navkarsi, chauvihar: P.chauvihar}), sc = pkScript(), li = {en: 0, hi: 1, gu: 2}[LANG] || 0;
+  var b = panSeg('pk') + '<h1 class="h1" style="margin-top:12px">' + esc(t('pk_title')) + '</h1><p class="sub">' + esc(t('pk_sub')) + '</p>' +
+    '<div class="seg" role="group" aria-label="' + esc(t('pk_script')) + '">' + [['ro', t('pk_roman')], ['gu', 'ગુજરાતી'], ['hi', 'हिंदी']].map(function (x) { return '<button data-a="pkscript" data-v="' + x[0] + '" aria-pressed="' + (sc === x[0]) + '">' + esc(x[1]) + '</button>'; }).join('') + '</div>';
+  b += PACHKHAN.map(function (p, i) {
+    var txt = p[sc] || p.ro, only = !p[sc], when = p.k === 'navkarsi' ? t('pk_today_nav', {time: hm(tm.navkarsi)}) : p.k === 'chauvihar' ? t('pk_today_cha', {time: hm(tm.chauvihar)}) : '';
+    var note = p.k === 'ekasna' ? t('pk_ekasna_note') : p.k === 'atthai' ? t('pk_atthai_note') : '';
+    return '<details class="card glass fold pk-card"' + (i === 0 ? ' open' : '') + '><summary><span class="ficon">' + ic(p.k === 'chauvihar' ? 'moon' : 'clock') + '</span><span class="mtxt grow"><b>' + esc(p.t[li]) + '</b>' + (when ? '<small>' + esc(when) + '</small>' : '') + '</span>' + ic('next', 'chev fold-chev') + '</summary>' +
+      (note ? '<p class="fine" style="margin:10px 0 0">' + esc(note) + '</p>' : '') + (only && sc !== 'ro' ? '<p class="fine" style="margin:10px 0 0">' + esc(t('pk_roman_only')) + '</p>' : '') +
+      '<p class="pk-text" lang="' + (only ? 'en' : sc === 'gu' ? 'gu' : sc === 'hi' ? 'hi' : 'en') + '">' + esc(txt) + '</p>' +
+      '<button class="btn small" data-a="pkcopy" data-v="' + i + '">' + ic('copy') + ' ' + esc(t('pk_copy')) + '</button></details>';
+  }).join('');
+  b += '<p class="fine">' + esc(t('pk_verify')) + '</p>';
+  return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
 function viewChog() {
   var td = today(), iso = ui.chogDate || td, list = JJ.choghadiya(iso, city()), now = Date.now();
   var nav = '<div class="cal-nav"><button class="icon-btn" data-a="chogday" data-v="-1" aria-label="' + esc(t('prev_day')) + '">' + ic('back') + '</button><h1 class="h1" style="font-size:22px">' + esc(dLong(iso)) + '</h1><button class="icon-btn" data-a="chogday" data-v="1" aria-label="' + esc(t('next_day')) + '">' + ic('next') + '</button></div>';
@@ -1532,6 +1607,13 @@ app.addEventListener('click', function (e) {
     case 'tab': tab = v; stack = []; ui.showcase = false; if (v === 'today') ui.sel = null; render(); break;
     case 'sel': ui.sel = v; ui.chg = null; render(); break;
     case 'chg': ui.chg = ui.chg === v ? null : v; render(); break;
+    case 'pkscript': ui.pkScript = v; render(); break;
+    case 'pkcopy': {
+      var pk = PACHKHAN[+v], ptxt = pk ? (pk[pkScript()] || pk.ro) : '';
+      var done = function () { toast(t('pk_copied')); }, fb = function () { try { var ta = document.createElement('textarea'); ta.value = ptxt; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); } catch (e) {} };
+      try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ptxt).then(done, fb); else fb(); } catch (e) { fb(); }
+      break;
+    }
     case 'search': ui.ex = exPreset(''); tab = 'explore'; stack = []; render(); setTimeout(function () { var q = document.getElementById('explore-q'); if (q) q.focus(); }, 30); break;
     case 'cat': ui.ex = exPreset(v); tab = 'explore'; stack = []; render(); break;
     case 'exmeal': ui.ex.meal = v; ui.ex.limit = 60; render(); break;

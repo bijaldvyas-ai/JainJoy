@@ -545,3 +545,9 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .alt-pick{margin-top:8px;padding:10px;border-radius:18px;border:1px dashed var(--line);background:var(--surface-2)}
 .timings-card .rule-note,.timings-card .parva-box{margin-top:10px}
 .more-today .obs{margin-top:10px}
+
+/* v3.4.2: Pachkhan */
+.pk-card summary{cursor:pointer}
+.pk-text{margin:12px 0;font-size:16px;line-height:1.75;font-weight:600;color:var(--fg);white-space:normal}
+.pk-text[lang="gu"],.pk-text[lang="hi"]{font-size:17px;line-height:1.9}
+.pk-link{display:block;margin-top:8px;padding:4px 0 0}

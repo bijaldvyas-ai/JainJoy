@@ -262,7 +262,7 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
   test(20, 'Every screen shows the Made by BiNaiSa signature', function () {
     JJ.app.profile = Object.assign({created: today}, Pg); JJ.app.setLang('gu');
     var miss = [];
-    ['today', 'explore', 'cal', 'pan', 'chog', 'shop', 'prof'].forEach(function (s) { document.querySelector('[data-a="tab"][data-v="' + s + '"]').click(); if (!/Made by\s*BiNaiSa/.test(document.getElementById('app').innerText)) miss.push(s); });
+    ['today', 'explore', 'cal', 'pan', 'chog', 'pk', 'shop', 'prof'].forEach(function (s) { document.querySelector('[data-a="tab"][data-v="' + s + '"]').click(); if (!/Made by\s*BiNaiSa/.test(document.getElementById('app').innerText)) miss.push(s); });
     JJ.app.setLang('en');
     var tabs = Array.prototype.map.call(document.querySelectorAll('.tabbar [data-a="tab"]'), function (b) { return b.dataset.v; }).join(',');
     // v3.4 navigation: Choghadiya opens from Today and Panchang, Profile from the header

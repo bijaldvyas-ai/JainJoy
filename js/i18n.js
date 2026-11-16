@@ -3,6 +3,15 @@
 'use strict';
 var K = {
 // navigation
+tab_pachkhan:['Pachkhan','पच्चक्खाण','પચ્ચક્ખાણ'], pk_title:['Pachkhan','पच्चक्खाण','પચ્ચક્ખાણ'],
+pk_sub:['Daily vows to recite. Choose the script you read best.','दैनिक पच्चक्खाण पाठ। जो लिपि आप आसानी से पढ़ें, वह चुनें।','રોજના પચ્ચક્ખાણ. જે લિપિ તમે સહેલાઈથી વાંચો તે પસંદ કરો.'],
+pk_script:['Script','लिपि','લિપિ'], pk_roman:['Roman','रोमन','રોમન'],
+pk_today_nav:['Navkarsi today: {time}','आज नवकारसी: {time}','આજે નવકારશી: {time}'], pk_today_cha:['Chauvihar today: {time}','आज चौविहार: {time}','આજે ચોવિહાર: {time}'],
+pk_roman_only:['Only the Roman text is available for this one.','इसका केवल रोमन पाठ उपलब्ध है।','આનો ફક્ત રોમન પાઠ ઉપલબ્ધ છે.'],
+pk_ekasna_note:['Say “Ekaasanam” or “Biyaasanam” as needed. This is the short practical version.','आवश्यकता अनुसार “एकासणं” या “बियासणं” बोलें। यह छोटा व्यावहारिक पाठ है।','જરૂર મુજબ “એકાસણં” કે “બિયાસણં” બોલો. આ ટૂંકો વ્યવહારુ પાઠ છે.'],
+pk_atthai_note:['Most people take the Chouvihar Upvas pachkhan each morning for 8 days. Below is a simple sankalp.','अधिकांश लोग 8 दिन तक हर सुबह चौविहार उपवास का पच्चक्खाण लेते हैं। नीचे एक सरल संकल्प है।','મોટાભાગના લોકો 8 દિવસ સુધી રોજ સવારે ચોવિહાર ઉપવાસનું પચ્ચક્ખાણ લે છે. નીચે એક સરળ સંકલ્પ છે.'],
+pk_verify:['Texts vary slightly between traditions. Please confirm the exact words with your Guru or Sangh.','परंपराओं में पाठ थोड़ा भिन्न हो सकता है। सटीक शब्द अपने गुरु या संघ से पुष्टि करें।','પરંપરાઓમાં પાઠ થોડો જુદો હોઈ શકે. ચોક્કસ શબ્દો તમારા ગુરુ કે સંઘ પાસેથી ખાતરી કરો.'],
+pk_copy:['Copy','कॉपी करें','કૉપિ કરો'], pk_copied:['Copied','कॉपी हो गया','કૉપિ થયું'], pk_open:['Pachkhan text','पच्चक्खाण पाठ','પચ્ચક્ખાણ પાઠ'],
 benefit_title:['Never wonder what to cook again','अब कभी न सोचें कि क्या बनाएँ','હવે ક્યારેય ન વિચારો કે શું બનાવવું'],
 benefit_1:['4 Jain meals planned for your family every day','हर दिन आपके परिवार के लिए 4 जैन भोजन की योजना','દરરોજ તમારા પરિવાર માટે 4 જૈન ભોજનનું આયોજન'],
 benefit_2:['Aatham, Chaudas and Parva tithi rules applied for your city','आपके शहर के अनुसार आठम, चौदस और पर्व तिथि के नियम लागू','તમારા શહેર મુજબ આઠમ, ચૌદસ અને પર્વ તિથિના નિયમો લાગુ'],
