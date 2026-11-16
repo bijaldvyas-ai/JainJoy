@@ -374,7 +374,7 @@ var DRAW = {
   sabzi: function (k) {
     var n = k.n, gravy = /masala|curry|kofta|gravy|rasila|dum|jhol|ghassi|makhani|kosha|gojju/.test(n), green = /palak|saag/.test(n);
     var base = green ? '#3d7a35' : gravy ? '#c8642e' : '#e4b45c', s = gravy || green ? dBowl(base) : dPlate() + '<ellipse cx="50" cy="50" rx="30" ry="27" fill="' + base + '" opacity=".55"/>';
-    if (/bhindi|okra/.test(n)) { for (var i = 0; i < 12; i++) { var p = k.pt('bh' + i, 24); s += '<ellipse cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" rx="6.5" ry="3.2" fill="#5f9a3a" stroke="#3f7a2a" transform="rotate(' + Math.round(k.rnd('bhr' + i) * 180) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; } return s + dots(k, 18, 24, '#e9f2c9', 0.7); }
+    if (/bhind|bhend|okra|vendakkai|dharosh/.test(n)) { for (var i = 0; i < 12; i++) { var p = k.pt('bh' + i, 24); s += '<ellipse cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" rx="6.5" ry="3.2" fill="#5f9a3a" stroke="#3f7a2a" transform="rotate(' + Math.round(k.rnd('bhr' + i) * 180) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; } return s + dots(k, 18, 24, '#e9f2c9', 0.7); }
     if (/gavar|beans|fansi|tindora|tondli/.test(n)) return s + flecks(k, 26, 26, ['#6e9c4a', '#5a9e45', '#7fb35c'], 6, 1.6) + dots(k, 10, 24, '#e04b36', 1);
     return s + chunks(k, 16, 26, k.cols, 6) + dots(k, 8, 26, '#3f9c3a', 1) + dots(k, 6, 24, '#2b2b2b', 0.6);
   },
