@@ -645,7 +645,7 @@ function specialCard(iso, menu) {
   var best = picks.filter(function (x) { return photoOf(JJ.catalog.byId[x[1]]); })[0] || picks[0], r = JJ.recipeFor(menu, best[1]); if (!r) return '';
   var ph = photoOf(r);
   return '<button class="special" data-a="recipe" data-d="' + iso + '" data-id="' + r.id + '">' +
-    '<span class="sp-pic">' + (ph ? '<span class="sp-art">' + plateArt(r, 170) + '</span><img src="' + esc(ph.src) + '" alt="" onerror="this.remove()">' : '<span class="sp-art solo">' + plateArt(r, 190) + '</span>') + '</span>' +
+    '<span class="sp-pic">' + (ph ? '<span class="sp-art">' + plateArt(r, 170) + '</span><img src="' + esc(ph.big || ph.src) + '" alt="" onerror="this.remove()">' : '<span class="sp-art solo">' + plateArt(r, 190) + '</span>') + '</span>' +
     '<span class="sp-txt"><em>' + esc(t('special_' + best[0])) + '</em><b>' + esc(rName(r)) + '</b><small>' + esc(nm(JJ.CUISINES[r.cu[0]] || JJ.CUISINES.gen) + ' · ' + timeText(r)) + '</small><span class="sp-cta">' + esc(t('cook_this')) + ' ›</span></span></button>';
 }
 function seasonIcon(k) { return {summer: '☀️', monsoon: '🌧️', winter: '❄️'}[k] || ''; }
@@ -668,10 +668,10 @@ function dayBody(iso, isToday, root) {
   // order: the essentials (Navkarsi, Chauvihar, today's food rule), then the chosen meals, then tomorrow,
   // then everything extra folded away. Discovery and history live in Explore, Calendar and Profile.
   var menu = menuFor(iso), b = '';
+  if (menu && !menu.legacy) b += specialCard(iso, menu); // the day's food is the first thing people see
   b += essentials(iso, isToday);
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   if (isToday && ui.showcase) b += '<div class="showcase" id="showcase"><b>🎉 ' + esc(t('plan_ready')) + '</b><small>' + esc(t('plan_ready_sub')) + '</small></div>';
-  if (!menu.legacy) b += specialCard(iso, menu);
   if (!menu.legacy && menu.season) b += '<p class="menu-line">' + esc(seasonIcon(menu.season) + ' ' + t('season_menu', {s: t('season_' + menu.season), c: nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)})) + '</p>';
   b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + changeMeal(iso, k, menu) + '</div>'; }).join('') + '</div>';
   if (menu.repeats && menu.repeats.length) b += '<p class="fine">' + esc(t('repeat_note', {list: menu.repeats.map(function (x) { return rName(JJ.recipeFor(menu, x.id)); }).join(', ')})) + '</p>';
@@ -898,7 +898,7 @@ function viewRecipe(top) {
   var cu = r.cu && r.cu[0] && JJ.CUISINES[r.cu[0]];
   var mealKey = r.meal === 'l' ? (JJ.SLOT_NAMES[r.comp] ? nm(JJ.SLOT_NAMES[r.comp]) : t('meal_l')) : t('meal_' + r.meal);
   var ph = photoOf(r);
-  var b = ph ? '<div class="rhero-photo">' + plateArt(r, 150) + '<img src="' + esc(ph.src) + '" alt="' + esc(rName(r)) + '" onerror="this.parentNode.classList.add(\'nophoto\');this.remove()"></div>' : '<div class="rhero mt-' + r.meal + '">' + plate(r, 140) + '</div>';
+  var b = ph ? '<div class="rhero-photo">' + plateArt(r, 150) + '<img src="' + esc(ph.big || ph.src) + '" alt="' + esc(rName(r)) + '" onerror="this.parentNode.classList.add(\'nophoto\');this.remove()"></div>' : '<div class="rhero mt-' + r.meal + '">' + plate(r, 140) + '</div>';
   b += '<h1 class="h1 rname">' + esc(rName(r)) + '</h1>';
   if (ph && ph.author) b += '<p class="photo-credit">' + esc(t('photo_by', {a: ph.author, l: ph.license})) + ' · <a href="' + esc(ph.page) + '" target="_blank" rel="noopener">Wikimedia Commons</a></p>';
   if (r.orig) b += '<p class="origname">' + esc(t('original_name')) + ': ' + esc(r.orig) + '</p>';

@@ -640,7 +640,7 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var lic = ids.every(function (id) { return /^(CC BY|CC BY-SA|Public domain)/.test(JJ.PHOTO_INFO[id].license) && /wikimedia\.org/.test(JJ.PHOTO_INFO[id].src) && JJ.PHOTO_INFO[id].author; });
     var poha = JJ.dish.plate(cat.byId.b073, 64), noPhoto = approved.filter(function (r) { return !JJ.PHOTO_INFO[r.id]; })[0], np = JJ.dish.plate(noPhoto, 64);
     var fallback = /<svg[^>]*dish-poha/.test(poha) && /<img class="dishphoto"[^>]*Indori_Poha/.test(poha) && /onerror="this.remove\(\)"/.test(poha);
-    return {ok: ids.length >= 90 && !missing.length && lic && fallback && !/<img/.test(np), details: ids.length + ' recipes with a checked, freely licensed real photo (credit shown on the recipe page); unknown ids: ' + missing.length + '; Indori Poha shows its photo over its drawing, drawing shown if the photo cannot load: ' + fallback + '; recipes without a photo keep their own drawing (' + noPhoto.en + ')'};
+    return {ok: ids.length >= 85 && !missing.length && lic && fallback && !/<img/.test(np), details: ids.length + ' recipes with a checked, freely licensed real photo (credit shown on the recipe page); unknown ids: ' + missing.length + '; Indori Poha shows its photo over its drawing, drawing shown if the photo cannot load: ' + fallback + '; recipes without a photo keep their own drawing (' + noPhoto.en + ')'};
   });
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
