@@ -554,3 +554,16 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 
 /* v3.4.5 dish pictures */
 .dish-photo{border-radius:50%;object-fit:cover;flex:none;box-shadow:0 3px 8px var(--plate-shadow)}
+
+/* v3.5 seasons, cuisines, Change Recipe */
+.menu-line{margin:4px 2px 8px;font-size:13px;font-weight:700;color:var(--muted,#6b6890)}
+.swap-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin-top:8px}
+.swap-card{display:flex;flex-direction:column;border-radius:16px;background:var(--glass,rgba(255,255,255,.6));border:1px solid var(--line,rgba(0,0,0,.08));overflow:hidden}
+.swap-pick{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px 6px;background:none;border:0;color:inherit;font:inherit;text-align:center;cursor:pointer}
+.swap-pick b{font-size:13px;line-height:1.25}
+.swap-pick small{font-size:11px;opacity:.75}
+.swap-pick:active{transform:scale(.98)}
+.swap-card .opt-open{border-top:1px solid var(--line,rgba(0,0,0,.08))}
+.small-chg{margin:-4px 0 8px 58px}
+.badge.b-season{background:rgba(255,170,60,.16);color:inherit}
+.chip.surprise{width:100%;justify-content:center;font-weight:800;margin-bottom:6px}

@@ -61,10 +61,11 @@ function getStored(iso) {
 }
 function recentFor(iso) {
   var rec = {}; var dn = JJ.dayNum(iso);
-  for (var k = 14; k >= 1; k--) {
+  // the last 30 days, whatever cuisine was set then: switching cuisine never resets this history
+  for (var k = JJ.NO_REPEAT_DAYS; k >= 1; k--) {
     var d = JJ.addDays(iso, -k), m = getStored(d) || previewCache.get(d);
     if (!m || m.legacy) continue;
-    JJ.menuRecipeIds(m).forEach(function (id) { rec[id] = dn - k; });
+    JJ.chosenIds(m).forEach(function (id) { rec[id] = dn - k; });
   }
   return rec;
 }
@@ -186,6 +187,7 @@ function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^=
 /* ---------------- dish pictures: every recipe is drawn as its own kind of dish ----------------
    A real photo wins when one is listed here: PHOTOS['recipe_id'] = 'img/recipes/recipe_id.webp' */
 var PHOTOS = {};
+var GIFS = {}; // recipe id -> animated clip (gif / webp / mp4) when one exists
 var DISH_RULES = [
   ['rice', /pulao|biryani|bisi bele/],
   ['salad', /kosambari|koshimbir/],
@@ -195,7 +197,7 @@ var DISH_RULES = [
   ['idli', /paniyaram|appe\b/],
   ['sweet', /laddoo|ladoo|ladu|sukhdi/],
   ['porridge', /dalia|daliya/],
-  ['soup', /\bstew\b/],
+  ['soup', /\bstew\b|saaru|charu|rasam/],
   ['crepe', /dhirde|ghavan|dosa|uttapam|uthappam|chill?a\b|cheela|pudla|puda\b|panki|pesarattu|crepe|pancake|\badai\b/],
   ['dhokla', /dhokla|khaman|handvo|ondhvo|muthia|khandvi|idada/],
   ['idli', /idli/],
@@ -622,6 +624,9 @@ function mealCard(iso, k, menu) {
   var extra = k === 'd' ? '<span class="warn-line" style="color:var(--saffron)">' + esc(t('finish_before', {time: hm(JJ.timings(pan(iso), {navkarsi: P.navkarsi, chauvihar: P.chauvihar}).chauvihar)})) + '</span>' : '';
   return '<button class="meal" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(timeText(r)) + ' · ' + JJ.recipeNutrition(r, x.drop)[0] + ' ' + esc(t('kcal')) + (x.drop && x.drop.length ? ' · ' + esc(t('adjusted_today')) : '') + '</small>' + extra + pb + '</span>' + ic('next', 'chev') + '</button>';
 }
+function seasonIcon(k) { return {summer: '☀️', monsoon: '🌧️', winter: '❄️'}[k] || '🍃'; }
+function seasonText(r) { var l = JJ.recipeSeasons(r); return l.length ? t('best_in', {s: l.map(function (k) { return t('season_' + k); }).join(', ')}) : t('all_seasons'); }
+function slotLabel(k) { if (k.indexOf('l:') === 0) { var sl = k.slice(2); return JJ.SLOT_NAMES[sl] ? nm(JJ.SLOT_NAMES[sl]) : sl; } return t('meal_' + k); }
 function timeText(r) { return (r.prep || 0) >= 240 ? t('min_soak', {n: r.cook || 0}) : t('min_total', {n: (r.prep || 0) + (r.cook || 0)}); }
 function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hist">' + ic('lock') + esc(t('status_hist')) + '</span>' : st === 'plan' ? '<span class="status-pill st-plan">' + ic('check') + esc(t('status_plan')) + '</span>' : st === 'prev' ? '<span class="status-pill st-prev">' + esc(t('status_prev')) + '</span>' : ''; }
 function dayBody(iso, isToday, root) {
@@ -632,8 +637,11 @@ function dayBody(iso, isToday, root) {
   b += essentials(iso, isToday);
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   if (isToday && ui.showcase) b += '<div class="showcase" id="showcase"><b>🎉 ' + esc(t('plan_ready')) + '</b><small>' + esc(t('plan_ready_sub')) + '</small></div>';
+  if (!menu.legacy) b += '<p class="menu-line">' + esc(seasonIcon(menu.season || JJ.seasonOf(iso, city())) + ' ' + t('season_menu', {s: t('season_' + (menu.season || JJ.seasonOf(iso, city()))), c: nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)})) + '</p>';
   b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + changeMeal(iso, k, menu) + '</div>'; }).join('') + '</div>';
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
+  if (menu.repeats && menu.repeats.length) b += '<div class="alert">' + esc(t('repeat_note', {list: menu.repeats.map(function (x) { return rName(JJ.recipeFor(menu, x.id)) + ' (' + t('used_days_ago', {n: x.days}) + ')'; }).join(', ')})) + '</div>';
+  if (menu.skipped && menu.skipped.length) b += '<div class="note info">' + esc(t('skipped_note', {list: menu.skipped.map(slotLabel).join(', ')})) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
   var oli = isOli(iso);
   b += festiveCard(iso);
@@ -657,10 +665,65 @@ function essentials(iso, live) {
 }
 /* the chosen meal shows first; "Change meal" opens the alternative beside it */
 function changeMeal(iso, k, menu) {
-  if (!hasOptions(menu, k) || (menu.status === 'history' && iso !== today())) return '';
+  if (menu.legacy || (menu.status === 'history' && iso !== today())) return '';
+  if (k === 'l' ? !hasOptions(menu, k) : !(menu.meals[k] && menu.meals[k].id)) return '';
   var key = iso + '|' + k, open = ui.chg === key;
-  return '<button class="change-meal" data-a="chg" data-v="' + key + '" aria-expanded="' + open + '">' + ic('swap') + esc(t(open ? 'change_meal_close' : 'change_meal')) + '</button>' +
-    (open ? '<div class="alt-pick">' + optionPair(iso, k, menu) + '</div>' : '');
+  return '<button class="change-meal" data-a="chg" data-v="' + key + '" aria-expanded="' + open + '">' + ic('swap') + esc(t(open ? 'change_meal_close' : k === 'l' ? 'change_meal' : 'change_recipe')) + '</button>' +
+    (open ? '<div class="alt-pick">' + (k === 'l' ? optionPair(iso, k, menu) + '<p class="fine" style="margin:8px 2px 0">' + esc(t('change_in_thali')) + '</p>' : swapPanel(iso, k, menu)) + '</div>' : '');
+}
+/* Change Recipe: up to five dishes that fit this day (Jain and Parva rules, season, not served
+   within 30 days before or after). Picking one changes only that dish; the grocery list follows. */
+function usedAround(iso) {
+  var used = {}, dn = JJ.dayNum(iso);
+  for (var k = -JJ.NO_REPEAT_DAYS + 1; k < JJ.NO_REPEAT_DAYS; k++) {
+    if (!k) continue;
+    var d = JJ.addDays(iso, k), m = getStored(d) || previewCache.get(d);
+    if (!m || m.legacy) continue;
+    JJ.chosenIds(m).forEach(function (id) { if (used[id] == null || Math.abs(dn - used[id]) > Math.abs(k)) used[id] = dn + k; });
+  }
+  return used;
+}
+function swapPanel(iso, key, menu) {
+  var alts = JJ.alternatives(menu, key, P, usedAround(iso), 5), slot = swapSlot(menu, key);
+  var h = '<div class="opt-head"><span class="mtag mt-' + (key.charAt(0) === 'l' ? 'l' : key) + '">' + esc(t('pick_instead')) + '</span><span class="opt-hint">' + esc(t('swap_hint')) + '</span></div>';
+  h += alts.length ? '<div class="swap-list">' + alts.map(function (a) {
+    var r = JJ.catalog.byId[a.id];
+    return '<div class="swap-card"><button class="swap-pick" data-a="swap" data-d="' + iso + '" data-k="' + key + '" data-v="' + a.id + '">' + plate(r, 58) + '<b>' + esc(rName(r)) + '</b><small>' + esc(timeText(r) + ' · ' + nm(JJ.CUISINES[r.cu[0]] || JJ.CUISINES.gen)) + '</small></button>' +
+      '<button class="opt-open" data-a="librecipe" data-v="' + a.id + '">' + esc(t('open_recipe')) + ' ›</button></div>';
+  }).join('') + '</div>' : '';
+  if (alts.length < 3) h += '<p class="fine">' + esc(t(alts.length ? 'few_alternatives' : 'no_alternatives')) + '</p>';
+  if (slot && slot.planned) h += '<button class="linkbtn" data-a="unswap" data-d="' + iso + '" data-k="' + key + '">' + esc(t('back_to_planned', {name: rName(JJ.recipeFor(menu, slot.planned.id))})) + '</button>';
+  return h;
+}
+function swapSlot(menu, key) { return key.charAt(0) === 'l' ? (menu.meals.l.items || [])[+key.slice(2)] : menu.meals[key]; }
+function saveMenu(m) {
+  if (m.status === 'history') JJ.db.put('menu_history', m);
+  else { m = Object.assign({}, m, {status: 'planned', month: ym(m.date), savedAt: Date.now()}); JJ.db.put('daily_menus', m); previewCache.delete(m.date); }
+  return m;
+}
+/* a dish just added to a day must not come back within 30 days: later upcoming days that use it are planned again */
+function replanAfter(iso, ids) {
+  var td = today();
+  previewCache.forEach(function (v, d) { if (d > iso) previewCache.delete(d); });
+  for (var k = 1; k < JJ.NO_REPEAT_DAYS; k++) {
+    var d = JJ.addDays(iso, k); if (d <= td) continue;
+    var m = JJ.db.get('daily_menus', d); if (!m || m.pv !== P.version) continue;
+    if (!JJ.chosenIds(m).some(function (id) { return ids.indexOf(id) >= 0; })) continue;
+    JJ.db.put('daily_menus', Object.assign(generate(d), {status: 'planned', month: ym(d), savedAt: Date.now()}));
+  }
+}
+function applySwap(iso, key, id, undo) {
+  var cur = menuFor(iso); if (!cur || cur.legacy) return;
+  var m = JSON.parse(JSON.stringify(cur)), slot = swapSlot(m, key); if (!slot) return;
+  var rules = JJ.dayRules(pan(iso), P), r = JJ.catalog.byId[id], drop = r ? Object.keys(JJ.allowed(r, rules, P) || {}) : [];
+  var two = key.charAt(0) === 'l' ? (m.choice && m.choice.l === 1 && slot.alt) : (m.choice && m.choice[key] === 1 && slot.alt);
+  if (undo) { if (!slot.planned) return; var pl = slot.planned; slot.id = pl.id; slot.drop = pl.drop || []; slot.alt = pl.alt || null; delete slot.planned; }
+  else {
+    if (!slot.planned) slot.planned = {id: slot.id, drop: slot.drop || [], alt: slot.alt || null};
+    if (two) slot.alt = {id: id, drop: drop}; else { slot.id = id; slot.drop = drop; }
+  }
+  if (m.status === 'history') { m.snap = m.snap || {}; JJ.chosenIds(m).forEach(function (x) { if (!m.snap[x]) m.snap[x] = JJ.snapshot(x); }); }
+  saveMenu(m); replanAfter(iso, JJ.chosenIds(m));
 }
 function nutriGrid(n) {
   n = n.map(function (v, i) { return i === 0 || v >= 10 ? Math.round(v) : v; });
@@ -775,7 +838,7 @@ function dayStrip(sel) {
 }
 /* "What's on your mind?" circles open Explore with that choice */
 var CAT_ROW = [['b', 'meal_b'], ['l', 'meal_l'], ['s', 'meal_s'], ['d', 'meal_d'], ['quick', 'f_quick'], ['today', 'f_today_ok']];
-function exPreset(v) { var e = {q: '', meal: 'all', f: {today: false, quick: false, protein: false}, limit: 60}; if (MEALS.indexOf(v) >= 0) e.meal = v; else if (v in e.f) e.f[v] = true; return e; }
+function exPreset(v) { var e = {q: '', meal: 'all', cu: 'all', season: 'all', f: {today: false, quick: false, protein: false}, limit: 60}; if (MEALS.indexOf(v) >= 0) e.meal = v; else if (v in e.f) e.f[v] = true; return e; }
 function catRow() {
   return '<h2 class="h2">' + esc(t('whats_on_mind')) + '</h2><div class="cats">' + CAT_ROW.map(function (c) {
     var L = exploreList(exPreset(c[0]), true).list, r = L.length ? L[hash(c[0] + today()) % L.length] : null;
@@ -789,6 +852,9 @@ function exploreList(ex, light) {
   if (!light) for (var k = 0; k < 7; k++) { var d = JJ.addDays(td, k), m = menuFor(d); if (m && !m.legacy) JJ.menuRecipeIds(m).forEach(function (id) { if (!planned[id]) planned[id] = k === 0 ? t('today') : dfmt(d, {weekday: 'short'}); }); }
   var list = JJ.catalog.list.filter(function (r) { return r.valid && r.status === 'approved' && JJ.allowed(r, rules, P) !== null; });
   if (ex.meal !== 'all') list = list.filter(function (r) { return r.meal === ex.meal; });
+  if (ex.cu && ex.cu !== 'all') list = list.filter(function (r) { return r.cu.indexOf(ex.cu) >= 0; });
+  if (ex.season === 'now') { var sn = JJ.seasonOf(td, city()), mo = +td.slice(5, 7); list = list.filter(function (r) { return JJ.inSeasonRecipe(r, sn, mo); }); }
+  else if (ex.season && ex.season !== 'all') list = list.filter(function (r) { return JJ.recipeSeasons(r).indexOf(ex.season) >= 0; });
   if (ex.f.quick) list = list.filter(function (r) { var mn = recipeMinutes(r); return mn !== null && mn <= 20; });
   if (ex.f.protein) list = list.filter(function (r) { return JJ.recipeNutrition(r, [])[1] >= 12; });
   if (q) list = list.filter(function (r) {
@@ -810,10 +876,12 @@ function exploreResults() {
 function viewExplore() {
   var ex = ui.ex;
   var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('explore_title')) + '</h1>' +
-    (ex.q || ex.meal !== 'all' || ex.f.today || ex.f.quick || ex.f.protein ? '' : catRow()) +
+    (ex.q || ex.meal !== 'all' || ex.f.today || ex.f.quick || ex.f.protein || (ex.cu && ex.cu !== 'all') || (ex.season && ex.season !== 'all') ? '' : catRow()) +
     '<div class="sbox">' + ic('search') + '<input id="explore-q" type="search" enterkeyhint="search" autocomplete="off" value="' + esc(ex.q) + '" placeholder="' + esc(t('search_dish')) + '" aria-label="' + esc(t('search_dish')) + '"><button class="sclear" data-a="exclear" aria-label="' + esc(t('clear_search')) + '">×</button></div>' +
     '<div class="hscroll" role="group" aria-label="' + esc(t('choose_meal')) + '">' + ['all'].concat(MEALS).map(function (m) { return '<button class="chip" data-a="exmeal" data-v="' + m + '" aria-pressed="' + (ex.meal === m) + '">' + esc(t(m === 'all' ? 'all_meals' : 'meal_' + m)) + '</button>'; }).join('') + '</div>' +
     '<div class="hscroll" role="group" aria-label="' + esc(t('filters')) + '">' + [['today', 'f_today_ok'], ['quick', 'f_quick'], ['protein', 'f_protein']].map(function (f) { return '<button class="chip fchip" data-a="exf" data-v="' + f[0] + '" aria-pressed="' + !!ex.f[f[0]] + '">' + (ex.f[f[0]] ? ic('check') : '') + esc(t(f[1])) + '</button>'; }).join('') + '</div>' +
+    '<div class="hscroll" role="group" aria-label="' + esc(t('cuisine')) + '">' + ['all'].concat(JJ.REGIONAL).map(function (k) { return '<button class="chip" data-a="excu" data-v="' + k + '" aria-pressed="' + ((ex.cu || 'all') === k) + '">' + esc(k === 'all' ? t('all_cuisines') : nm(JJ.CUISINES[k])) + '</button>'; }).join('') + '</div>' +
+    '<div class="hscroll" role="group" aria-label="' + esc(t('season')) + '">' + ['all', 'now'].concat(JJ.SEASONS).map(function (k) { return '<button class="chip" data-a="exse" data-v="' + k + '" aria-pressed="' + ((ex.season || 'all') === k) + '">' + esc(k === 'all' ? t('all_seasons') : k === 'now' ? t('in_season_now') : seasonIcon(k) + ' ' + t('season_' + k + '_sp')) + '</button>'; }).join('') + '</div>' +
     '<div id="ex-results">' + exploreResults() + '</div>';
   return brandBar() + '<main class="scroll gx" id="scroll">' + b + '</main>';
 }
@@ -829,7 +897,9 @@ function viewThali(top) {
   var menu = menuFor(top.date), items = menu.legacy ? (menu.meals.l.items || []) : itemsFor(menu, top.opt), cu = JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen;
   var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('thali_title', {c: nm(cu)})) + '</h1><p class="sub">' + esc(t('thali_sub')) + '</p>';
   var hasRaw = false, hasPulse = false;
-  items.forEach(function (it) {
+  // single dishes can be changed in the thali the household is cooking (not in the other option, not in past days)
+  var canSwap = !menu.legacy && (top.opt == null || top.opt === ((menu.choice && menu.choice.l) || 0)) && !(menu.status === 'history' && top.date !== today());
+  items.forEach(function (it, idx) {
     if (it.legacy) { b += '<div class="titem acc"><span class="mtxt"><b>' + esc(it.legacy) + '</b><small>' + esc(t('legacy_menu')) + '</small></span></div>'; return; }
     if (it.acc) {
       var a = JJ.ACCOMP[it.acc]; if (a.note === 'dwidal') hasRaw = true;
@@ -840,6 +910,10 @@ function viewThali(top) {
     if (r.ings.some(function (x) { return JJ.ING[x.id] && JJ.ING[x.id].P; })) hasPulse = true;
     if (r.ings.some(function (x) { return JJ.ING[x.id] && JJ.ING[x.id].RC; }) && (r.flags || '').indexOf('ch') < 0) hasRaw = true;
     b += '<button class="titem" data-a="recipe" data-d="' + top.date + '" data-id="' + it.id + '">' + plate(r, 48) + '<span class="mtxt"><span class="tag">' + esc(nm(JJ.SLOT_NAMES[it.slot] || JJ.SLOT_NAMES[r.comp] || {en: r.comp})) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(t('min_total', {n: (r.prep || 0) + (r.cook || 0)})) + '</small></span>' + ic('next', 'chev') + '</button>';
+    if (canSwap) {
+      var sk = 'l:' + idx, so = ui.swapItem === top.date + '|' + sk;
+      b += '<button class="change-meal small-chg" data-a="swapitem" data-v="' + top.date + '|' + sk + '" aria-expanded="' + so + '">' + ic('swap') + esc(t(so ? 'change_meal_close' : 'change_dish')) + '</button>' + (so ? '<div class="alt-pick">' + swapPanel(top.date, sk, menu) + '</div>' : '');
+    }
   });
   if (!menu.legacy) { var ln = JJ.dayNutrition(menu).l; b += '<section class="card glass"><h3>' + esc(t('thali_nutrition')) + '</h3>' + nutriGrid(ln) + splitBar(ln) + '</section>'; }
   if (hasRaw && hasPulse) b += '<div class="note">' + esc(t('dwidal_thali')) + '</div>';
@@ -861,7 +935,8 @@ function viewRecipe(top) {
   b += '<div class="badges"><span class="badge b-ok">' + ic('check') + esc(t('level_a')) + '</span>' + (JJ.levelB(comp) ? '<span class="badge b-ok">' + ic('check') + esc(t('level_b')) + '</span>' : '<span class="badge b-plain">' + esc(t('level_b_no')) + '</span>') +
     (comp.tags.leafy ? '<span class="badge b-plain">' + ic('leaf') + esc(t('has_leafy')) + '</span>' : '<span class="badge b-warn">' + ic('noleaf') + esc(t('aatham_safe')) + '</span>') +
     (!comp.tags.green ? '<span class="badge b-warn">' + esc(t('green_free')) + '</span>' : '') +
-    '<span class="badge b-plain">' + esc(mealKey) + '</span>' + (cu ? '<span class="badge b-plain">' + esc(nm(cu)) + '</span>' : '') + '</div>';
+    '<span class="badge b-plain">' + esc(mealKey) + '</span>' + (r.cu || []).filter(function (k) { return JJ.CUISINES[k]; }).map(function (k) { return '<span class="badge b-plain">' + esc(nm(JJ.CUISINES[k])) + '</span>'; }).join('') +
+    '<span class="badge b-season">' + esc(seasonText(r)) + '</span></div>';
   b += '<div class="nut"><div><b>' + (r.prep || 0) + '</b><small>' + esc(t('prep_min')) + '</small></div><div><b>' + (r.cook || 0) + '</b><small>' + esc(t('cook_min')) + '</small></div><div><b>' + hh + '</b><small>' + esc(t('serves')) + '</small></div><div><b>' + (r.serves || 4) + '</b><small>' + esc(t('base_serves')) + '</small></div></div>';
   var rn = JJ.recipeNutrition(r, drop);
   b += '<section class="card glass"><h3>' + esc(t('per_serving')) + '</h3>' + nutriGrid(rn) + splitBar(rn) + '</section>';
@@ -1127,7 +1202,7 @@ function viewProfileHome() {
   var b = '<h1 class="h1" style="margin-top:6px">' + esc(t('tab_profile')) + '</h1>' + accountCard() +
     '<div class="card glass"><div class="kv">' +
     '<b>' + esc(t('location')) + '</b><span>' + esc(cityLabel(c) + (st ? ', ' + st : '')) + '</span>' +
-    '<b>' + esc(t('cuisine')) + '</b><span>' + esc(nm(JJ.CUISINES[P.cuisine] || JJ.CUISINES.gen)) + '</span>' +
+    '<b>' + esc(t('cuisine')) + '</b><span>' + esc(cuLabel(P)) + '</span>' +
     '<b>' + esc(t('household')) + '</b><span>' + esc(t('for_members', {n: P.hh})) + '</span>' +
     '<b>' + esc(t('allergies_ex')) + '</b><span>' + esc(ex) + '</span>' +
     '<b>' + esc(t('observances')) + '</b><span>' + esc(t('parva_locked') + (P.obsProfile === 'custom' && P.greenRule !== 'none' ? ' + ' + t('green_' + P.greenRule) : '') + ' · ' + t(P.parvaFruit ? 'parva_fruit_no' : 'parva_fruit_ok')) + '</span>' +
@@ -1616,13 +1691,23 @@ function viewAdmin() {
     rev.map(function (n, i) { return '<form class="addrow" data-map="' + i + '" autocomplete="off"><span style="flex:1;font-weight:800;align-self:center">' + esc(n) + '</span><input id="map-' + i + '" placeholder="' + esc(t('map_placeholder')) + '" aria-label="' + esc(t('map_placeholder')) + '"><button type="submit">' + esc(t('map_btn')) + '</button></form>'; }).join('') + '</div>' : '';
   var segS = '<div class="seg">' + ['all', 'approved', 'pending', 'rejected', 'invalid'].map(function (s) { return '<button data-a="adstatus" data-v="' + s + '" aria-pressed="' + (f.status === s) + '">' + esc(t('st_' + s)) + '</button>'; }).join('') + '</div>';
   var segM = '<div class="seg" style="margin-top:8px">' + ['all'].concat(MEALS).map(function (m) { return '<button data-a="admeal" data-v="' + m + '" aria-pressed="' + (f.meal === m) + '">' + esc(m === 'all' ? t('st_all') : t('meal_' + m)) + '</button>'; }).join('') + '</div>';
-  var b = (JJ.account.isAdmin ? settingsSection() + customersSection() : '') + '<p class="sub" style="margin-top:8px">' + esc(t('admin_intro')) + '</p><button class="btn primary" data-a="adnew">' + esc(t('add_recipe')) + '</button>' + revHtml + '<div style="margin-top:12px">' + segS + segM + '</div>' +
+  var b = (JJ.account.isAdmin ? settingsSection() + customersSection() : '') + coverageCard() + '<p class="sub" style="margin-top:8px">' + esc(t('admin_intro')) + '</p><button class="btn primary" data-a="adnew">' + esc(t('add_recipe')) + '</button>' + revHtml + '<div style="margin-top:12px">' + segS + segM + '</div>' +
     '<div class="field"><input class="input" id="ad-q" value="' + esc(f.q) + '" placeholder="' + esc(t('search_recipes')) + '" aria-label="' + esc(t('search_recipes')) + '"></div><p class="fine">' + esc(t('n_recipes', {n: list.length})) + '</p><div class="list">' +
     list.slice(0, 200).map(function (r) {
       var tg = !r.valid ? '<span class="tag bad">' + esc(t('st_invalid')) + '</span>' : '<span class="tag ' + (r.status === 'approved' ? 'ok' : r.status === 'pending' ? 'warn' : 'bad') + '">' + esc(t('st_' + r.status)) + '</span>';
       return '<button class="lrow" data-a="adedit" data-v="' + r.id + '"><span class="mtxt grow"><b>' + esc(rName(r)) + '</b><small>' + esc(r.id + ' · ' + t('meal_' + r.meal) + (r.origin === 'admin' ? ' · ' + t('edited') : '')) + '</small></span>' + tg + '</button>';
     }).join('') + '</div>';
   return backBar(t('admin')) + '<main class="scroll gx" id="scroll">' + b + '</main>';
+}
+/* Recipe coverage: real counts from the recipe database, picture coverage and whether each part of the
+   menu has enough recipes for 30 days without a repeat. */
+function coverageCard() {
+  var c = JJ.coverage(), row = function (l, v, ok) { return '<b>' + esc(l) + '</b><span' + (ok === false ? ' style="color:var(--saffron);font-weight:800"' : '') + '>' + esc(v) + '</span>'; };
+  return '<details class="card glass fold"><summary><span class="ficon">' + ic('grid') + '</span><span class="mtxt grow"><b>' + esc(t('coverage_title')) + '</b><small>' + esc(t('coverage_sub', {n: c.approved, v: c.visuals})) + '</small></span>' + ic('next', 'chev fold-chev') + '</summary>' +
+    '<div class="kv">' + MEALS.map(function (m) { return row(t('meal_' + m), String(c.byMeal[m] || 0)); }).join('') + row(t('parva_ok'), String(c.parva)) + row(t('recipe_visuals'), c.visuals + ' / ' + c.approved, c.visuals === c.approved) + '</div>' +
+    '<h3 style="margin-top:12px">' + esc(t('coverage_30')) + '</h3><div class="kv">' + c.slots.map(function (x) { return row(x.label, x.n + (x.staple ? ' · ' + t('staple_word') : x.n >= 30 ? ' ✓' : ' · ' + t('coverage_short', {n: 30 - x.n})), x.staple || x.n >= 30); }).join('') + '</div>' +
+    '<h3 style="margin-top:12px">' + esc(t('cuisine')) + '</h3><div class="kv">' + JJ.REGIONAL.map(function (k) { return row(nm(JJ.CUISINES[k]), String(c.byCu[k] || 0)); }).join('') + '</div>' +
+    '<h3 style="margin-top:12px">' + esc(t('season')) + '</h3><div class="kv">' + JJ.SEASONS.map(function (k) { return row(t('season_' + k), String(c.bySeason[k] || 0)); }).join('') + row(t('all_seasons'), String(c.bySeason.all || 0)) + '</div></details>';
 }
 function stepsToText(steps) { return (steps || []).map(function (s) { return Array.isArray(s) ? JSON.stringify(s) : [s.en, s.hi, s.gu].join(' || '); }).join('\n'); }
 function textToSteps(txt) {
@@ -1669,7 +1754,7 @@ function saveRecipe(form, status) {
   JJ.db.put('recipes', rec);
   ['en', 'hi', 'gu'].forEach(function (l) { JJ.db.put('recipe_translations', {key: rec.id + '|' + l, recipeId: rec.id, lang: l, name: form[l]}); });
   if (!JJ.db.get('recipe_sources', rec.id)) JJ.db.put('recipe_sources', {recipeId: rec.id, name: t('src_admin'), url: null, verified: false});
-  JJ.loadCatalog(JJ.recipesFromDb()); previewCache.clear();
+  JJ.loadCatalog(JJ.recipesFromDb()); if (JJ.attachVisuals) JJ.attachVisuals(); previewCache.clear();
   form.status = status;
 }
 
@@ -1677,7 +1762,10 @@ function saveRecipe(form, status) {
 var SUBS = {Shwetambar: ['Murtipujak', 'Sthanakvasi', 'Terapanth', 'Other'], Digambar: ['Bispanthi', 'Terapanth', 'Taranpanth', 'Other']};
 function blankDraft() { return {lang: LANG, tradition: 'Shwetambar', subsect: 'Murtipujak', country: 'IN', state: '', cityId: '', custom: null, cuisine: '', calendar: 'amanta', hh: 4, allergies: [], exclude: [], avoidCrucifer: false, greenRule: 'none', shuklaPanchamGreen: false, obsProfile: 'strict', parvaFruit: false, navkarsi: 48, chauvihar: 0}; }
 function fromProfile(p) { var d = JSON.parse(JSON.stringify(p)); return d; }
-function ready(d) { return !!((d.cityId || d.custom) && d.cuisine && d.hh >= 1); }
+function ready(d) { return !!((d.cityId || d.custom) && cuList(d).length && d.hh >= 1); }
+/* the household's cuisines: one, several, or ['all'] for "Surprise me" */
+function cuList(d) { return d && d.cuisines && d.cuisines.length ? d.cuisines : (d && d.cuisine ? [d.cuisine] : []); }
+function cuLabel(d) { var l = cuList(d); return l.indexOf('all') >= 0 ? t('cu_surprise') : l.map(function (k) { return nm(JJ.CUISINES[k] || JJ.CUISINES.gen); }).join(' · '); }
 function frow(key, icon, title, value, done, bodyFn) {
   var open = openField === key;
   return '<section class="frow' + (open ? ' open' : '') + (done ? ' done' : '') + '"><button class="frow-h" data-a="field" data-v="' + key + '" aria-expanded="' + open + '"><span class="ficon">' + ic(icon) + '</span><span class="ftext"><b>' + esc(title) + '</b><small>' + esc(value) + '</small></span><span class="fcheck">' + ic('check') + '</span></button>' + (open ? '<div class="frow-b">' + bodyFn() + '</div>' : '') + '</section>';
@@ -1707,7 +1795,12 @@ function viewProfile(onboard) {
   var cityObj = d.custom || JJ.CITIES[d.cityId];
   if (onboard) rows += frow('city', 'pin', t('location'), cityObj ? t('loc_detected', {place: (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '')}) : ui.loc && ui.loc.state === 'busy' ? t('loc_detecting') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
   else rows += frow('city', 'pin', t('location'), cityObj ? (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
-  rows += frow('cuisine', 'thali', t('cuisine'), d.cuisine ? nm(JJ.CUISINES[d.cuisine]) : t('cuisine_hint'), !!d.cuisine, function () { return '<div class="chips">' + Object.keys(JJ.CUISINES).map(function (k) { return '<button class="chip" data-a="cuisine" data-v="' + k + '" aria-pressed="' + (d.cuisine === k) + '">' + esc(nm(JJ.CUISINES[k])) + '</button>'; }).join('') + '</div><p class="hint">' + esc(t('cuisine_help')) + '</p>'; });
+  rows += frow('cuisine', 'thali', t('cuisine'), cuList(d).length ? cuLabel(d) : t('cuisine_hint'), cuList(d).length > 0, function () {
+    var l = cuList(d), all = l.indexOf('all') >= 0;
+    return '<button class="chip surprise" data-a="cuisine" data-v="all" aria-pressed="' + all + '">✨ ' + esc(t('cu_surprise')) + '</button>' +
+      '<p class="hint">' + esc(t('cu_pick_many')) + '</p><div class="chips">' + Object.keys(JJ.CUISINES).map(function (k) { return '<button class="chip" data-a="cuisine" data-v="' + k + '" aria-pressed="' + (!all && l.indexOf(k) >= 0) + '">' + esc(nm(JJ.CUISINES[k])) + '</button>'; }).join('') + '</div>' +
+      '<p class="hint">' + esc(t(l.length > 1 || all ? 'cu_rotate_help' : 'cuisine_help')) + '</p><button class="btn small" data-a="cudone" style="margin-top:8px">' + esc(t('done')) + '</button>';
+  });
   rows += frow('hh', 'users', t('household'), t('for_members', {n: d.hh}), d.hh >= 1, function () { return '<div class="stepper"><button data-a="hh" data-v="-1" aria-label="' + esc(t('fewer')) + '"' + (d.hh <= 1 ? ' disabled' : '') + '>−</button><output aria-live="polite">' + esc(t('for_members', {n: d.hh})) + '</output><button data-a="hh" data-v="1" aria-label="' + esc(t('more')) + '"' + (d.hh >= 20 ? ' disabled' : '') + '>+</button></div><p class="hint">' + esc(t('household_help')) + '</p>'; });
   var exVal = d.allergies.map(function (a) { return nm(JJ.ALLERGENS[a]); }).concat(d.exclude.map(ingName)).join(', ') || t('none');
   rows += frow('allergies', 'shield', t('allergies_ex'), exVal, true, function () {
@@ -1764,7 +1857,7 @@ function sheetHTML() {
 function setLang(l) { LANG = l; if (P) { P.lang = l; saveProfile(); } if (draft) draft.lang = l; try { localStorage.setItem('jainjoy.lang', l); } catch (e) {} render(); }
 function pickCity(id) {
   var c = JJ.CITIES[id]; draft.cityId = id; draft.custom = null;
-  if (c) { draft.country = c.country; if (c.state) draft.state = c.state; var st = c.country === 'IN' ? JJ.STATES.IN[c.state] : null; if (st) { if (!draft.cuisineSet) draft.cuisine = st.cu; draft.calendar = st.cal; } else if (!draft.cuisine) draft.cuisine = 'guj'; }
+  if (c) { draft.country = c.country; if (c.state) draft.state = c.state; var st = c.country === 'IN' ? JJ.STATES.IN[c.state] : null; if (st) { if (!draft.cuisineSet) { draft.cuisine = st.cu; draft.cuisines = [st.cu]; } draft.calendar = st.cal; } else if (!draft.cuisine) draft.cuisine = 'guj'; }
   if (!P) openField = draft.cuisine ? 'hh' : 'cuisine';
 }
 app.addEventListener('click', function (e) {
@@ -1800,10 +1893,14 @@ app.addEventListener('click', function (e) {
     case 'choose': {
       var cm = menuFor(el.dataset.d); if (!cm) break;
       cm.choice = Object.assign({b: 0, l: 0, s: 0, d: 0}, cm.choice); cm.choice[el.dataset.m] = +v;
-      if (cm.status === 'history') JJ.db.put('menu_history', cm);
-      else { cm = Object.assign({}, cm, {status: 'planned', month: ym(cm.date), savedAt: Date.now()}); JJ.db.put('daily_menus', cm); previewCache.delete(cm.date); }
+      cm = saveMenu(cm); replanAfter(cm.date, JJ.chosenIds(cm));
       ui.chg = null; render(); toast(t('option_saved')); break;
     }
+    case 'swap': applySwap(el.dataset.d, el.dataset.k, v); ui.chg = null; ui.swapItem = null; render(); toast(t('recipe_changed')); break;
+    case 'unswap': applySwap(el.dataset.d, el.dataset.k, null, true); ui.chg = null; ui.swapItem = null; render(); toast(t('recipe_restored')); break;
+    case 'swapitem': ui.swapItem = ui.swapItem === v ? null : v; render(); break;
+    case 'excu': ui.ex.cu = v; ui.ex.limit = 60; render(); break;
+    case 'exse': ui.ex.season = v; ui.ex.limit = 60; render(); break;
     case 'ics': {
       var blob = new Blob([parvaIcs()], {type: 'text/calendar'}), a2 = document.createElement('a');
       a2.href = URL.createObjectURL(blob); a2.download = 'jainjoy-parva-reminders.ics'; document.body.appendChild(a2); a2.click(); a2.remove();
@@ -1853,7 +1950,13 @@ app.addEventListener('click', function (e) {
     case 'field': openField = openField === v ? null : v; ui.ingQ = ''; render(); break;
     case 'trad': draft.tradition = v; if (SUBS[v].indexOf(draft.subsect) < 0) draft.subsect = ''; if (!P) openField = 'subsect'; render(); break;
     case 'sub': draft.subsect = v; if (!P) openField = 'city'; render(); break;
-    case 'cuisine': draft.cuisine = v; draft.cuisineSet = true; if (!P) openField = 'hh'; render(); break;
+    case 'cuisine': {
+      var cl = cuList(draft).slice();
+      if (v === 'all') cl = cl.indexOf('all') >= 0 ? [draft.cuisine && JJ.CUISINES[draft.cuisine] ? draft.cuisine : 'gen'] : ['all'];
+      else { cl = cl.filter(function (k) { return k !== 'all'; }); var ci = cl.indexOf(v); if (ci >= 0) { if (cl.length > 1) cl.splice(ci, 1); } else cl.push(v); }
+      draft.cuisines = cl; draft.cuisine = cl[0] === 'all' ? (draft.cuisine && JJ.CUISINES[draft.cuisine] ? draft.cuisine : 'gen') : cl[0]; draft.cuisineSet = true; render(); break;
+    }
+    case 'cudone': openField = P ? null : 'hh'; render(); break;
     case 'hh': draft.hh = Math.max(1, Math.min(20, draft.hh + (+v))); render(); break;
     case 'alg': { var i = draft.allergies.indexOf(v); if (i >= 0) draft.allergies.splice(i, 1); else draft.allergies.push(v); render(); break; }
     case 'addex': if (draft.exclude.indexOf(v) < 0) draft.exclude.push(v); ui.ingQ = ''; render(); break;
@@ -1886,7 +1989,7 @@ app.addEventListener('click', function (e) {
 app.addEventListener('change', function (e) {
   var el = e.target;
   if (el.id === 'pf-country') { draft.country = el.value; draft.state = ''; draft.cityId = ''; render(); }
-  else if (el.id === 'pf-state') { draft.state = el.value; draft.cityId = ''; var st = JJ.STATES.IN[el.value]; if (st && !draft.cuisineSet) { draft.cuisine = st.cu; draft.calendar = st.cal; } render(); }
+  else if (el.id === 'pf-state') { draft.state = el.value; draft.cityId = ''; var st = JJ.STATES.IN[el.value]; if (st && !draft.cuisineSet) { draft.cuisine = st.cu; draft.cuisines = [st.cu]; draft.calendar = st.cal; } render(); }
   else if (el.id === 'pf-city') { if (el.value) pickCity(el.value); render(); }
   else if (el.id === 'pf-green') { draft.greenRule = el.value; draft.obsProfile = el.value === 'none' ? 'strict' : 'custom'; render(); }
   else if (el.id === 'pf-obs') { draft.obsProfile = el.value; render(); }
@@ -1980,14 +2083,14 @@ setInterval(function () {
 
 /* ---------------- boot ---------------- */
 JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
-  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache};
+  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, applySwap: applySwap, usedAround: usedAround, currentGroups: currentGroups, getStored: getStored, recentFor: recentFor};
 JJ.boot = function () {
   // an invite link (…/JainJoy/?ref=AB12CD) is remembered until this phone signs up
   try { var ref = (location.search.match(/[?&]ref=([A-Za-z0-9]{6})/) || [])[1]; if (ref) localStorage.setItem('jainjoy.ref', ref.toUpperCase()); } catch (e) {}
   return JJ.db.open().then(function () {
     JJ.seedDatabase(); JJ.migrateV1();
     JJ.customSynonyms = (JJ.db.get('meta', 'custom_synonyms') || {list: []}).list; JJ.rebuildIngredientIndex();
-    JJ.loadCatalog(JJ.recipesFromDb());
+    JJ.loadCatalog(JJ.recipesFromDb()); if (JJ.attachVisuals) JJ.attachVisuals();
     P = JJ.db.get('profiles', 'local') || null;
     try { LANG = (P && P.lang) || localStorage.getItem('jainjoy.lang') || 'en'; } catch (e) { LANG = (P && P.lang) || 'en'; }
     if (P && !P.obsProfile) { P.obsProfile = 'strict'; P.parvaFruit = false; JJ.app.applyProfileChange(); }
@@ -1999,6 +2102,29 @@ JJ.boot = function () {
   });
 };
 /* when the precise astronomy engine finishes loading, recompute with it */
-JJ.dish = {kind: dishKind, plate: plate, PHOTOS: PHOTOS};
+JJ.dish = {kind: dishKind, plate: plate, PHOTOS: PHOTOS, GIFS: GIFS};
+/* image_url / gif_url for every recipe. image_url is a real photo when one is listed in PHOTOS, otherwise
+   the dish-specific drawing ('art:<dish>'); gif_url is set only when an animated clip exists (GIFS),
+   and the static picture is shown otherwise. */
+JJ.attachVisuals = function () {
+  JJ.catalog.list.forEach(function (r) { var k = dishKind(r); r.image_url = PHOTOS[r.id] || (k ? 'art:' + k : null); r.gif_url = GIFS[r.id] || null; });
+};
+if (JJ.catalog.list.length) JJ.attachVisuals();
+JJ.coverage = function () {
+  JJ.attachVisuals();
+  var L = JJ.catalog.list.filter(function (r) { return r.valid && r.status === 'approved'; }), o = {approved: L.length, byMeal: {}, byCu: {}, bySeason: {all: 0}, parva: 0, visuals: 0, slots: []};
+  L.forEach(function (r) {
+    o.byMeal[r.meal] = (o.byMeal[r.meal] || 0) + 1;
+    r.cu.forEach(function (k) { o.byCu[k] = (o.byCu[k] || 0) + 1; });
+    var se = JJ.recipeSeasons(r); if (!se.length) o.bySeason.all++; se.forEach(function (k) { o.bySeason[k] = (o.bySeason[k] || 0) + 1; });
+    if (JJ.levelB(r)) o.parva++;
+    if (r.image_url && r.image_url !== 'art:null') o.visuals++;
+  });
+  [['b'], ['s'], ['d'], ['l', 'sabzi'], ['l', 'dal'], ['l', 'kadhi'], ['l', 'sambar'], ['l', 'rasam'], ['l', 'raita'], ['l', 'salad'], ['l', 'rice'], ['l', 'bread']].forEach(function (x) {
+    var g = L.filter(function (r) { return r.meal === x[0] && (!x[1] || r.comp === x[1]); });
+    o.slots.push({label: x[1] ? nm(JJ.SLOT_NAMES[x[1]] || {en: x[1].charAt(0).toUpperCase() + x[1].slice(1), hi: x[1], gu: x[1]}) : t('meal_' + x[0]), n: g.filter(function (r) { return !JJ.isStaple(r); }).length, staple: x[1] === 'bread'});
+  });
+  return o;
+};
 window.addEventListener('jj-astro-ready', function () { JJ.panchangReset(); if (P) render(); });
 })(window.JJ = window.JJ || {});

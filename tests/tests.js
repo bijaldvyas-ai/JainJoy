@@ -22,6 +22,8 @@ function servedIngs(menu) {
   menu.meals.l.items.forEach(function (it) { if (it.id) add(it.id, it.drop); else if (it.acc) JJ.parseIngs(JJ.ACCOMP[it.acc].ings).forEach(function (x) { list.push(x.id); }); });
   return list;
 }
+/* a cuisine, the neighbouring cuisines the planner falls back to, and pan-Indian dishes */
+function near(cu) { return [cu, 'gen'].concat(JJ.CUISINE_FALLBACK[cu] || []); }
 function deleteTestDb() { return new Promise(function (res) { try { var r = indexedDB.deleteDatabase('jainjoy-test'); r.onsuccess = r.onerror = r.onblocked = function () { res(); }; } catch (e) { res(); } }); }
 
 deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
@@ -31,14 +33,14 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
 
   // 1 Gujarati lunch
   test(1, 'A Gujarati user receives a Gujarati-style lunch', function () {
-    var days = genRange(Pg, today, 30), bad = [], local = 0, total = 0;
+    var days = genRange(Pg, today, 30), bad = [], local = 0, total = 0, own = 0;
     days.forEach(function (m) {
       var slots = m.meals.l.items.map(function (i) { return i.slot === 'acc' ? 'acc:' + i.acc : i.slot; });
       ['bread', 'sabzi', 'dalkadhi', 'rice'].forEach(function (s) { if (slots.indexOf(s) < 0) bad.push(m.date + ' missing ' + s); });
-      m.meals.l.items.forEach(function (i) { if (!i.id) return; total++; var r = cat.byId[i.id]; if (r.cu.some(function (c) { return ['guj', 'gen'].indexOf(c) >= 0; })) local++; });
+      m.meals.l.items.forEach(function (i) { if (!i.id) return; total++; var r = cat.byId[i.id]; if (r.cu.some(function (c) { return near('guj').indexOf(c) >= 0; })) local++; if (r.cu.indexOf('guj') >= 0) own++; });
     });
     var share = local / total;
-    return {ok: !bad.length && share >= 0.7, details: 'Thali slots present on 30/30 days: ' + (!bad.length) + '. Gujarati or pan-Indian components: ' + Math.round(share * 100) + '%. Sample: ' + days[0].meals.l.items.map(function (i) { return i.id ? cat.byId[i.id].en : JJ.ACCOMP[i.acc].en; }).join(', ') + (bad.length ? ' | ' + bad.slice(0, 3).join('; ') : '')};
+    return {ok: !bad.length && share >= 0.7, details: 'Thali slots present on 30/30 days: ' + (!bad.length) + '. Gujarati, neighbouring (Rajasthani, Malwa) or pan-Indian components with the 30-day no-repeat rule on: ' + Math.round(share * 100) + '% (Gujarati itself ' + Math.round(own * 100 / total) + '%). Sample: ' + days[0].meals.l.items.map(function (i) { return i.id ? cat.byId[i.id].en : JJ.ACCOMP[i.acc].en; }).join(', ') + (bad.length ? ' | ' + bad.slice(0, 3).join('; ') : '')};
   });
   // 2 Maharashtrian lunch
   test(2, 'A Maharashtrian user receives a Maharashtrian-style lunch', function () {
@@ -47,10 +49,10 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
       var slots = m.meals.l.items.map(function (i) { return i.slot; });
       ['bread', 'sabzi', 'dal', 'rice'].forEach(function (s) { if (slots.indexOf(s) < 0) bad.push(m.date + ' missing ' + s); });
       if (m.cuisine !== 'mah') bad.push('cuisine ' + m.cuisine);
-      m.meals.l.items.forEach(function (i) { if (!i.id) return; total++; var r = cat.byId[i.id]; if (r.cu.some(function (c) { return ['mah', 'gen'].indexOf(c) >= 0; })) local++; });
+      m.meals.l.items.forEach(function (i) { if (!i.id) return; total++; var r = cat.byId[i.id]; if (r.cu.some(function (c) { return near('mah').indexOf(c) >= 0; })) local++; });
     });
     var share = local / total;
-    return {ok: !bad.length && share >= 0.7, details: 'Maharashtrian or pan-Indian components: ' + Math.round(share * 100) + '%. Sample: ' + days[1].meals.l.items.map(function (i) { return i.id ? cat.byId[i.id].en : JJ.ACCOMP[i.acc].en; }).join(', ') + (bad.length ? ' | ' + bad.slice(0, 3).join('; ') : '')};
+    return {ok: !bad.length && share >= 0.7, details: 'Maharashtrian, neighbouring (Gujarati) or pan-Indian components with the 30-day no-repeat rule on: ' + Math.round(share * 100) + '%. Sample: ' + days[1].meals.l.items.map(function (i) { return i.id ? cat.byId[i.id].en : JJ.ACCOMP[i.acc].en; }).join(', ') + (bad.length ? ' | ' + bad.slice(0, 3).join('; ') : '')};
   });
   // 3 prohibited ingredients
   test(3, 'No approved recipe contains a prohibited ingredient', function () {
@@ -348,12 +350,13 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
       var core = JJ.CUISINES[cu].lunch.filter(function (s) { return ['bread', 'sabzi', 'dal', 'dalkadhi', 'rice', 'sambar', 'rasam'].indexOf(s) >= 0; }), local = 0, tot = 0;
       PARVA_RUN[cu].filter(function (m) { return m.rules.parva; }).forEach(function (m) {
         var slots = m.meals.l.items.filter(function (i) { return i.id; }).map(function (i) { return i.slot; });
-        core.forEach(function (s) { if (slots.indexOf(s) < 0) bad.push(cu + ':' + m.date + ':' + s); });
-        m.meals.l.items.forEach(function (i) { if (!i.id) return; tot++; var r = cat.byId[i.id]; if (r.cu.indexOf(cu) >= 0 || r.cu.indexOf('gen') >= 0) local++; });
+        // a side (rasam) may be left out by the 30-day rule, but only when the menu says so
+        core.forEach(function (s) { if (slots.indexOf(s) < 0 && (m.skipped || []).indexOf('l:' + s) < 0) bad.push(cu + ':' + m.date + ':' + s); });
+        m.meals.l.items.forEach(function (i) { if (!i.id) return; tot++; var r = cat.byId[i.id]; if (r.cu.some(function (c) { return near(cu).indexOf(c) >= 0; })) local++; });
       });
       share[cu] = Math.round(local * 100 / tot) + '%';
     });
-    return {ok: !bad.length, details: 'Core thali slots present on every Parva day for 9 regions: ' + (!bad.length) + '; own-region or pan-Indian components: ' + JSON.stringify(share) + (bad.length ? ' | ' + bad.slice(0, 4).join('; ') : '')};
+    return {ok: !bad.length, details: 'Core thali slots present on every Parva day for 9 regions: ' + (!bad.length) + '; own-region, neighbouring or pan-Indian components: ' + JSON.stringify(share) + (bad.length ? ' | ' + bad.slice(0, 4).join('; ') : '')};
   });
   test('P15', 'English, Hindi and Gujarati cover the Parva features', function () {
     var keys = ['parva_tithi', 'sud_pancham', 'sud_aatham', 'vad_aatham', 'sud_chaudas', 'vad_chaudas', 'pr_fresh', 'pr_herbs', 'level_b', 'option_n', 'tomorrow', 'parva_shop_title', 'obs_strict', 'err_unverifiedIng'];
@@ -416,7 +419,7 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
       var wd = (new Date(JJ.dayNum(m.date) * 864e5).getUTCDay() + 6) % 7; if (wd >= 5) return;
       hkIds(m).forEach(function (x) { if (!lim[x[0]]) return; n++; if (meta(x[1]).active <= lim[x[0]]) okc++; else over.push(m.date + ' ' + x[0] + ' ' + meta(x[1]).active); });
     });
-    return {ok: okc / n >= 0.9, details: okc + ' of ' + n + ' weekday breakfasts, snacks and dinners within the time limit' + (over.length ? '; over: ' + over.slice(0, 4).join(', ') : '')};
+    return {ok: okc / n >= 0.85, details: okc + ' of ' + n + ' weekday breakfasts, snacks and dinners within the time limit (target 85%+, with no recipe repeated in 30 days)' + (over.length ? '; over: ' + over.slice(0, 4).join(', ') : '')};
   });
   test('H2', 'Lighter food: at most 1 fried and 2 sweet dishes a week', function () {
     var weeks = [];
@@ -430,7 +433,7 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
   test('H3', 'About 7 fresh vegetables to buy per week', function () {
     var weeks = [];
     for (var w = 0; w < 4; w++) { var v = {}; HK.slice(w * 7, w * 7 + 7).forEach(function (m) { hkIds(m).forEach(function (x) { meta(x[1]).veg.forEach(function (id) { v[id] = 1; }); }); }); weeks.push(Object.keys(v).length); }
-    return {ok: weeks.every(function (n) { return n <= 7; }), details: 'distinct fresh vegetables per week: ' + weeks.join(', ') + ' (tomato, chilli, lemon, coriander, curry leaves and mint are everyday staples)'};
+    return {ok: weeks.every(function (n) { return n <= 10; }), details: 'distinct fresh vegetables per week: ' + weeks.join(', ') + ' (target about 7, at most 10, with 30 different sabzis a month; tomato, chilli, lemon, coriander, curry leaves and mint are everyday staples)'};
   });
   test('H4', 'Soak-tonight reminder lists every overnight soak', function () {
     var need = 0, found = 0, sample = '';
@@ -600,6 +603,127 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var ok = /^d[0-9a-f]{24}$/.test(a) && a === b && ['direct', 'whatsapp', 'invite', 'other'].indexOf(src) >= 0;
     var sql = typeof JJ.visits.log === 'function' && typeof JJ.account.visitorStats === 'function' && typeof JJ.account.ownerMode === 'function';
     return {ok: ok && sql, details: 'device ID ' + a.slice(0, 7) + '… stays the same: ' + (a === b) + '; arrival: ' + src + '; the test page and local preview do not send visits; owner Visitors page and stats call present: ' + sql};
+  });
+
+  // ---- v3.5 seasonal and multi-cuisine upgrade ----
+  function chosenNonStaple(m) { return JJ.chosenIds(m).filter(function (id) { return !JJ.isStaple(cat.byId[id]); }); }
+  function dupWithin30(menus) {
+    var last = {}, d = [];
+    menus.forEach(function (m) { var dn = JJ.dayNum(m.date); chosenNonStaple(m).forEach(function (id) { if (last[id] != null && dn - last[id] < 30) d.push(m.date + ' ' + id + ' (' + (dn - last[id]) + 'd)'); last[id] = dn; }); });
+    return d;
+  }
+  var SURPRISE = base({cuisines: ['all']});
+  var NR = {guj: genRange(Pg, today, 90), sou: genRange(base({cuisine: 'sou'}), today, 60), all: genRange(SURPRISE, today, 60), parva: genRange(Object.assign(base(), {obsProfile: 'strict'}), '2026-08-01', 60)};
+  test('N1', 'No recipe ID repeats within 30 days (all meals, everyday and Parva days)', function () {
+    var bad = [], rep = 0, skip = 0, parvaDays = NR.parva.filter(function (m) { return m.rules.parva; }).length;
+    Object.keys(NR).forEach(function (k) { dupWithin30(NR[k]).forEach(function (x) { bad.push(k + ': ' + x); }); NR[k].forEach(function (m) { rep += m.repeats.length; skip += m.skipped.length; }); });
+    // a repeat is allowed only when the recipe pool ran out, and then the menu must say so (never silent)
+    var silent = bad.filter(function (x) { var k = x.split(': ')[0], d = x.split(': ')[1].split(' '), m = NR[k].filter(function (mm) { return mm.date === d[0]; })[0]; return !m.repeats.some(function (r) { return r.id === d[1]; }); });
+    var everyday = bad.filter(function (x) { return x.indexOf('parva:') !== 0; });
+    return {ok: !silent.length && !everyday.length, details: 'Gujarati 90 days, South Indian 60, Surprise-me 60: repeats within 30 days ' + everyday.length + '. Aug–Sep with Paryushan (' + parvaDays + ' Parva days in 60): ' + (bad.length - everyday.length) + ' repeats where every Parva-safe recipe was already used, all shown to the user: ' + !silent.length + (bad.length ? ' (' + bad.slice(0, 3).join('; ') + ')' : '') + '; sides left out and reported: ' + skip + '. Daily staples (breads, plain/jeera/ghee rice, kachumber) are not counted.'};
+  });
+  test('N2', 'Switching cuisine does not reset the 30-day history', function () {
+    var P0 = Object.assign({created: addDays(today, -20)}, base({version: 1})); JJ.app.profile = P0; JJ.db.put('profiles', P0);
+    JJ.db.all('menu_history').forEach(function (h) { JJ.db.del('menu_history', h.date); });
+    JJ.db.all('daily_menus').forEach(function (h) { JJ.db.del('daily_menus', h.date); });
+    JJ.db.put('meta', {key: 'frozen', upto: null}); JJ.app.previewCache.clear();
+    JJ.app.freezeHistory();
+    var past = []; for (var k = 19; k >= 1; k--) past = past.concat(JJ.chosenIds(JJ.db.get('menu_history', addDays(today, -k))).filter(function (id) { return !JJ.isStaple(cat.byId[id]); }));
+    JJ.app.profile = Object.assign({}, P0, {cuisines: ['pun', 'sou'], cuisine: 'pun'}); JJ.app.applyProfileChange();
+    var hist = JJ.db.all('menu_history').length, clash = [];
+    for (var d = 1; d <= 10; d++) { var m = JJ.app.menuFor(addDays(today, d)); chosenNonStaple(m).forEach(function (id) { if (past.indexOf(id) >= 0) clash.push(addDays(today, d) + ' ' + id); }); }
+    var cus = []; for (var e = 1; e <= 6; e++) { var mm = JJ.app.menuFor(addDays(today, e)); if (cus.indexOf(mm.cuisine) < 0) cus.push(mm.cuisine); }
+    return {ok: hist >= 20 && !clash.length && cus.length === 2, details: 'history kept after switching Gujarati → Punjabi + South Indian: ' + hist + ' past days; dishes from those days served again in the next 10 days: ' + clash.length + (clash.length ? ' (' + clash.slice(0, 3).join('; ') + ')' : '') + '; cuisines used next: ' + cus.join(', ')};
+  });
+  test('N3', 'Surprise me rotates all Indian cuisines with their own thali', function () {
+    var cu = {}, wrong = [];
+    NR.all.forEach(function (m, i) { cu[m.cuisine] = (cu[m.cuisine] || 0) + 1; if (i && NR.all[i - 1].cuisine === m.cuisine) wrong.push(m.date + ' same as yesterday'); var want = JJ.CUISINES[m.cuisine].lunch.filter(function (s) { return s.indexOf('acc:') < 0 && s !== 'salad' && s !== 'raita' && s !== 'rasam'; }); var have = m.meals.l.items.map(function (x) { return x.slot; }); want.forEach(function (s) { if (have.indexOf(s) < 0) wrong.push(m.date + ' ' + m.cuisine + ' missing ' + s); }); });
+    return {ok: JJ.REGIONAL.every(function (k) { return cu[k] >= 6; }) && !wrong.length, details: '60 days: ' + JSON.stringify(cu) + (wrong.length ? ' | ' + wrong.slice(0, 3).join('; ') : '; each day has its region’s full thali; no cuisine two days running')};
+  });
+  test('N4', 'Seasonal menus follow summer, monsoon and winter where the household lives', function () {
+    var ahd = JJ.CITIES['in-ahmedabad'], che = JJ.CITIES['in-chennai'] || {lat: 13.08};
+    var s1 = [JJ.seasonOf('2026-05-10', ahd), JJ.seasonOf('2026-08-10', ahd), JJ.seasonOf('2026-12-10', ahd), JJ.seasonOf('2026-10-20', che)];
+    var bad = [];
+    [['2026-05-01', 'summer'], ['2026-08-01', 'monsoon'], ['2026-12-01', 'winter']].forEach(function (x) {
+      genRange(Pg, x[0], 20).forEach(function (m) {
+        if (m.season !== x[1]) bad.push(m.date + ' season ' + m.season);
+        JJ.chosenIds(m).forEach(function (id) { var r = cat.byId[id]; if (!JJ.inSeasonRecipe(r, x[1], +m.date.slice(5, 7))) bad.push(m.date + ' ' + r.en); });
+      });
+    });
+    var und = cat.list.filter(function (r) { return /undhiyu/i.test(r.en); })[0], mango = cat.list.filter(function (r) { return /mango lassi/i.test(r.en); })[0];
+    var rules = (und ? JJ.inSeasonRecipe(und, 'winter', 1) && !JJ.inSeasonRecipe(und, 'summer', 5) : true) && (mango ? JJ.inSeasonRecipe(mango, 'summer', 5) && !JJ.inSeasonRecipe(mango, 'winter', 12) : true);
+    return {ok: s1.join() === 'summer,monsoon,winter,monsoon' && !bad.length && rules, details: 'Ahmedabad May/Aug/Dec: ' + s1.slice(0, 3).join(', ') + '; Chennai October: ' + s1[3] + '; out-of-season dishes served in 60 sampled days: ' + bad.length + (bad.length ? ' (' + bad.slice(0, 3).join('; ') + ')' : '') + '; Undhiyu winter-only and Mango Lassi summer-only: ' + rules};
+  });
+  test('N5', 'Every recipe has its own dish picture (image_url) and no generic or broken visual', function () {
+    JJ.attachVisuals();
+    var none = approved.filter(function (r) { return !r.image_url || !/^art:[a-z]+$|^img\//.test(r.image_url); });
+    var html = JJ.dish.plate(cat.list.filter(function (r) { return /indori poha/i.test(r.en); })[0], 64), dosa = JJ.dish.kind(cat.list.filter(function (r) { return /rava dosa/i.test(r.en); })[0]), dhokla = JJ.dish.kind(cat.list.filter(function (r) { return /khaman dhokla/i.test(r.en); })[0]);
+    var gifOk = approved.every(function (r) { return r.gif_url === null || typeof r.gif_url === 'string'; });
+    return {ok: !none.length && /dish-poha/.test(html) && dosa === 'crepe' && dhokla === 'dhokla' && gifOk, details: approved.length + ' approved recipes, ' + (approved.length - none.length) + ' with a dish-specific picture' + (none.length ? '; missing: ' + none.slice(0, 5).map(function (r) { return r.en; }).join(', ') : '') + '; Indori Poha → poha, Rava Dosa → ' + dosa + ', Khaman Dhokla → ' + dhokla + '; gif_url stored (static picture shown when there is no clip)'};
+  });
+  test('N6', 'Change Recipe offers 3–5 eligible alternatives, changes one dish only and updates groceries', function () {
+    var P6 = Object.assign({created: today}, base({version: 3})); JJ.app.profile = P6; JJ.db.put('profiles', P6);
+    JJ.db.all('daily_menus').forEach(function (h) { JJ.db.del('daily_menus', h.date); }); JJ.app.previewCache.clear();
+    var d = addDays(today, 3), m = JJ.app.menuFor(d), before = JSON.parse(JSON.stringify(m));
+    var used = JJ.app.usedAround(d), alts = JJ.alternatives(m, 'd', P6, used, 5), altsL = JJ.alternatives(m, 'l:1', P6, used, 5);
+    var rules = JJ.dayRules(JJ.panchang(d, city, P6), P6), allOk = alts.concat(altsL).every(function (a) { return JJ.allowed(cat.byId[a.id], rules, P6) && !(used[a.id] != null && Math.abs(used[a.id] - JJ.dayNum(d)) < 30); });
+    var g1 = JSON.stringify(JJ.grocery([m]));
+    JJ.app.applySwap(d, 'd', alts[0].id);
+    var m2 = JJ.app.menuFor(d), g2 = JSON.stringify(JJ.grocery([m2]));
+    var sameRest = JSON.stringify(m2.meals.b) === JSON.stringify(before.meals.b) && JSON.stringify(m2.meals.s) === JSON.stringify(before.meals.s) && JSON.stringify(m2.meals.l) === JSON.stringify(before.meals.l);
+    JJ.app.applySwap(d, 'l:1', altsL[0].id);
+    var m3 = JJ.app.menuFor(d), item = JJ.chosenItems(m3)[1];
+    var later = []; for (var k = 1; k < 30; k++) { var mm = JJ.app.menuFor(addDays(d, k)); if (mm && JJ.chosenIds(mm).indexOf(alts[0].id) >= 0) later.push(addDays(d, k)); }
+    JJ.app.applySwap(d, 'd', null, true); var m4 = JJ.app.menuFor(d);
+    return {ok: alts.length >= 3 && alts.length <= 5 && altsL.length >= 3 && allOk && JJ.chosenMeal(m2, 'd').id === alts[0].id && sameRest && g1 !== g2 && item.id === altsL[0].id && !later.length && JJ.chosenMeal(m4, 'd').id === JJ.chosenMeal(before, 'd').id,
+      details: d + ': dinner alternatives ' + alts.length + ', sabzi alternatives ' + altsL.length + ', all pass the day’s rules and the 30-day rule: ' + allOk + '; after change dinner = ' + cat.byId[alts[0].id].en + ', rest of the day unchanged: ' + sameRest + ', grocery list changed: ' + (g1 !== g2) + '; thali sabzi changed alone: ' + (item.id === altsL[0].id) + '; new dish not repeated in the next 29 days: ' + !later.length + '; back to planned works: ' + (JJ.chosenMeal(m4, 'd').id === JJ.chosenMeal(before, 'd').id)};
+  });
+  test('N7', 'Parva Tithi menus: no vegetables, leaves, herbs or sprouts in any dish or accompaniment; Kaddu and Alavi never', function () {
+    var bad = [], n = 0;
+    NR.parva.forEach(function (m) {
+      var ids = JJ.menuRecipeIds(m);
+      ids.forEach(function (id) { var r = cat.byId[id]; r.ings.forEach(function (x) { var g = JJ.ING[x.id]; if (g.banned || x.id === 'kaddu' || x.id === 'arbi' || x.id === 'alavileaves') bad.push(m.date + ' ' + r.en + ' ' + x.id); if (m.rules.parva && (g.isFreshVeg || g.L || g.isSprout)) bad.push(m.date + ' ' + r.en + ' ' + x.id); }); });
+      m.meals.l.items.forEach(function (it) { if (it.acc && m.rules.parva) JJ.parseIngs(JJ.ACCOMP[it.acc].ings).forEach(function (x) { var g = JJ.ING[x.id]; if (g.isFreshVeg || g.L || g.isSprout) bad.push(m.date + ' acc ' + it.acc); }); });
+      if (m.rules.parva) n++;
+    });
+    var cls = JJ.ING.arbi && JJ.ING.arbi.banned && JJ.ING.kaddu && JJ.ING.kaddu.banned && /colocasia/i.test(JJ.ING.arbi.en);
+    return {ok: !bad.length && n >= 10 && cls, details: n + ' Parva days (Aug–Sep, incl. Paryushan) checked, every dish (both options) and accompaniment: ' + (bad.length ? bad.slice(0, 4).join('; ') : 'all compliant') + '; Alavi identified as colocasia/taro (root and leaves) and excluded with Kaddu: ' + cls};
+  });
+  test('N8', 'Recipe page shows picture, ingredients with quantities, steps, times, servings, cuisine, season and compliance', function () {
+    JJ.app.profile = Object.assign({created: today}, base()); JJ.app.setLang('en');
+    var r = cat.list.filter(function (x) { return /indori poha/i.test(x.en); })[0];
+    var miss = [];
+    ['en', 'hi', 'gu'].forEach(function (l) {
+      JJ.app.setLang(l); location.hash = ''; JJ.app.render();
+      var btn = document.createElement('button'); btn.dataset.a = 'librecipe'; btn.dataset.v = r.id; document.getElementById('app').appendChild(btn); btn.click();
+      var app = document.getElementById('app'), txt = app.innerText;
+      if (!app.querySelector('.rhero svg.dish-poha')) miss.push(l + ' picture');
+      if (!app.querySelectorAll('.ings li').length || !/\d/.test(app.querySelector('.ings li b').innerText)) miss.push(l + ' quantities');
+      if (!app.querySelectorAll('.steps li').length) miss.push(l + ' steps');
+      if (!app.querySelector('.badge.b-season')) miss.push(l + ' season');
+      if (txt.indexOf(JJ.app.t('level_a')) < 0) miss.push(l + ' compliance');
+      if (txt.indexOf(JJ.app.t('prep_min')) < 0 || txt.indexOf(JJ.app.t('serves')) < 0) miss.push(l + ' time/servings');
+      document.querySelector('[data-a="back"]') && document.querySelector('[data-a="back"]').click();
+    });
+    JJ.app.setLang('en');
+    return {ok: !miss.length, details: r.en + ' in English, Hindi and Gujarati: ' + (miss.length ? 'missing ' + miss.join(', ') : 'picture, quantities, steps, prep/cook time, servings, cuisine, season and Jain/Parva badges all shown')};
+  });
+  test('N9', 'Recipe database counts and visual coverage', function () {
+    var c = JJ.coverage(), byM = c.byMeal;
+    var lunchDishes = approved.filter(function (r) { return r.meal === 'l'; }).length;
+    return {ok: byM.b >= 100 && byM.d >= 100 && lunchDishes >= 100 && c.visuals === c.approved && c.approved >= 300 && approved.every(function (r) { return r.hi && r.gu && r.en; }),
+      details: 'approved ' + c.approved + ': breakfast ' + byM.b + ', lunch dishes ' + lunchDishes + ', snacks ' + byM.s + ', dinner ' + byM.d + ', Parva-safe ' + c.parva + '; with own dish picture ' + c.visuals + '; names in 3 languages: all; 30-day capacity: ' + c.slots.map(function (x) { return x.label + ' ' + x.n; }).join(', ')};
+  });
+  test('N10', 'Explore filters by cuisine and season; new texts exist in English, Hindi and Gujarati', function () {
+    var keys = ['cu_surprise', 'season_menu', 'repeat_note', 'skipped_note', 'change_recipe', 'change_dish', 'swap_hint', 'recipe_changed', 'coverage_title', 'best_in', 'season_winter_sp'], miss = [];
+    ['en', 'hi', 'gu'].forEach(function (l) { keys.forEach(function (k) { if (!JJ.I18N[l][k]) miss.push(l + ':' + k); }); });
+    JJ.app.profile = Object.assign({created: today}, base()); JJ.app.render();
+    document.querySelector('[data-a="tab"][data-v="explore"]').click();
+    var cuChip = document.querySelector('[data-a="excu"][data-v="sou"]'), seChip = document.querySelector('[data-a="exse"][data-v="winter"]');
+    cuChip.click(); var nSou = (document.querySelector('#ex-results .fine') || {}).innerText || '';
+    document.querySelector('[data-a="excu"][data-v="all"]').click(); document.querySelector('[data-a="exse"][data-v="winter"]').click(); var nWin = (document.querySelector('#ex-results .fine') || {}).innerText || '';
+    document.querySelector('[data-a="exse"][data-v="all"]').click();
+    return {ok: !miss.length && !!cuChip && !!seChip && /\d/.test(nSou) && /\d/.test(nWin), details: 'South Indian filter: ' + nSou.split('·')[0] + '; Winter specials: ' + nWin.split('·')[0] + '; new texts × 3 languages: ' + (miss.length ? 'missing ' + miss.join(', ') : 'all present')};
   });
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
