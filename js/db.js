@@ -5,7 +5,7 @@
    private windows), data is kept in localStorage instead. */
 (function (JJ) {
 'use strict';
-var DB_NAME = window.JJ_DB_NAME || 'jainjoy', DB_VERSION = 1, SEED_VERSION = 6;
+var DB_NAME = window.JJ_DB_NAME || 'jainjoy', DB_VERSION = 1, SEED_VERSION = 8;
 var STORES = {
   meta: 'key', users: 'id', profiles: 'userId', traditions: 'id', regions: 'id', ingredients: 'id', ingredient_restrictions: 'id',
   recipes: 'id', recipe_translations: 'key', recipe_sources: 'recipeId', panchang: 'key', timings: 'key',
@@ -113,6 +113,9 @@ JJ.seedDatabase = function () {
     ['en', 'hi', 'gu'].forEach(function (l) { JJ.db.put('recipe_translations', {key: r.id + '|' + l, recipeId: r.id, lang: l, name: r[l]}); });
     JJ.db.put('recipe_sources', srcFor(r));
   });
+  // seed recipes that are no longer in the seed (e.g. added by an update that was undone) are removed
+  var keep = {}; JJ.RECIPE_SEED.forEach(function (r) { keep[r.id] = 1; });
+  JJ.db.all('recipes').forEach(function (r) { if (r.origin === 'seed' && !keep[r.id]) { JJ.db.del('recipes', r.id); JJ.db.del('recipe_sources', r.id); ['en', 'hi', 'gu'].forEach(function (l) { JJ.db.del('recipe_translations', r.id + '|' + l); }); } });
   meta.version = SEED_VERSION; meta.at = Date.now(); JJ.db.put('meta', meta);
   return true;
 };
