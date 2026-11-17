@@ -14,6 +14,7 @@ Object.keys(JJ.CITIES).forEach(function(id){var c=JJ.CITIES[id];out.push('INSERT
 var cat=JJ.loadCatalog(JJ.RECIPE_SEED);
 cat.list.forEach(function(r){
   out.push('INSERT INTO recipes VALUES ('+[q(r.id),q(r.meal),q(r.comp),arr(r.cu),q(r.orig||null),q(r.serves),q(r.prep),q(r.cook),q(JSON.stringify(r.steps))+'::jsonb',q(r.flags.indexOf('ch')>=0),q(r.valid?'approved':'pending'),q('seed'),q('auto-validator'),'now()'].join(',')+');');
+  out.push('UPDATE recipes SET seasons = '+arr(JJ.recipeSeasons(r))+' WHERE id = '+q(r.id)+';'); // migration 003
   r.ings.forEach(function(x){out.push('INSERT INTO recipe_ingredients VALUES ('+[q(r.id),q(x.id),q(x.q),q(x.opt)].join(',')+');');});
   ['en','hi','gu'].forEach(function(l){out.push('INSERT INTO recipe_translations VALUES ('+[q(r.id),q(l),q(r[l])].join(',')+');');});
   out.push('INSERT INTO recipe_sources VALUES ('+[q(r.id),q('JainJoy Kitchen – original Jain adaptation'),'NULL','false',q('Automatically validated; human review pending')].join(',')+');');

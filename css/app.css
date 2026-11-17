@@ -554,3 +554,11 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 
 /* v3.4.5 dish pictures */
 .dish-photo{border-radius:50%;object-fit:cover;flex:none;box-shadow:0 3px 8px var(--plate-shadow)}
+
+/* v3.5.1 seasonal line, moving dish pictures */
+.menu-line{margin:4px 2px 8px;font-size:13px;font-weight:700;color:var(--muted,#6b6890)}
+.badge.b-season{background:rgba(255,170,60,.16);color:inherit}
+.dish .steam path{opacity:0;animation:jjsteam 2.8s ease-in-out infinite}
+.dish .steam .s2{animation-delay:.9s}.dish .steam .s3{animation-delay:1.8s}
+@keyframes jjsteam{0%{opacity:0;transform:translateY(6px)}35%{opacity:.75}100%{opacity:0;transform:translateY(-10px)}}
+@media (prefers-reduced-motion:reduce){.dish .steam path{animation:none;opacity:.5}}

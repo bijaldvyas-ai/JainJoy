@@ -3,6 +3,10 @@
 'use strict';
 var K = {
 // navigation
+season_summer:['Summer','गर्मी','ઉનાળો'], season_monsoon:['Monsoon','बारिश','ચોમાસું'], season_winter:['Winter','सर्दी','શિયાળો'],
+season_menu:['{s} menu · today’s lunch: {c}','{s} का मेनू · आज का खाना: {c}','{s}નું મેનુ · આજનું જમણ: {c}'],
+all_seasons:['All seasons','सभी मौसम','બધી ઋતુ'], best_in:['Best in {s}','{s} में सबसे अच्छा','{s}માં સૌથી સારું'],
+repeat_note:['Served again within 30 days (not enough Parva-safe recipes): {list}','30 दिन में दोबारा (पर्व के लायक रेसिपी कम हैं): {list}','30 દિવસમાં ફરી (પર્વ માટેની વાનગીઓ ઓછી છે): {list}'],
 tab_pachkhan:['Pachkhan','पच्चक्खाण','પચ્ચક્ખાણ'], pk_title:['Pachkhan','पच्चक्खाण','પચ્ચક્ખાણ'],
 pk_sub:['Daily vows to recite. Choose the script you read best.','दैनिक पच्चक्खाण पाठ। जो लिपि आप आसानी से पढ़ें, वह चुनें।','રોજના પચ્ચક્ખાણ. જે લિપિ તમે સહેલાઈથી વાંચો તે પસંદ કરો.'],
 pk_script:['Script','लिपि','લિપિ'], pk_roman:['Roman','रोमन','રોમન'],

@@ -61,10 +61,11 @@ function getStored(iso) {
 }
 function recentFor(iso) {
   var rec = {}; var dn = JJ.dayNum(iso);
-  for (var k = 14; k >= 1; k--) {
+  // the last 30 days: no dish offered then (option 1 or 2) is offered again
+  for (var k = JJ.NO_REPEAT_DAYS; k >= 1; k--) {
     var d = JJ.addDays(iso, -k), m = getStored(d) || previewCache.get(d);
     if (!m || m.legacy) continue;
-    JJ.menuRecipeIds(m).forEach(function (id) { rec[id] = dn - k; });
+    JJ.usedIds(m).forEach(function (id) { rec[id] = dn - k; });
   }
   return rec;
 }
@@ -195,7 +196,7 @@ var DISH_RULES = [
   ['idli', /paniyaram|appe\b/],
   ['sweet', /laddoo|ladoo|ladu|sukhdi/],
   ['porridge', /dalia|daliya/],
-  ['soup', /\bstew\b/],
+  ['soup', /\bstew\b|saaru|charu|rasam/],
   ['crepe', /dhirde|ghavan|dosa|uttapam|uthappam|chill?a\b|cheela|pudla|puda\b|panki|pesarattu|crepe|pancake|\badai\b/],
   ['dhokla', /dhokla|khaman|handvo|ondhvo|muthia|khandvi|idada/],
   ['idli', /idli/],
@@ -239,8 +240,11 @@ function dishArt(r, size) {
   var f = function (x) { return x.toFixed(1); };
   var kit = {r: r, n: n, rnd: rnd, pt: pt, f: f, cols: vegCols(r)};
   return '<svg class="plate dish dish-' + kind + '" viewBox="0 0 100 100" width="' + size + '" height="' + size + '" aria-hidden="true">' + DRAW[kind](kit) +
-    '<ellipse cx="36" cy="30" rx="11" ry="4" fill="#ffffff" opacity=".22" transform="rotate(-32 36 30)"/></svg>';
+    '<ellipse cx="36" cy="30" rx="11" ry="4" fill="#ffffff" opacity=".22" transform="rotate(-32 36 30)"/>' + (HOT[kind] && !/lassi|chaas|buttermilk|sharbat|shake|thandai|panak|nimbu|lemonade|cold|raita|shrikhand/.test(n) ? STEAM : '') + '</svg>';
 }
+/* hot dishes get a soft rising-steam loop, so the picture moves like a short GIF */
+var HOT = {poha: 1, upma: 1, porridge: 1, khichdi: 1, soup: 1, dal: 1, kadhi: 1, legume: 1, paneer: 1, sabzi: 1, rice: 1, drink: 1, sweetbowl: 1, crepe: 1, idli: 1, bread: 1};
+var STEAM = '<g class="steam" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"><path class="s1" d="M40 46c-4-5 4-8 0-13s4-8 0-12"/><path class="s2" d="M52 44c-4-5 4-8 0-13s4-8 0-12"/><path class="s3" d="M64 46c-4-5 4-8 0-13s4-8 0-12"/></g>';
 function vegCols(r) {
   var c = [];
   (r.ings || []).forEach(function (x) { var g = JJ.ING[x.id]; if (!g || (g.cat !== 'veg' && g.cat !== 'leafy' && g.cat !== 'fruit')) return; var p = PAL[g.cat] || PAL.veg; var col = p[hash(x.id) % p.length]; if (c.indexOf(col) < 0) c.push(col); });
@@ -593,7 +597,7 @@ function optionPair(iso, k, menu) {
       open = '<button class="opt-open" data-a="thali" data-d="' + iso + '" data-o="' + i + '">' + esc(t('open_thali')) + ' ›</button>';
     } else {
       var o = i ? x.alt : x; r = JJ.recipeFor(menu, o.id);
-      title = rName(r); sub = timeText(r) + '\n' + JJ.recipeNutrition(r, o.drop)[0] + ' ' + t('kcal');
+      title = rName(r); sub = nm(JJ.CUISINES[r.cu[0]] || JJ.CUISINES.gen) + ' · ' + timeText(r) + '\n' + JJ.recipeNutrition(r, o.drop)[0] + ' ' + t('kcal');
       open = '<button class="opt-open" data-a="recipe" data-d="' + iso + '" data-id="' + o.id + '">' + esc(t('open_recipe')) + ' ›</button>';
     }
     var on = cur === i;
@@ -622,6 +626,19 @@ function mealCard(iso, k, menu) {
   var extra = k === 'd' ? '<span class="warn-line" style="color:var(--saffron)">' + esc(t('finish_before', {time: hm(JJ.timings(pan(iso), {navkarsi: P.navkarsi, chauvihar: P.chauvihar}).chauvihar)})) + '</span>' : '';
   return '<button class="meal" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(timeText(r)) + ' · ' + JJ.recipeNutrition(r, x.drop)[0] + ' ' + esc(t('kcal')) + (x.drop && x.drop.length ? ' · ' + esc(t('adjusted_today')) : '') + '</small>' + extra + pb + '</span>' + ic('next', 'chev') + '</button>';
 }
+function seasonIcon(k) { return {summer: '☀️', monsoon: '🌧️', winter: '❄️'}[k] || ''; }
+function seasonText(r) { var l = JJ.recipeSeasons(r); return l.length ? t('best_in', {s: l.map(function (k) { return t('season_' + k); }).join(', ')}) : t('all_seasons'); }
+/* a dish just chosen must not come back within 30 days: later upcoming days that use it are planned again */
+function replanAfter(iso, ids) {
+  var td = today();
+  previewCache.forEach(function (v, d) { if (d > iso) previewCache.delete(d); });
+  for (var k = 1; k < JJ.NO_REPEAT_DAYS; k++) {
+    var d = JJ.addDays(iso, k); if (d <= td) continue;
+    var m = JJ.db.get('daily_menus', d); if (!m || m.pv !== P.version) continue;
+    if (!JJ.menuRecipeIds(m).some(function (id) { return ids.indexOf(id) >= 0 && !JJ.isStaple(JJ.catalog.byId[id]); })) continue;
+    JJ.db.put('daily_menus', Object.assign(generate(d), {status: 'planned', month: ym(d), savedAt: Date.now()}));
+  }
+}
 function timeText(r) { return (r.prep || 0) >= 240 ? t('min_soak', {n: r.cook || 0}) : t('min_total', {n: (r.prep || 0) + (r.cook || 0)}); }
 function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hist">' + ic('lock') + esc(t('status_hist')) + '</span>' : st === 'plan' ? '<span class="status-pill st-plan">' + ic('check') + esc(t('status_plan')) + '</span>' : st === 'prev' ? '<span class="status-pill st-prev">' + esc(t('status_prev')) + '</span>' : ''; }
 function dayBody(iso, isToday, root) {
@@ -632,7 +649,9 @@ function dayBody(iso, isToday, root) {
   b += essentials(iso, isToday);
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   if (isToday && ui.showcase) b += '<div class="showcase" id="showcase"><b>🎉 ' + esc(t('plan_ready')) + '</b><small>' + esc(t('plan_ready_sub')) + '</small></div>';
+  if (!menu.legacy && menu.season) b += '<p class="menu-line">' + esc(seasonIcon(menu.season) + ' ' + t('season_menu', {s: t('season_' + menu.season), c: nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)})) + '</p>';
   b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + changeMeal(iso, k, menu) + '</div>'; }).join('') + '</div>';
+  if (menu.repeats && menu.repeats.length) b += '<p class="fine">' + esc(t('repeat_note', {list: menu.repeats.map(function (x) { return rName(JJ.recipeFor(menu, x.id)); }).join(', ')})) + '</p>';
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
   var oli = isOli(iso);
@@ -861,7 +880,7 @@ function viewRecipe(top) {
   b += '<div class="badges"><span class="badge b-ok">' + ic('check') + esc(t('level_a')) + '</span>' + (JJ.levelB(comp) ? '<span class="badge b-ok">' + ic('check') + esc(t('level_b')) + '</span>' : '<span class="badge b-plain">' + esc(t('level_b_no')) + '</span>') +
     (comp.tags.leafy ? '<span class="badge b-plain">' + ic('leaf') + esc(t('has_leafy')) + '</span>' : '<span class="badge b-warn">' + ic('noleaf') + esc(t('aatham_safe')) + '</span>') +
     (!comp.tags.green ? '<span class="badge b-warn">' + esc(t('green_free')) + '</span>' : '') +
-    '<span class="badge b-plain">' + esc(mealKey) + '</span>' + (cu ? '<span class="badge b-plain">' + esc(nm(cu)) + '</span>' : '') + '</div>';
+    '<span class="badge b-plain">' + esc(mealKey) + '</span>' + (cu ? '<span class="badge b-plain">' + esc(nm(cu)) + '</span>' : '') + '<span class="badge b-season">' + esc(seasonText(r)) + '</span></div>';
   b += '<div class="nut"><div><b>' + (r.prep || 0) + '</b><small>' + esc(t('prep_min')) + '</small></div><div><b>' + (r.cook || 0) + '</b><small>' + esc(t('cook_min')) + '</small></div><div><b>' + hh + '</b><small>' + esc(t('serves')) + '</small></div><div><b>' + (r.serves || 4) + '</b><small>' + esc(t('base_serves')) + '</small></div></div>';
   var rn = JJ.recipeNutrition(r, drop);
   b += '<section class="card glass"><h3>' + esc(t('per_serving')) + '</h3>' + nutriGrid(rn) + splitBar(rn) + '</section>';
@@ -1669,7 +1688,7 @@ function saveRecipe(form, status) {
   JJ.db.put('recipes', rec);
   ['en', 'hi', 'gu'].forEach(function (l) { JJ.db.put('recipe_translations', {key: rec.id + '|' + l, recipeId: rec.id, lang: l, name: form[l]}); });
   if (!JJ.db.get('recipe_sources', rec.id)) JJ.db.put('recipe_sources', {recipeId: rec.id, name: t('src_admin'), url: null, verified: false});
-  JJ.loadCatalog(JJ.recipesFromDb()); previewCache.clear();
+  JJ.loadCatalog(JJ.recipesFromDb()); if (JJ.attachVisuals) JJ.attachVisuals(); previewCache.clear();
   form.status = status;
 }
 
@@ -1802,6 +1821,7 @@ app.addEventListener('click', function (e) {
       cm.choice = Object.assign({b: 0, l: 0, s: 0, d: 0}, cm.choice); cm.choice[el.dataset.m] = +v;
       if (cm.status === 'history') JJ.db.put('menu_history', cm);
       else { cm = Object.assign({}, cm, {status: 'planned', month: ym(cm.date), savedAt: Date.now()}); JJ.db.put('daily_menus', cm); previewCache.delete(cm.date); }
+      replanAfter(cm.date, JJ.usedIds(cm));
       ui.chg = null; render(); toast(t('option_saved')); break;
     }
     case 'ics': {
@@ -1987,7 +2007,7 @@ JJ.boot = function () {
   return JJ.db.open().then(function () {
     JJ.seedDatabase(); JJ.migrateV1();
     JJ.customSynonyms = (JJ.db.get('meta', 'custom_synonyms') || {list: []}).list; JJ.rebuildIngredientIndex();
-    JJ.loadCatalog(JJ.recipesFromDb());
+    JJ.loadCatalog(JJ.recipesFromDb()); if (JJ.attachVisuals) JJ.attachVisuals();
     P = JJ.db.get('profiles', 'local') || null;
     try { LANG = (P && P.lang) || localStorage.getItem('jainjoy.lang') || 'en'; } catch (e) { LANG = (P && P.lang) || 'en'; }
     if (P && !P.obsProfile) { P.obsProfile = 'strict'; P.parvaFruit = false; JJ.app.applyProfileChange(); }
@@ -1999,6 +2019,9 @@ JJ.boot = function () {
   });
 };
 /* when the precise astronomy engine finishes loading, recompute with it */
-JJ.dish = {kind: dishKind, plate: plate, PHOTOS: PHOTOS};
+var GIFS = {}; // recipe id -> animated clip, when one is added; otherwise the moving drawing is shown
+JJ.dish = {kind: dishKind, plate: plate, PHOTOS: PHOTOS, GIFS: GIFS};
+JJ.attachVisuals = function () { JJ.catalog.list.forEach(function (r) { var k = dishKind(r); r.image_url = PHOTOS[r.id] || (k ? 'art:' + k : null); r.gif_url = GIFS[r.id] || null; }); };
+if (JJ.catalog.list.length) JJ.attachVisuals();
 window.addEventListener('jj-astro-ready', function () { JJ.panchangReset(); if (P) render(); });
 })(window.JJ = window.JJ || {});
