@@ -3,6 +3,9 @@
 'use strict';
 var K = {
 // navigation
+photo_by:['Photo: {a} · {l}','फ़ोटो: {a} · {l}','ફોટો: {a} · {l}'],
+special_b:['Today’s breakfast','आज का नाश्ता','આજનો નાસ્તો'], special_l:['Today’s lunch special','आज दोपहर की खास डिश','આજની બપોરની ખાસ વાનગી'], special_s:['This evening’s snack','आज शाम का नाश्ता','આજ સાંજનો નાસ્તો'], special_d:['Tonight’s dinner','आज रात का खाना','આજ રાતનું જમણ'],
+cook_this:['Let’s cook','चलो बनाएँ','ચાલો બનાવીએ'],
 season_summer:['Summer','गर्मी','ઉનાળો'], season_monsoon:['Monsoon','बारिश','ચોમાસું'], season_winter:['Winter','सर्दी','શિયાળો'],
 season_menu:['{s} menu · today’s lunch: {c}','{s} का मेनू · आज का खाना: {c}','{s}નું મેનુ · આજનું જમણ: {c}'],
 all_seasons:['All seasons','सभी मौसम','બધી ઋતુ'], best_in:['Best in {s}','{s} में सबसे अच्छा','{s}માં સૌથી સારું'],

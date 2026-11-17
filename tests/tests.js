@@ -629,6 +629,19 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     ['en', 'hi', 'gu'].forEach(function (l) { keys.forEach(function (k) { if (!JJ.I18N[l][k]) miss.push(l + ':' + k); }); });
     return {ok: !miss.length, details: keys.length + ' texts × 3 languages: ' + (miss.length ? 'missing ' + miss.join(', ') : 'all present')};
   });
+  test('N5', 'The two options of a meal are always different dishes (never two of the same kind)', function () {
+    var bad = [], n = 0;
+    ['guj', 'mah', 'sou', 'pun', 'ben'].forEach(function (cu) { [0, 7, 321].forEach(function (seed) { run(base({cuisine: cu, seed: seed}), today, 40).forEach(function (m) { ['b', 's', 'd'].forEach(function (k) { var x = m.meals[k]; if (!x.alt) return; n++; if (x.alt.id === x.id || JJ.looksAlike(cat.byId[x.id], cat.byId[x.alt.id])) bad.push(m.date + ' ' + k + ': ' + cat.byId[x.id].en + ' / ' + cat.byId[x.alt.id].en); }); }); }); });
+    var bothSame = 0; ['b', 's', 'd'].forEach(function (k) { if (JJ.looksAlike(cat.byId.f08, cat.byId.f08)) bothSame++; });
+    return {ok: n > 1000 && bad.length <= n * 0.002, details: n + ' option pairs over 600 days (5 cuisines × 3 households): look-alike pairs ' + bad.length + (bad.length ? ' (' + bad.slice(0, 3).join('; ') + ')' : '') + '; e.g. Coconut Laddoo / Ragi Laddoo or two khichdis are never offered together'};
+  });
+  test('N6', 'Real food photos replace the drawing where available; the drawing stays as fallback', function () {
+    var ids = Object.keys(JJ.PHOTO_INFO), missing = ids.filter(function (id) { return !cat.byId[id]; });
+    var lic = ids.every(function (id) { return /^(CC BY|CC BY-SA|Public domain)/.test(JJ.PHOTO_INFO[id].license) && /wikimedia\.org/.test(JJ.PHOTO_INFO[id].src) && JJ.PHOTO_INFO[id].author; });
+    var poha = JJ.dish.plate(cat.byId.b073, 64), noPhoto = approved.filter(function (r) { return !JJ.PHOTO_INFO[r.id]; })[0], np = JJ.dish.plate(noPhoto, 64);
+    var fallback = /<svg[^>]*dish-poha/.test(poha) && /<img class="dishphoto"[^>]*Indori_Poha/.test(poha) && /onerror="this.remove\(\)"/.test(poha);
+    return {ok: ids.length >= 90 && !missing.length && lic && fallback && !/<img/.test(np), details: ids.length + ' recipes with a checked, freely licensed real photo (credit shown on the recipe page); unknown ids: ' + missing.length + '; Indori Poha shows its photo over its drawing, drawing shown if the photo cannot load: ' + fallback + '; recipes without a photo keep their own drawing (' + noPhoto.en + ')'};
+  });
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();

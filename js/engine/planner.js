@@ -86,6 +86,20 @@ JJ.dayCuisine = function (iso, prof) { var l = JJ.cuisineCycle(prof); return l[(
 /* option 2 comes from a different region (half way round the cycle), so each meal offers two cuisines */
 JJ.altCuisine = function (iso, prof) { var l = JJ.cuisineCycle(prof); return l[(dayNum(iso) + ((prof && prof.seed) || 0) + 4) % l.length]; };
 
+/* ---------------- two options that are truly different ---------------- */
+/* Option 2 must not look like option 1: not the same kind of dish (two khichdis, two laddoos, two
+   chillas, two drinks) and no shared dish or main-ingredient word in the name. */
+var NAME_SKIP = /^(masala|jain|with|style|plain|sweet|instant|vegetable|mixed|parva|tithi|ayambil|rajasthani|gujarati|punjabi|bengali|kerala|south|indian|maharashtrian|kathiyawadi|malwi|andhra|mysore|udupi|phulka|roti|rotli|rice|papad|ghee|curd|dahi|fresh|green|whole|spicy|dal|shaak|sabzi|sabji|bhaji|curry|raita|rasam|sambar|salad|poriyal|kootu|saaru|quick|healthy|homestyle|style|bowl|plate|nu|ni|na|ka|ki|ke|and)$/;
+function nameWords(r) { return (r.en || '').toLowerCase().replace(/\(.*?\)/g, ' ').split(/[^a-z]+/).filter(function (w) { return w.length > 2 && !NAME_SKIP.test(w); }); }
+JJ.looksAlike = function (a, b) {
+  if (!a || !b) return false;
+  if (a.id === b.id) return true;
+  var kind = JJ.dish && JJ.dish.kind;
+  if (kind && (a.meal !== 'l' || b.meal !== 'l') && kind(a) && kind(a) === kind(b)) return true;
+  var wa = nameWords(a), wb = nameWords(b);
+  return wa.some(function (w) { return wb.indexOf(w) >= 0; });
+};
+
 /* ---------------- 30-day no-repeat rule ---------------- */
 /* No recipe is served twice within 30 days, across breakfast, lunch, snack and dinner and across
    everyday and Parva Tithi menus. Everyday staples (rotli, bhakri, rotla and other breads, plain
@@ -229,7 +243,8 @@ JJ.genDay = function (iso, prof, ctx) {
     }
     var first = pick(fresh, ctx, iso, salt);
     if (slot === 'l:bread' || slot === 'l:rice') return [first, null]; // the daily staple has no option 2
-    var rest = fresh.filter(function (x) { return x.r.id !== first.r.id; });
+    var rest = fresh.filter(function (x) { return !JJ.looksAlike(x.r, first.r); });
+    if (!rest.length) rest = fresh.filter(function (x) { return x.r.id !== first.r.id && !nameWords(x.r).some(function (w) { return nameWords(first.r).indexOf(w) >= 0; }); });
     if (altOrder) rest = rest.map(function (x) { return {r: x.r, drop: x.drop, base: cuScore(x.r, altOrder) + (x.r.meal !== first.r.meal ? 8 : 0)}; });
     var second = rest.length ? pick(rest, ctx, iso, salt + '#2') : null;
     // breakfast and dinner have enough recipes to keep option 2 unique as well (not on Parva days, where the
@@ -242,8 +257,11 @@ JJ.genDay = function (iso, prof, ctx) {
     ctx.budget = BUDGET[meal];
     // evening snack: the snack recipes plus quick, light breakfast dishes (poha, upma, dhokla, chilla),
     // which is how most homes eat at tea time; this also keeps 30 days of snacks repeat-free
-    var c = candidates(function (r) { return r.meal === meal || (meal === 's' && r.meal === 'b' && JJ.recipeMeta(r).active <= 20 && !JJ.recipeMeta(r).fried && !JJ.recipeMeta(r).sweet); }, rules, prof, order);
+    var c = candidates(function (r) { return r.meal === meal || (meal === 's' && r.meal === 'b' && JJ.recipeMeta(r).active <= 15 && !JJ.recipeMeta(r).fried && !JJ.recipeMeta(r).sweet); }, rules, prof, order);
     if (meal === 's') c.forEach(function (x) { if (x.r.meal === 'b') x.base += 8; });
+    // Parva dinner: few dinners are free of fresh vegetables, so filling Parva-safe breakfast dishes
+    // (khichu, thepla, dhebra, pudla, handvo...) can be served too, as many Jain homes do on these days
+    if (meal === 'd' && ctx.parva) candidates(function (r) { return r.meal === 'b' && !JJ.recipeMeta(r).sweet; }, rules, prof, order).forEach(function (x) { x.base += 10; c.push(x); });
     // every cuisine is already a candidate (with a lower score), so an empty pool means the
     // household's own exclusions rule out every recipe; that is reported, never relaxed
     var two = chooseTwo(c, meal, meal, false, altOrder), got = two[0];
@@ -470,7 +488,7 @@ JJ.menuViolations = function (menu, prof) {
     var drop = JJ.allowed(Object.assign({}, r, {status: 'approved'}), rules, prof);
     if (!drop) out.push(where + ':' + id);
   }
-  ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x && x.id) { check(x.id, m); if (x.alt) check(x.alt.id, m + '2'); } });
+  ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x && x.id) { check(x.id, m); if (x.alt) { check(x.alt.id, m + '2'); if (JJ.looksAlike(JJ.catalog.byId[x.id], JJ.catalog.byId[x.alt.id])) out.push(m + ':same-option'); } } });
   (menu.meals.l.items || []).forEach(function (it) {
     if (it.id) check(it.id, 'l'); if (it.alt) check(it.alt.id, 'l2');
     if (it.acc && !JJ.accAllowed(it.acc, rules, prof)) out.push('acc:' + it.acc);

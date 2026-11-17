@@ -389,8 +389,15 @@ var DRAW = {
     return s + dots(k, 10, 24, '#c4264b', 1.4) + chunks(k, 4, 22, ['#f2933b'], 5);
   }
 };
+/* A recipe's picture: its real photo when there is one, laid over its own drawing, so the drawing
+   shows if the photo cannot load (offline, slow network); otherwise the drawing alone. */
+function photoOf(r) { if (!r) return null; if (PHOTOS[r.id]) return {src: PHOTOS[r.id]}; return (JJ.PHOTO_INFO && JJ.PHOTO_INFO[r.id]) || null; }
 function plate(r, size) {
-  if (r && PHOTOS[r.id]) return '<img class="plate dish-photo" src="' + esc(PHOTOS[r.id]) + '" width="' + size + '" height="' + size + '" alt="" loading="lazy">';
+  var ph = photoOf(r), art = plateArt(r, size);
+  if (!ph) return art;
+  return '<span class="dishpic" style="width:' + size + 'px;height:' + size + 'px">' + art + '<img class="dishphoto" src="' + esc(ph.src) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()"></span>';
+}
+function plateArt(r, size) {
   var art = dishArt(r, size); if (art) return art;
   var cols = [];
   (r ? r.ings : []).forEach(function (x) { var g = JJ.ING[x.id]; if (!g || g.cat === 'spice' || g.cat === 'pantry') return; var p = PAL[g.cat] || PAL.veg; var c = p[hash(x.id) % p.length]; if (cols.indexOf(c) < 0 && cols.length < 5) cols.push(c); });
@@ -626,6 +633,21 @@ function mealCard(iso, k, menu) {
   var extra = k === 'd' ? '<span class="warn-line" style="color:var(--saffron)">' + esc(t('finish_before', {time: hm(JJ.timings(pan(iso), {navkarsi: P.navkarsi, chauvihar: P.chauvihar}).chauvihar)})) + '</span>' : '';
   return '<button class="meal" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(timeText(r)) + ' · ' + JJ.recipeNutrition(r, x.drop)[0] + ' ' + esc(t('kcal')) + (x.drop && x.drop.length ? ' · ' + esc(t('adjusted_today')) : '') + '</small>' + extra + pb + '</span>' + ic('next', 'chev') + '</button>';
 }
+/* Today's special: the most inviting dish of the day (one with a real photo first: dinner, lunch's main
+   bowl, breakfast, snack), shown big with its name, so the day's food is the first thing people see. */
+function specialCard(iso, menu) {
+  var picks = [];
+  ['d', 'l', 'b', 's'].forEach(function (k) {
+    if (k === 'l') { JJ.chosenItems(menu).forEach(function (it) { if (it.id && ['sabzi', 'dal', 'dalkadhi', 'sambar'].indexOf(it.slot) >= 0) picks.push([k, it.id]); }); return; }
+    var x = JJ.chosenMeal(menu, k); if (x && x.id) picks.push([k, x.id]);
+  });
+  if (!picks.length) return '';
+  var best = picks.filter(function (x) { return photoOf(JJ.catalog.byId[x[1]]); })[0] || picks[0], r = JJ.recipeFor(menu, best[1]); if (!r) return '';
+  var ph = photoOf(r);
+  return '<button class="special" data-a="recipe" data-d="' + iso + '" data-id="' + r.id + '">' +
+    '<span class="sp-pic">' + (ph ? '<span class="sp-art">' + plateArt(r, 170) + '</span><img src="' + esc(ph.src) + '" alt="" onerror="this.remove()">' : '<span class="sp-art solo">' + plateArt(r, 190) + '</span>') + '</span>' +
+    '<span class="sp-txt"><em>' + esc(t('special_' + best[0])) + '</em><b>' + esc(rName(r)) + '</b><small>' + esc(nm(JJ.CUISINES[r.cu[0]] || JJ.CUISINES.gen) + ' · ' + timeText(r)) + '</small><span class="sp-cta">' + esc(t('cook_this')) + ' ›</span></span></button>';
+}
 function seasonIcon(k) { return {summer: '☀️', monsoon: '🌧️', winter: '❄️'}[k] || ''; }
 function seasonText(r) { var l = JJ.recipeSeasons(r); return l.length ? t('best_in', {s: l.map(function (k) { return t('season_' + k); }).join(', ')}) : t('all_seasons'); }
 /* a dish just chosen must not come back within 30 days: later upcoming days that use it are planned again */
@@ -649,6 +671,7 @@ function dayBody(iso, isToday, root) {
   b += essentials(iso, isToday);
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   if (isToday && ui.showcase) b += '<div class="showcase" id="showcase"><b>🎉 ' + esc(t('plan_ready')) + '</b><small>' + esc(t('plan_ready_sub')) + '</small></div>';
+  if (!menu.legacy) b += specialCard(iso, menu);
   if (!menu.legacy && menu.season) b += '<p class="menu-line">' + esc(seasonIcon(menu.season) + ' ' + t('season_menu', {s: t('season_' + menu.season), c: nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)})) + '</p>';
   b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + changeMeal(iso, k, menu) + '</div>'; }).join('') + '</div>';
   if (menu.repeats && menu.repeats.length) b += '<p class="fine">' + esc(t('repeat_note', {list: menu.repeats.map(function (x) { return rName(JJ.recipeFor(menu, x.id)); }).join(', ')})) + '</p>';
@@ -874,7 +897,10 @@ function viewRecipe(top) {
   var comp = JJ.compileRecipe(Object.assign({}, r, {ings: r.ings.map(function (x) { return x.id + ':' + x.q + (x.opt ? '?' : ''); }).join(' ')}));
   var cu = r.cu && r.cu[0] && JJ.CUISINES[r.cu[0]];
   var mealKey = r.meal === 'l' ? (JJ.SLOT_NAMES[r.comp] ? nm(JJ.SLOT_NAMES[r.comp]) : t('meal_l')) : t('meal_' + r.meal);
-  var b = '<div class="rhero mt-' + r.meal + '">' + plate(r, 140) + '</div><h1 class="h1 rname">' + esc(rName(r)) + '</h1>';
+  var ph = photoOf(r);
+  var b = ph ? '<div class="rhero-photo">' + plateArt(r, 150) + '<img src="' + esc(ph.src) + '" alt="' + esc(rName(r)) + '" onerror="this.parentNode.classList.add(\'nophoto\');this.remove()"></div>' : '<div class="rhero mt-' + r.meal + '">' + plate(r, 140) + '</div>';
+  b += '<h1 class="h1 rname">' + esc(rName(r)) + '</h1>';
+  if (ph && ph.author) b += '<p class="photo-credit">' + esc(t('photo_by', {a: ph.author, l: ph.license})) + ' · <a href="' + esc(ph.page) + '" target="_blank" rel="noopener">Wikimedia Commons</a></p>';
   if (r.orig) b += '<p class="origname">' + esc(t('original_name')) + ': ' + esc(r.orig) + '</p>';
   if (LANG !== 'en') b += '<p class="origname">' + esc(r.en) + '</p>';
   b += '<div class="badges"><span class="badge b-ok">' + ic('check') + esc(t('level_a')) + '</span>' + (JJ.levelB(comp) ? '<span class="badge b-ok">' + ic('check') + esc(t('level_b')) + '</span>' : '<span class="badge b-plain">' + esc(t('level_b_no')) + '</span>') +
@@ -2021,7 +2047,7 @@ JJ.boot = function () {
 /* when the precise astronomy engine finishes loading, recompute with it */
 var GIFS = {}; // recipe id -> animated clip, when one is added; otherwise the moving drawing is shown
 JJ.dish = {kind: dishKind, plate: plate, PHOTOS: PHOTOS, GIFS: GIFS};
-JJ.attachVisuals = function () { JJ.catalog.list.forEach(function (r) { var k = dishKind(r); r.image_url = PHOTOS[r.id] || (k ? 'art:' + k : null); r.gif_url = GIFS[r.id] || null; }); };
+JJ.attachVisuals = function () { JJ.catalog.list.forEach(function (r) { var k = dishKind(r), ph = photoOf(r); r.image_url = ph ? ph.src : (k ? 'art:' + k : null); r.gif_url = GIFS[r.id] || null; }); };
 if (JJ.catalog.list.length) JJ.attachVisuals();
 window.addEventListener('jj-astro-ready', function () { JJ.panchangReset(); if (P) render(); });
 })(window.JJ = window.JJ || {});
