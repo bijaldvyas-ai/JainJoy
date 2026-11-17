@@ -180,6 +180,8 @@ function pick(cands, ctx, iso, salt) {
     var last = ctx.recent[r.id];
     // among recipes that are all allowed, the one used longest ago wins (only matters when the pool ran out)
     if (last != null) s += 2000 + (JJ.NO_REPEAT_DAYS - Math.min(JJ.NO_REPEAT_DAYS, ctx.dn - last)) * 50;
+    // dishes with a real photo are slightly preferred, so the day looks as good as it tastes
+    if (JJ.PHOTO_INFO && JJ.PHOTO_INFO[r.id] && (r.meal === 'l' || r.meal === 'd') && !JJ.recipeMeta(r).sweet && !JJ.recipeMeta(r).fried) s -= 6;
     var rs = JJ.recipeSeasons(r);
     if (rs.length) s += rs.indexOf(ctx.season) >= 0 ? -18 : 10;
     // Parva-safe dishes are kept for Parva Tithis, where the choice is small

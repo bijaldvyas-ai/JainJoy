@@ -645,7 +645,7 @@ function specialCard(iso, menu) {
   var best = picks.filter(function (x) { return photoOf(JJ.catalog.byId[x[1]]); })[0] || picks[0], r = JJ.recipeFor(menu, best[1]); if (!r) return '';
   var ph = photoOf(r);
   return '<button class="special" data-a="recipe" data-d="' + iso + '" data-id="' + r.id + '">' +
-    '<span class="sp-pic">' + (ph ? '<span class="sp-art">' + plateArt(r, 170) + '</span><img src="' + esc(ph.big || ph.src) + '" alt="" onerror="this.remove()">' : '<span class="sp-art solo">' + plateArt(r, 190) + '</span>') + '</span>' +
+    '<span class="sp-pic">' + (ph ? '<span class="sp-art">' + plateArt(r, 170) + '</span><img src="' + esc(ph.big || ph.src) + '" alt="" onerror="this.remove()">' : '<span class="sp-art solo">' + plateArt(r, 140) + '</span>') + '</span>' +
     '<span class="sp-txt"><em>' + esc(t('special_' + best[0])) + '</em><b>' + esc(rName(r)) + '</b><small>' + esc(nm(JJ.CUISINES[r.cu[0]] || JJ.CUISINES.gen) + ' · ' + timeText(r)) + '</small><span class="sp-cta">' + esc(t('cook_this')) + ' ›</span></span></button>';
 }
 function seasonIcon(k) { return {summer: '☀️', monsoon: '🌧️', winter: '❄️'}[k] || ''; }

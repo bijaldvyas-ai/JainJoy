@@ -1,6 +1,6 @@
 // JainJoy offline support: the app shell, data and the astronomy library are cached so it opens without internet.
-const CACHE = 'jainjoy-v3.5.3';
-const V = '?v=3.5.3';
+const CACHE = 'jainjoy-v3.5.4';
+const V = '?v=3.5.4';
 const PHOTOS = 'jainjoy-photos';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './css/app.css' + V,
   './js/data/ingredients.js' + V, './js/data/regions-india.js' + V, './js/data/regions.js' + V, './js/data/steps.js' + V,
