@@ -4,7 +4,14 @@
 'use strict';
 var results = [];
 function rec(id, name, ok, details) { results.push({id: id, name: name, ok: !!ok, details: details || ''}); }
-function test(id, name, fn) { try { var r = fn(); rec(id, name, r.ok, r.details); } catch (e) { rec(id, name, false, 'Exception: ' + (e && e.stack || e)); } }
+var pendingTests = [];
+function test(id, name, fn) {
+  try {
+    var r = fn();
+    if (r && typeof r.then === 'function') { var slot = results.length; rec(id, name, false, 'running'); pendingTests.push(r.then(function (x) { results[slot] = {id: id, name: name, ok: !!x.ok, details: x.details || ''}; }, function (e) { results[slot] = {id: id, name: name, ok: false, details: 'Exception: ' + (e && e.stack || e)}; })); }
+    else rec(id, name, r.ok, r.details);
+  } catch (e) { rec(id, name, false, 'Exception: ' + (e && e.stack || e)); }
+}
 function addDays(iso, k) { return JJ.addDays(iso, k); }
 function base(over) {
   return Object.assign({userId: 'local', lang: 'en', tradition: 'Shwetambar', subsect: 'Murtipujak', country: 'IN', state: 'GJ', cityId: 'in-ahmedabad', cuisine: 'guj',
@@ -660,12 +667,25 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     em.remove(); em2.remove();
     return {ok: !past && hit, details: 'a time that had already passed causes no redraw: ' + !past + '; a time reached since the last check redraws the screen: ' + hit + '; checks every 15 s and whenever the app comes back into view'};
   });
+  test('N9', 'Location found without permission: from the internet connection, with backup services', function () {
+    var real = window.fetch, asked = [];
+    window.fetch = function (u) { asked.push(String(u)); if (/geojs/.test(u)) return Promise.reject(new Error('blocked')); return Promise.resolve({json: function () { return Promise.resolve({success: true, latitude: 23.03, longitude: 72.58, city: 'Ahmedabad', country_code: 'IN'}); }}); };
+    var p = JJ.app.networkLocation();
+    p.then(function () { window.fetch = real; }, function () { window.fetch = real; });
+    return p.then(function (o) {
+      var n = JJ.app.nearestCity(o.la, o.lo), c = JJ.CITIES[n.id];
+      return {ok: asked.length === 2 && /ipwho/.test(asked[1]) && c && /Ahmedabad/.test(c.en) && n.km < 20, details: 'first service blocked, second answered: ' + asked.map(function (u) { return u.split('/')[2]; }).join(' → ') + '; city set to ' + (c && c.en) + ' (' + Math.round(n.km) + ' km); no permission prompt is opened by the app itself'};
+    });
+  });
   // ---- report ----
+  Promise.all(pendingTests).then(report);
+  function report() {
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();
   document.getElementById('rows').innerHTML = results.map(function (r) {
     return '<tr><td>' + r.id + '</td><td>' + r.name + '</td><td class="' + (r.ok ? 'pass">PASS' : 'fail">FAIL') + '</td><td><small>' + String(r.details).replace(/</g, '&lt;') + '</small></td></tr>';
   }).join('');
   window.__results = results;
+  }
 });
 })();

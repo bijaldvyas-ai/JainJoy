@@ -3,6 +3,7 @@
 'use strict';
 var K = {
 // navigation
+loc_by_network:['Location not allowed, so your city was found from your internet connection. You can change it.','लोकेशन की अनुमति नहीं मिली, इसलिए शहर इंटरनेट कनेक्शन से पता किया गया। आप इसे बदल सकते हैं।','લોકેશનની પરવાનગી ન મળી, તેથી શહેર ઇન્ટરનેટ કનેક્શનથી શોધ્યું. તમે તેને બદલી શકો છો.'],
 photo_by:['Photo: {a} · {l}','फ़ोटो: {a} · {l}','ફોટો: {a} · {l}'],
 special_b:['Today’s breakfast','आज का नाश्ता','આજનો નાસ્તો'], special_l:['Today’s lunch special','आज दोपहर की खास डिश','આજની બપોરની ખાસ વાનગી'], special_s:['This evening’s snack','आज शाम का नाश्ता','આજ સાંજનો નાસ્તો'], special_d:['Tonight’s dinner','आज रात का खाना','આજ રાતનું જમણ'],
 cook_this:['Let’s cook','चलो बनाएँ','ચાલો બનાવીએ'],

@@ -1232,36 +1232,65 @@ function viewGate() {
   if (!ui.loc) autoLocate();
   return viewProfile('signup');
 }
-/* Location is detected, never asked: GPS, then the nearest of the app's cities (its state gives the cuisine).
-   Only if the phone gives no location does the city picker appear. */
+/* Location is detected without asking. The city is found from the internet connection straight away
+   (no permission needed). If the phone has already allowed location for JainJoy, GPS then sharpens
+   it. The app never opens the permission prompt by itself: only the "Use my location" button does.
+   The city picker appears only if nothing could be found. */
+var NET_GEO = [
+  ['https://get.geojs.io/v1/ip/geo.json', function (j) { return {la: +j.latitude, lo: +j.longitude, city: j.city, cc: j.country_code}; }],
+  ['https://ipwho.is/', function (j) { return j.success === false ? null : {la: +j.latitude, lo: +j.longitude, city: j.city, cc: j.country_code}; }],
+  ['https://ipapi.co/json/', function (j) { return {la: +j.latitude, lo: +j.longitude, city: j.city, cc: j.country_code}; }]
+];
+function networkLocation() { // tries each service in turn; resolves {la, lo, city, cc} or rejects
+  var k = 0;
+  function next() {
+    if (k >= NET_GEO.length) return Promise.reject(new Error('no network location'));
+    var svc = NET_GEO[k++], ctl = window.AbortController ? new AbortController() : null, tm = setTimeout(function () { if (ctl) ctl.abort(); }, 6000);
+    return fetch(svc[0], ctl ? {signal: ctl.signal} : {}).then(function (r) { return r.json(); }).then(function (j) {
+      clearTimeout(tm); var o = svc[1](j); if (!o || isNaN(o.la) || isNaN(o.lo)) throw new Error('bad'); return o;
+    }).catch(function () { clearTimeout(tm); return next(); });
+  }
+  return next();
+}
+function gpsAllowed() { // true only when location was already allowed, so asking would show no prompt
+  try { if (!navigator.permissions || !navigator.geolocation) return Promise.resolve(false); return navigator.permissions.query({name: 'geolocation'}).then(function (p) { return p.state === 'granted'; }, function () { return false; }); } catch (e) { return Promise.resolve(false); }
+}
+function nearestCity(la, lo) {
+  var best = null, bd = Infinity;
+  Object.keys(JJ.CITIES).forEach(function (k) {
+    var c = JJ.CITIES[k], dla = (c.lat - la) * Math.PI / 180, dlo = (c.lon - lo) * Math.PI / 180;
+    var a = Math.pow(Math.sin(dla / 2), 2) + Math.cos(la * Math.PI / 180) * Math.cos(c.lat * Math.PI / 180) * Math.pow(Math.sin(dlo / 2), 2), km = 12742 * Math.asin(Math.sqrt(a));
+    if (km < bd) { bd = km; best = k; }
+  });
+  return {id: best, km: bd};
+}
+/* put a found spot into the household's setup: the nearest listed city, or, when no listed city is
+   close, the spot itself (for exact sunrise times) with the nearest city's state and cuisine */
+function placeSpot(la, lo, how, name) {
+  var n = nearestCity(la, lo);
+  if (!n.id) return false;
+  if (!draft) draft = blankDraft();
+  pickCity(n.id);
+  if (n.km > 40) { var nc = JJ.CITIES[n.id]; draft.custom = {name: name || ((nc[LANG] || nc.en) + ' ' + t('area')), en: name || (nc.en + ' area'), lat: la, lon: lo, tz: JJ.tz.deviceTz()}; draft.cityId = ''; }
+  ui.loc = {state: 'ok', how: how};
+  return true;
+}
 function autoLocate() {
   ui.loc = {state: 'busy'};
-  function fail() { ui.loc = {state: 'failed'}; if (draft) openField = 'city'; render(); }
-  // GPS refused or unavailable: estimate the city from the internet connection instead of asking
-  function byNetwork() {
-    fetch('https://get.geojs.io/v1/ip/geo.json').then(function (r) { return r.json(); }).then(function (j) {
-      var la = parseFloat(j.latitude), lo = parseFloat(j.longitude);
-      if (isNaN(la) || isNaN(lo)) return fail();
-      useSpot(la, lo, true);
-    }).catch(fail);
-  }
-  if (!navigator.geolocation) return byNetwork();
-  navigator.geolocation.getCurrentPosition(function (pos) { useSpot(pos.coords.latitude, pos.coords.longitude, false); }, byNetwork, {timeout: 12000, maximumAge: 6e5});
-  function useSpot(la, lo, rough) {
-    var best = null, bd = Infinity;
-    Object.keys(JJ.CITIES).forEach(function (k) {
-      var c = JJ.CITIES[k], dla = (c.lat - la) * Math.PI / 180, dlo = (c.lon - lo) * Math.PI / 180;
-      var a = Math.pow(Math.sin(dla / 2), 2) + Math.cos(la * Math.PI / 180) * Math.cos(c.lat * Math.PI / 180) * Math.pow(Math.sin(dlo / 2), 2), km = 12742 * Math.asin(Math.sqrt(a));
-      if (km < bd) { bd = km; best = k; }
-    });
-    // a network estimate is only city-level: use it when a listed city is near, otherwise let the person choose
-    if (rough && bd > 150) return fail();
-    if (!draft) draft = blankDraft();
-    if (best) pickCity(best);
-    // GPS far from every listed city: keep the exact spot for sunrise times, with the nearest city's state and cuisine
-    if (best && bd > 40 && !rough) { var nc = JJ.CITIES[best]; draft.custom = {name: (nc[LANG] || nc.en) + ' ' + t('area'), en: nc.en + ' area', lat: la, lon: lo, tz: JJ.tz.deviceTz()}; draft.cityId = ''; }
-    ui.loc = {state: 'ok'}; if (P) openField = null; render();
-  }
+  var done = false;
+  function fail() { if (done) return; done = true; ui.loc = {state: 'failed'}; if (draft) openField = 'city'; render(); }
+  function finish(la, lo, how, name) { if (!placeSpot(la, lo, how, name)) return fail(); done = true; if (P) openField = null; render(); }
+  networkLocation().then(function (o) {
+    if (!done) finish(o.la, o.lo, 'network', o.city);
+  }, function () {
+    // no network answer: GPS only if it is already allowed (never a prompt)
+    gpsAllowed().then(function (ok) { if (!ok) return fail(); navigator.geolocation.getCurrentPosition(function (pos) { finish(pos.coords.latitude, pos.coords.longitude, 'gps'); }, fail, {timeout: 12000, maximumAge: 6e5}); });
+  });
+  // sharper: if location is already allowed, GPS replaces the network estimate
+  gpsAllowed().then(function (ok) {
+    if (!ok) return;
+    navigator.geolocation.getCurrentPosition(function (pos) { done = false; finish(pos.coords.latitude, pos.coords.longitude, 'gps'); }, function () {}, {timeout: 12000, maximumAge: 6e5});
+  });
 }
 function locRow(d) {
   var c = d.custom || JJ.CITIES[d.cityId], s = ui.loc ? ui.loc.state : 'busy';
@@ -1997,7 +2026,10 @@ function useGps() {
   navigator.geolocation.getCurrentPosition(function (pos) {
     draft.custom = {name: t('my_location'), en: 'My location', lat: pos.coords.latitude, lon: pos.coords.longitude, tz: JJ.tz.deviceTz()};
     draft.cityId = ''; if (!draft.cuisine) draft.cuisine = 'gen'; render();
-  }, function () { toast(t('gps_denied')); }, {timeout: 10000});
+  }, function () {
+    // permission refused or no fix: find the city from the internet connection instead
+    networkLocation().then(function (o) { placeSpot(o.la, o.lo, 'network', o.city); toast(t('loc_by_network')); render(); }, function () { toast(t('gps_denied')); });
+  }, {timeout: 10000});
 }
 function geoSearch() {
   var q = (ui.geo.q || '').trim(); if (q.length < 2) return;
@@ -2042,7 +2074,7 @@ document.addEventListener('visibilitychange', function () { if (document.visibil
 
 /* ---------------- boot ---------------- */
 JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
-  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, boundaryPassed: function () { return boundaryPassed(); }};
+  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, boundaryPassed: function () { return boundaryPassed(); }, networkLocation: networkLocation, nearestCity: nearestCity};
 JJ.boot = function () {
   // an invite link (…/JainJoy/?ref=AB12CD) is remembered until this phone signs up
   try { var ref = (location.search.match(/[?&]ref=([A-Za-z0-9]{6})/) || [])[1]; if (ref) localStorage.setItem('jainjoy.ref', ref.toUpperCase()); } catch (e) {}
