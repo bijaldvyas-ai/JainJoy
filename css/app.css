@@ -626,3 +626,6 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
   .appbar{padding-left:max(24px,calc((100% - 1180px)/2));padding-right:max(24px,calc((100% - 1180px)/2))}
 }
 @media (min-width:1024px){.phone[data-view="today"] .scroll>.dstrip,.phone[data-view="day"] .scroll>.dstrip{height:78px;min-height:78px;overflow-y:hidden}.phone .scroll>.hscroll{min-height:max-content}}
+.loc-found{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--green-soft,rgba(40,160,90,.1));border:1px solid var(--line)}
+.loc-found b{font-size:15px}
+.loc-found small{display:block;font-size:12px;color:var(--muted)}

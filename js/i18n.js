@@ -3,6 +3,11 @@
 'use strict';
 var K = {
 // navigation
+loc_how_auto:['Found automatically from your current location','आपकी मौजूदा लोकेशन से अपने-आप पता चला','તમારા હાલના સ્થાનથી આપમેળે શોધ્યું'],
+loc_how_gps:['Found from your phone’s location','फ़ोन की लोकेशन से पता चला','ફોનના લોકેશનથી શોધ્યું'],
+loc_how_search:['Chosen by you','आपने चुना','તમે પસંદ કર્યું'],
+loc_change:['Not right? Change','सही नहीं? बदलें','સાચું નથી? બદલો'],
+loc_failed_type:['We couldn’t find your location. Tap “Use my location” or type your city.','आपकी लोकेशन नहीं मिली। “मेरी लोकेशन” दबाएँ या शहर का नाम लिखें।','તમારું સ્થાન મળ્યું નહીં. “મારું લોકેશન” દબાવો અથવા શહેરનું નામ લખો.'],
 loc_by_network:['Location not allowed, so your city was found from your internet connection. You can change it.','लोकेशन की अनुमति नहीं मिली, इसलिए शहर इंटरनेट कनेक्शन से पता किया गया। आप इसे बदल सकते हैं।','લોકેશનની પરવાનગી ન મળી, તેથી શહેર ઇન્ટરનેટ કનેક્શનથી શોધ્યું. તમે તેને બદલી શકો છો.'],
 photo_by:['Photo: {a} · {l}','फ़ोटो: {a} · {l}','ફોટો: {a} · {l}'],
 special_b:['Today’s breakfast','आज का नाश्ता','આજનો નાસ્તો'], special_l:['Today’s lunch special','आज दोपहर की खास डिश','આજની બપોરની ખાસ વાનગી'], special_s:['This evening’s snack','आज शाम का नाश्ता','આજ સાંજનો નાસ્તો'], special_d:['Tonight’s dinner','आज रात का खाना','આજ રાતનું જમણ'],

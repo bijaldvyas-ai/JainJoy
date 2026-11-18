@@ -551,12 +551,12 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var want = ['Language', 'Location', 'Regional cuisine', 'Household size', 'Allergies and exclusions', 'Tithi observances', 'Timing convention'];
     var missing = want.filter(function (w) { return rows.indexOf(w) < 0; });
     // v3.4.1: the city picker is shown right away, beside "Use my location" (detection still runs in the background)
-    var noTradition = !/Tradition|Sub-sect/.test(div.textContent), locAuto = !!div.querySelector('#pf-country') && !!div.querySelector('[data-a="gps"]');
+    var noTradition = !/Tradition|Sub-sect/.test(div.textContent), locAuto = !div.querySelector('#pf-country') && !div.querySelector('#pf-state') && !!div.querySelector('[data-a="gps"]');
     var su = ids === 'name,phone,password,confirm' && !missing.length && noTradition && locAuto && !!div.querySelector('[data-a="signupsubmit"]');
     div.innerHTML = JJ.app.gateHTML('signin');
     var ids2 = [].map.call(div.querySelectorAll('input'), function (i) { return i.id.slice(4); }).join(','), si = ids2 === 'phone,password' && !div.querySelector('.frow');
     JJ.app.gateHTML('signup');
-    return {ok: su && si, details: 'Sign Up fields: ' + ids + '; sections: ' + rows.join(', ') + (missing.length ? ' (missing ' + missing.join(', ') + ')' : '') + '; no tradition or sub-sect: ' + noTradition + '; city picker shown with Use my location: ' + locAuto + '. Sign In fields: ' + ids2};
+    return {ok: su && si, details: 'Sign Up fields: ' + ids + '; sections: ' + rows.join(', ') + (missing.length ? ' (missing ' + missing.join(', ') + ')' : '') + '; no tradition or sub-sect: ' + noTradition + '; no country or state dropdowns, location filled automatically with Use my location: ' + locAuto + '. Sign In fields: ' + ids2};
   });
 
   // ---- v3.0: subscription (7-day trial, then ₹199 for 1 year) ----
@@ -676,6 +676,11 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
       var n = JJ.app.nearestCity(o.la, o.lo), c = JJ.CITIES[n.id];
       return {ok: asked.length === 2 && /ipwho/.test(asked[1]) && c && /Ahmedabad/.test(c.en) && n.km < 20, details: 'first service blocked, second answered: ' + asked.map(function (u) { return u.split('/')[2]; }).join(' → ') + '; city set to ' + (c && c.en) + ' (' + Math.round(n.km) + ' km); no permission prompt is opened by the app itself'};
     });
+  });
+  test('N10', 'Country, state and city are filled from the current location, never picked from lists', function () {
+    var gj = JJ.app.stateFromName('Gujarat'), dl = JJ.app.stateFromName('NCT of Delhi'), tn = JJ.app.stateFromName('Tamil Nadu'), mh = JJ.app.stateFromName('Maharashtra');
+    var near = JJ.app.nearestCity(19.07, 72.88), c = JJ.CITIES[near.id];
+    return {ok: gj === 'GJ' && !!dl && !!tn && mh === 'MH' && /Mumbai/.test(c.en), details: 'state names from the location service → Gujarat ' + gj + ', NCT of Delhi ' + dl + ', Tamil Nadu ' + tn + ', Maharashtra ' + mh + '; a spot in Mumbai → ' + c.en + ', ' + JJ.STATES.IN[c.state].en + '; the state then sets the cuisine and calendar'};
   });
   // ---- report ----
   Promise.all(pendingTests).then(report);

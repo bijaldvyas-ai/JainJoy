@@ -1237,9 +1237,9 @@ function viewGate() {
    it. The app never opens the permission prompt by itself: only the "Use my location" button does.
    The city picker appears only if nothing could be found. */
 var NET_GEO = [
-  ['https://get.geojs.io/v1/ip/geo.json', function (j) { return {la: +j.latitude, lo: +j.longitude, city: j.city, cc: j.country_code}; }],
-  ['https://ipwho.is/', function (j) { return j.success === false ? null : {la: +j.latitude, lo: +j.longitude, city: j.city, cc: j.country_code}; }],
-  ['https://ipapi.co/json/', function (j) { return {la: +j.latitude, lo: +j.longitude, city: j.city, cc: j.country_code}; }]
+  ['https://get.geojs.io/v1/ip/geo.json', function (j) { return {la: +j.latitude, lo: +j.longitude, city: j.city, cc: j.country_code, region: j.region}; }],
+  ['https://ipwho.is/', function (j) { return j.success === false ? null : {la: +j.latitude, lo: +j.longitude, city: j.city, cc: j.country_code, region: j.region}; }],
+  ['https://ipapi.co/json/', function (j) { return {la: +j.latitude, lo: +j.longitude, city: j.city, cc: j.country_code, region: j.region}; }]
 ];
 function networkLocation() { // tries each service in turn; resolves {la, lo, city, cc} or rejects
   var k = 0;
@@ -1266,12 +1266,27 @@ function nearestCity(la, lo) {
 }
 /* put a found spot into the household's setup: the nearest listed city, or, when no listed city is
    close, the spot itself (for exact sunrise times) with the nearest city's state and cuisine */
-function placeSpot(la, lo, how, name) {
+/* An Indian state from its name as a location service writes it ("Gujarat", "NCT of Delhi", "Tamil Nadu") */
+function stateFromName(name) {
+  if (!name) return '';
+  var n = String(name).toLowerCase().replace(/^(nct of|national capital territory of|state of|union territory of)\s+/, '').replace(/[^a-z]/g, '');
+  var hit = '';
+  Object.keys(JJ.STATES.IN).forEach(function (k) { var e = JJ.STATES.IN[k].en.toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z]/g, ''); if (!hit && (e === n || (n.length > 4 && (e.indexOf(n) === 0 || n.indexOf(e) === 0)))) hit = k; });
+  return hit;
+}
+/* country and state set the cuisine and the lunar calendar, unless the household chose a cuisine */
+function setRegion(cc, state) {
+  if (cc && JJ.COUNTRIES[cc]) draft.country = cc;
+  if (draft.country === 'IN' && state && JJ.STATES.IN[state]) { draft.state = state; var st = JJ.STATES.IN[state]; if (!draft.cuisineSet) draft.cuisine = st.cu; draft.calendar = st.cal; }
+}
+function placeSpot(la, lo, how, name, region, cc) {
   var n = nearestCity(la, lo);
   if (!n.id) return false;
   if (!draft) draft = blankDraft();
   pickCity(n.id);
-  if (n.km > 40) { var nc = JJ.CITIES[n.id]; draft.custom = {name: name || ((nc[LANG] || nc.en) + ' ' + t('area')), en: name || (nc.en + ' area'), lat: la, lon: lo, tz: JJ.tz.deviceTz()}; draft.cityId = ''; }
+  if (n.km > 40) { var nc = JJ.CITIES[n.id]; draft.custom = {name: name || ((nc[LANG] || nc.en) + ' ' + t('area')), en: name || (nc.en + ' area'), lat: la, lon: lo, tz: JJ.tz.deviceTz(), country: cc || nc.country}; draft.cityId = ''; }
+  // the state the location service names wins over the nearest listed city's (near a border they differ)
+  setRegion(cc, stateFromName(region));
   ui.loc = {state: 'ok', how: how};
   return true;
 }
@@ -1279,8 +1294,10 @@ function autoLocate() {
   ui.loc = {state: 'busy'};
   var done = false;
   function fail() { if (done) return; done = true; ui.loc = {state: 'failed'}; if (draft) openField = 'city'; render(); }
-  function finish(la, lo, how, name) { if (!placeSpot(la, lo, how, name)) return fail(); done = true; if (P) openField = null; render(); }
+  var net = null;
+  function finish(la, lo, how, name) { if (!placeSpot(la, lo, how, name, net && net.region, net && net.cc)) return fail(); done = true; if (P) openField = null; render(); }
   networkLocation().then(function (o) {
+    net = o;
     if (!done) finish(o.la, o.lo, 'network', o.city);
   }, function () {
     // no network answer: GPS only if it is already allowed (never a prompt)
@@ -1758,20 +1775,25 @@ function frow(key, icon, title, value, done, bodyFn) {
   return '<section class="frow' + (open ? ' open' : '') + (done ? ' done' : '') + '"><button class="frow-h" data-a="field" data-v="' + key + '" aria-expanded="' + open + '"><span class="ficon">' + ic(icon) + '</span><span class="ftext"><b>' + esc(title) + '</b><small>' + esc(value) + '</small></span><span class="fcheck">' + ic('check') + '</span></button>' + (open ? '<div class="frow-b">' + bodyFn() + '</div>' : '') + '</section>';
 }
 function stateName(c, s) { return c === 'IN' && JJ.STATES.IN[s] ? nm(JJ.STATES.IN[s]) : ''; }
+/* Location: found automatically (country, state and city). No dropdowns: only "Use my location"
+   and, if the place found is wrong, a search by city name. */
+function placeLine(d) {
+  var c = d.custom || JJ.CITIES[d.cityId]; if (!c) return '';
+  return [c[LANG] || c.en || c.name, d.country === 'IN' ? stateName(d.country, d.state) : '', JJ.COUNTRIES[d.country] ? nm(JJ.COUNTRIES[d.country]) : ''].filter(Boolean).join(', ');
+}
 function locationBody(d) {
-  var countries = Object.keys(JJ.COUNTRIES), ls = ui.loc ? ui.loc.state : '';
-  var h = '<div class="row" style="flex-wrap:wrap;align-items:center;gap:10px"><button class="btn small" data-a="gps">' + ic('pin') + ' ' + esc(t('use_location')) + '</button>' +
-    (ls === 'busy' ? '<span class="hint" style="margin:0">' + esc(t('loc_detecting')) + '</span>' : '') + '</div><p class="loc-or">' + esc(t('loc_or_choose')) + '</p>';
-  h += '<div class="field"><label for="pf-country">' + esc(t('country')) + '</label><select class="select" id="pf-country">' + countries.map(function (c) { return '<option value="' + c + '"' + (d.country === c ? ' selected' : '') + '>' + esc(nm(JJ.COUNTRIES[c])) + '</option>'; }).join('') + '</select></div>';
-  if (d.country === 'IN') h += '<div class="field"><label for="pf-state">' + esc(t('state')) + '</label><select class="select" id="pf-state"><option value="">' + esc(t('select_state')) + '</option>' + Object.keys(JJ.STATES.IN).sort(function (a, b) { return JJ.STATES.IN[a].en.localeCompare(JJ.STATES.IN[b].en); }).map(function (s) { return '<option value="' + s + '"' + (d.state === s ? ' selected' : '') + '>' + esc(nm(JJ.STATES.IN[s])) + '</option>'; }).join('') + '</select></div>';
-  var cities = Object.keys(JJ.CITIES).map(function (k) { return JJ.CITIES[k]; }).filter(function (c) { return c.country === d.country && (d.country !== 'IN' || c.state === d.state); }).sort(function (a, b) { return a.en.localeCompare(b.en); });
-  if (d.country !== 'IN' || d.state) h += '<div class="field"><label for="pf-city">' + esc(t('city')) + '</label><select class="select" id="pf-city"><option value="">' + esc(t('select_city')) + '</option>' + cities.map(function (c) { return '<option value="' + c.id + '"' + (d.cityId === c.id ? ' selected' : '') + '>' + esc(c[LANG] || c.en) + '</option>'; }).join('') + '</select></div>';
-  h += '<p class="hint">' + esc(t('city_missing')) + '</p>';
-  h += '<form class="addrow" id="geo-form" autocomplete="off"><input id="geo-q" maxlength="60" value="' + esc(ui.geo.q) + '" placeholder="' + esc(t('search_place')) + '" aria-label="' + esc(t('search_place')) + '"><button type="submit">' + esc(t('search')) + '</button></form>';
-  if (ui.geo.busy) h += '<p class="hint">' + esc(t('searching')) + '</p>';
-  if (ui.geo.results) h += '<div class="search-results">' + (ui.geo.results.length ? ui.geo.results.map(function (r, i) { return '<button class="lrow" data-a="geopick" data-v="' + i + '"><span class="mtxt grow"><b>' + esc(r.name) + '</b><small>' + esc([r.admin1, r.country].filter(Boolean).join(', ') + ' · ' + r.timezone) + '</small></span></button>'; }).join('') : '<p class="hint">' + esc(t('no_results')) + '</p>') + '</div>';
+  var ls = ui.loc ? ui.loc.state : '', place = placeLine(d), h = '';
+  if (place) h += '<div class="loc-found"><span class="ficon">' + ic('pin') + '</span><span class="mtxt grow"><b>' + esc(place) + '</b>' + (ui.loc && ui.loc.how ? '<small>' + esc(t(ui.loc.how === 'gps' ? 'loc_how_gps' : ui.loc.how === 'search' ? 'loc_how_search' : 'loc_how_auto')) + '</small>' : '') + '</span></div>';
+  else if (ls === 'busy') h += '<p class="hint">' + esc(t('loc_detecting')) + '</p>';
+  else h += '<p class="hint">' + esc(t('loc_failed_type')) + '</p>';
+  h += '<div class="row" style="flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px"><button class="btn small" data-a="gps">' + ic('pin') + ' ' + esc(t('use_location')) + '</button>' +
+    (place ? '<button class="linkbtn" data-a="locchange">' + esc(t(ui.locChange ? 'cancel' : 'loc_change')) + '</button>' : '') + '</div>';
+  if (!place || ui.locChange) {
+    h += '<form class="addrow" id="geo-form" autocomplete="off" style="margin-top:10px"><input id="geo-q" maxlength="60" value="' + esc(ui.geo.q) + '" placeholder="' + esc(t('search_place')) + '" aria-label="' + esc(t('search_place')) + '"><button type="submit">' + esc(t('search')) + '</button></form>';
+    if (ui.geo.busy) h += '<p class="hint">' + esc(t('searching')) + '</p>';
+    if (ui.geo.results) h += '<div class="search-results">' + (ui.geo.results.length ? ui.geo.results.map(function (r, i) { return '<button class="lrow" data-a="geopick" data-v="' + i + '"><span class="mtxt grow"><b>' + esc(r.name) + '</b><small>' + esc([r.admin1, r.country].filter(Boolean).join(', ')) + '</small></span></button>'; }).join('') : '<p class="hint">' + esc(t('no_results')) + '</p>') + '</div>';
+  }
   h += '<p class="hint">' + esc(t('geo_privacy')) + '</p>';
-  if (d.custom) h += '<div class="note ok">' + esc(t('custom_place', {name: d.custom.name, lat: d.custom.lat.toFixed(3), lon: d.custom.lon.toFixed(3)})) + '</div>';
   return h;
 }
 function viewProfile(onboard) {
@@ -1780,8 +1802,7 @@ function viewProfile(onboard) {
   var d = draft, rows = '';
   rows += '<section class="frow done"><div class="frow-h static"><span class="ficon">' + ic('globe') + '</span><span class="ftext"><b>' + esc(t('language')) + '</b><small>' + esc(t('language_sub')) + '</small></span>' + langChip() + '</div></section>';
   var cityObj = d.custom || JJ.CITIES[d.cityId];
-  if (onboard) rows += frow('city', 'pin', t('location'), cityObj ? t('loc_detected', {place: (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '')}) : ui.loc && ui.loc.state === 'busy' ? t('loc_detecting') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
-  else rows += frow('city', 'pin', t('location'), cityObj ? (cityObj[LANG] || cityObj.en || cityObj.name) + (d.state ? ', ' + stateName(d.country, d.state) : '') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
+  rows += frow('city', 'pin', t('location'), cityObj ? (onboard ? t('loc_detected', {place: placeLine(d)}) : placeLine(d)) : ui.loc && ui.loc.state === 'busy' ? t('loc_detecting') : t('location_hint'), !!cityObj, function () { return locationBody(d); });
   rows += frow('cuisine', 'thali', t('cuisine'), d.cuisine ? nm(JJ.CUISINES[d.cuisine]) : t('cuisine_hint'), !!d.cuisine, function () { return '<div class="chips">' + Object.keys(JJ.CUISINES).map(function (k) { return '<button class="chip" data-a="cuisine" data-v="' + k + '" aria-pressed="' + (d.cuisine === k) + '">' + esc(nm(JJ.CUISINES[k])) + '</button>'; }).join('') + '</div><p class="hint">' + esc(t('cuisine_help')) + '</p>'; });
   rows += frow('hh', 'users', t('household'), t('for_members', {n: d.hh}), d.hh >= 1, function () { return '<div class="stepper"><button data-a="hh" data-v="-1" aria-label="' + esc(t('fewer')) + '"' + (d.hh <= 1 ? ' disabled' : '') + '>−</button><output aria-live="polite">' + esc(t('for_members', {n: d.hh})) + '</output><button data-a="hh" data-v="1" aria-label="' + esc(t('more')) + '"' + (d.hh >= 20 ? ' disabled' : '') + '>+</button></div><p class="hint">' + esc(t('household_help')) + '</p>'; });
   var exVal = d.allergies.map(function (a) { return nm(JJ.ALLERGENS[a]); }).concat(d.exclude.map(ingName)).join(', ') || t('none');
@@ -1935,7 +1956,14 @@ app.addEventListener('click', function (e) {
     case 'addex': if (draft.exclude.indexOf(v) < 0) draft.exclude.push(v); ui.ingQ = ''; render(); break;
     case 'rmex': draft.exclude = draft.exclude.filter(function (x) { return x !== v; }); render(); break;
     case 'gps': useGps(); break;
-    case 'geopick': { var r = ui.geo.results[+v]; draft.custom = {name: r.name + (r.admin1 ? ', ' + r.admin1 : ''), en: r.name, lat: r.latitude, lon: r.longitude, tz: r.timezone || JJ.tz.deviceTz(), country: r.country_code}; draft.cityId = ''; if (!draft.cuisine) draft.cuisine = 'gen'; ui.geo.results = null; render(); break; }
+    case 'geopick': {
+      var r = ui.geo.results[+v], nn = nearestCity(r.latitude, r.longitude);
+      if (nn.id && nn.km <= 25) pickCity(nn.id);
+      else { draft.custom = {name: r.name + (r.admin1 ? ', ' + r.admin1 : ''), en: r.name, lat: r.latitude, lon: r.longitude, tz: r.timezone || JJ.tz.deviceTz(), country: r.country_code}; draft.cityId = ''; if (!draft.cuisine) draft.cuisine = 'gen'; }
+      setRegion(r.country_code, stateFromName(r.admin1));
+      ui.geo.results = null; ui.geo.q = ''; ui.locChange = false; ui.loc = {state: 'ok', how: 'search'}; if (!P) openField = draft.cuisine ? 'hh' : 'cuisine'; render(); break;
+    }
+    case 'locchange': ui.locChange = !ui.locChange; ui.geo.results = null; render(); break;
     case 'submit': {
       if (!ready(draft)) return;
       createPlan(); JJ.account.saveProfile(P); render(); break;
@@ -2024,11 +2052,10 @@ function useGps() {
   if (!navigator.geolocation) { toast(t('gps_unavailable')); return; }
   toast(t('locating'));
   navigator.geolocation.getCurrentPosition(function (pos) {
-    draft.custom = {name: t('my_location'), en: 'My location', lat: pos.coords.latitude, lon: pos.coords.longitude, tz: JJ.tz.deviceTz()};
-    draft.cityId = ''; if (!draft.cuisine) draft.cuisine = 'gen'; render();
+    placeSpot(pos.coords.latitude, pos.coords.longitude, 'gps'); ui.locChange = false; render();
   }, function () {
     // permission refused or no fix: find the city from the internet connection instead
-    networkLocation().then(function (o) { placeSpot(o.la, o.lo, 'network', o.city); toast(t('loc_by_network')); render(); }, function () { toast(t('gps_denied')); });
+    networkLocation().then(function (o) { placeSpot(o.la, o.lo, 'network', o.city, o.region, o.cc); toast(t('loc_by_network')); render(); }, function () { toast(t('gps_denied')); });
   }, {timeout: 10000});
 }
 function geoSearch() {
@@ -2074,7 +2101,7 @@ document.addEventListener('visibilitychange', function () { if (document.visibil
 
 /* ---------------- boot ---------------- */
 JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
-  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, boundaryPassed: function () { return boundaryPassed(); }, networkLocation: networkLocation, nearestCity: nearestCity};
+  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, boundaryPassed: function () { return boundaryPassed(); }, networkLocation: networkLocation, nearestCity: nearestCity, stateFromName: stateFromName};
 JJ.boot = function () {
   // an invite link (…/JainJoy/?ref=AB12CD) is remembered until this phone signs up
   try { var ref = (location.search.match(/[?&]ref=([A-Za-z0-9]{6})/) || [])[1]; if (ref) localStorage.setItem('jainjoy.ref', ref.toUpperCase()); } catch (e) {}
