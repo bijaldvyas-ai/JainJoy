@@ -436,7 +436,8 @@ function render() {
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
     admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount, subscribe: function () { return viewPaywall(true); }, legal: viewLegal, invite: viewInvite, visitors: viewVisitors})[top.k](top);
   else body = tab === 'today' ? viewToday() : tab === 'explore' ? viewExplore() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'pk' ? viewPachkhan() : tab === 'shop' ? viewShop() : viewProfileHome();
-  app.innerHTML = '<div class="phone">' + withCredit(body) + (P && !gate && !locked() && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
+  var view = !P ? 'onb' : top ? top.k : tab, hasNav = P && !gate && !locked() && JJ.account.known;
+  app.innerHTML = '<div class="phone' + (hasNav ? ' has-nav' : '') + '" data-view="' + view + '">' + withCredit(body) + (P && !gate && !locked() && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
   var ns = document.getElementById('scroll'); if (ns) ns.scrollTop = keep; lastKey = key;
   syncHistory();
   if (top && top.k === 'about') JJ.visits.summary().then(function (s) { var el = document.getElementById('visitors'); if (el) el.textContent = s ? t(s.total === 1 ? 'visitors_now_one' : 'visitors_now', {n: s.total, today: s.today, plans: s.planners}) : t('visitors_unavailable'); });
@@ -737,7 +738,7 @@ function shubhCell(iso, live) {
   if (!c) return '';
   var running = live && now >= c.start;
   return '<button class="chog-strip" data-a="tab" data-v="chog"><small>' + esc(t('shubh_chog')) + '</small><b>' + esc(t('chog_' + c.k)) + '</b>' +
-    '<em>' + esc(hm(c.start) + '–' + hm(c.end)) + '</em>' + (live ? '<em class="' + (running ? 'now' : '') + '"' + (running ? '' : ' data-until="' + c.start + '"') + '>' + esc(running ? t('chog_now_short') : until(c.start)) + '</em>' : '') + '</button>';
+    '<em>' + esc(hm(c.start) + '–' + hm(c.end)) + '</em>' + (live ? '<em class="' + (running ? 'now' : '') + '"' + (running ? ' data-refresh-at="' + c.end + '"' : ' data-until="' + c.start + '"') + '>' + esc(running ? t('chog_now_short') : until(c.start)) + '</em>' : '') + '</button>';
 }
 /* Ayambil thali: shown by itself during Ayambil Oli, and on any day with the "Ayambil thali" button */
 function isOli(iso) { return pan(iso).observances.some(function (o) { return o.k === 'oli_chaitra' || o.k === 'oli_aso'; }); }
@@ -1151,7 +1152,7 @@ function viewChog() {
   var nav = '<div class="cal-nav"><button class="icon-btn" data-a="chogday" data-v="-1" aria-label="' + esc(t('prev_day')) + '">' + ic('back') + '</button><h1 class="h1" style="font-size:22px">' + esc(dLong(iso)) + '</h1><button class="icon-btn" data-a="chogday" data-v="1" aria-label="' + esc(t('next_day')) + '">' + ic('next') + '</button></div>';
   var b = panSeg('chog') + '<p class="eyebrow" style="margin-top:12px">' + esc(t('tab_choghadiya')) + '</p>' + nav + '<p class="sub">' + esc(cityLabel()) + ' · ' + esc(t('chog_sub')) + '</p>';
   var cur = list.filter(function (c) { return now >= c.start && now < c.end; })[0];
-  if (cur) b += '<div class="card glass chog-now chog-' + cur.q + '"><h3>' + esc(t('chog_now')) + '</h3><b>' + esc(t('chog_' + cur.k)) + '</b> · ' + esc(t('chog_q_' + cur.q)) + '<p class="fine" style="margin:4px 0 0">' + esc(hm(cur.start) + ' – ' + hm(cur.end)) + ' · <span data-until="' + cur.end + '">' + until(cur.end) + '</span></p></div>';
+  if (cur) b += '<div class="card glass chog-now chog-' + cur.q + '" data-refresh-at="' + cur.end + '"><h3>' + esc(t('chog_now')) + '</h3><b>' + esc(t('chog_' + cur.k)) + '</b> · ' + esc(t('chog_q_' + cur.q)) + '<p class="fine" style="margin:4px 0 0">' + esc(hm(cur.start) + ' – ' + hm(cur.end)) + ' · <span data-until="' + cur.end + '">' + until(cur.end) + '</span></p></div>';
   ['day', 'night'].forEach(function (part) {
     b += '<h2 class="h2">' + esc(t('chog_' + part)) + '<span>' + esc(part === 'day' ? t('sunrise') + ' ' + hm(list[0].start) : t('sunset') + ' ' + hm(list[8].start)) + '</span></h2><div class="list">';
     list.filter(function (c) { return c.part === part; }).forEach(function (c) {
@@ -2014,19 +2015,34 @@ function exportData() {
   var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'jainjoy-data.json'; document.body.appendChild(a); a.click(); a.remove();
 }
 
-/* live countdowns and midnight rollover */
+/* Live screen: countdowns tick, and the screen redraws itself the moment something on it changes
+   with time (Navkarsi or Chauvihar passes, the Choghadiya changes, midnight starts a new day), and
+   when the person comes back to the app. Nothing needs a reload. */
 function tick() { document.querySelectorAll('[data-until]').forEach(function (el) { el.textContent = until(+el.dataset.until); }); }
+var lastLive = Date.now();
+function boundaryPassed() { // a time shown on screen was reached since the last check
+  var now = Date.now(), hit = false;
+  document.querySelectorAll('[data-until],[data-refresh-at]').forEach(function (el) { var at = +(el.dataset.until || el.dataset.refreshAt); if (at > lastLive && at <= now) hit = true; });
+  lastLive = now;
+  return hit;
+}
+function busy() { var a = document.activeElement; return !!(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) || !!document.querySelector('.scrim'); }
 var lastDay = null;
-setInterval(function () {
+function liveCheck() {
   tick();
   if (!P) return;
   maybeEveningReminder();
-  var td = today(); if (lastDay && td !== lastDay) { freezeHistory(); if (!stack.length) render(); } lastDay = td;
-}, 30000);
+  var td = today();
+  if (lastDay && td !== lastDay) { freezeHistory(); if (!busy()) render(); }
+  else if (boundaryPassed() && !busy()) render();
+  lastDay = td;
+}
+setInterval(liveCheck, 15000);
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') liveCheck(); });
 
 /* ---------------- boot ---------------- */
 JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
-  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache};
+  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, boundaryPassed: function () { return boundaryPassed(); }};
 JJ.boot = function () {
   // an invite link (…/JainJoy/?ref=AB12CD) is remembered until this phone signs up
   try { var ref = (location.search.match(/[?&]ref=([A-Za-z0-9]{6})/) || [])[1]; if (ref) localStorage.setItem('jainjoy.ref', ref.toUpperCase()); } catch (e) {}

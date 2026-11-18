@@ -586,3 +586,43 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .meal .dishpic,.opt-top .dishpic{box-shadow:0 4px 12px rgba(120,60,20,.18)}
 .special .sp-art.solo{top:38%}
 .special .sp-txt{padding-right:118px}
+
+/* ===================== v3.6 responsive: tablets and computers =====================
+   Phones (under 768px) keep the app exactly as it is.
+   Tablets (768px+): the app fills the screen, content centred, meals two to a row.
+   Computers (1024px+): navigation moves to a rail on the left; Today shows the food and the
+   timings side by side; lists and recipe grids use the extra width. */
+@media (min-width:768px){
+  body{background:var(--bg)}
+  #app{align-items:stretch;padding-block:0}
+  .phone{max-width:none;max-height:none;border-radius:0;border:0;box-shadow:none}
+  .scroll{--wide:min(1040px,100%);padding-left:max(24px,calc((100% - var(--wide))/2));padding-right:max(24px,calc((100% - var(--wide))/2))}
+  .appbar{padding-left:max(24px,calc((100% - 1040px)/2));padding-right:max(24px,calc((100% - 1040px)/2))}
+  .meals{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+  .rgrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .special .sp-pic{height:280px}
+  .rhero-photo{height:340px}
+  .sheet{max-width:560px;margin-inline:auto;border-radius:28px 28px 0 0}
+  .toast{bottom:32px}
+}
+@media (min-width:1024px){
+  .phone.has-nav{display:grid;grid-template-columns:104px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"nav bar" "nav main"}
+  .phone.has-nav>.appbar{grid-area:bar}
+  .phone.has-nav>.scroll{grid-area:main}
+  .phone.has-nav>.tabbar{grid-area:nav;display:flex;flex-direction:column;justify-content:flex-start;gap:6px;padding:18px 8px;border-top:0;border-right:1px solid var(--line)}
+  .phone.has-nav>.tabbar .tab{padding-block:10px}
+  .phone.has-nav>.credit,.phone.has-nav>.scrim{grid-column:1/-1}
+  .rgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  /* Today: food on the left, today's timings and rules on the right */
+  .phone[data-view="today"] .scroll,.phone[data-view="day"] .scroll{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);column-gap:24px;align-content:start}
+  .phone[data-view="today"] .scroll>*,.phone[data-view="day"] .scroll>*{grid-column:1/-1}
+  .phone[data-view="today"] .scroll>.special,.phone[data-view="day"] .scroll>.special{grid-column:1;margin-top:10px}
+  .phone[data-view="today"] .scroll>.timings-card,.phone[data-view="day"] .scroll>.timings-card{grid-column:2;margin-top:10px;align-self:start}
+  .phone[data-view="today"] .special .sp-pic,.phone[data-view="day"] .special .sp-pic{height:330px}
+  .phone[data-view="today"] .scroll>.fold,.phone[data-view="today"] .scroll>.tomorrow{grid-column:auto;align-self:start}
+}
+@media (min-width:1400px){
+  .scroll{--wide:1180px}
+  .appbar{padding-left:max(24px,calc((100% - 1180px)/2));padding-right:max(24px,calc((100% - 1180px)/2))}
+}
+@media (min-width:1024px){.phone[data-view="today"] .scroll>.dstrip,.phone[data-view="day"] .scroll>.dstrip{height:78px;min-height:78px;overflow-y:hidden}.phone .scroll>.hscroll{min-height:max-content}}

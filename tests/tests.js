@@ -642,6 +642,24 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var fallback = /<svg[^>]*dish-poha/.test(poha) && /<img class="dishphoto"[^>]*Indori_Poha/.test(poha) && /onerror="this.remove\(\)"/.test(poha);
     return {ok: ids.length >= 85 && !missing.length && lic && fallback && !/<img/.test(np), details: ids.length + ' recipes with a checked, freely licensed real photo (credit shown on the recipe page); unknown ids: ' + missing.length + '; Indori Poha shows its photo over its drawing, drawing shown if the photo cannot load: ' + fallback + '; recipes without a photo keep their own drawing (' + noPhoto.en + ')'};
   });
+  test('N7', 'Responsive layout: phone unchanged; tablet fills the screen; computer has a side rail and Today side by side', function () {
+    var x = new XMLHttpRequest(); x.open('GET', '../css/app.css', false); x.send(); var css = x.responseText.replace(/\s+/g, ' ');
+    var tablet = /min-width:768px/.test(css) && /\.meals\{grid-template-columns:repeat\(2/.test(css);
+    var desk = /min-width:1024px/.test(css) && /grid-template-areas:"nav bar" "nav main"/.test(css) && /data-view="today"\] \.scroll>\.timings-card/.test(css);
+    JJ.app.profile = Object.assign({created: today}, base()); JJ.app.render();
+    var ph = document.querySelector('.phone');
+    return {ok: tablet && desk && ph.classList.contains('has-nav') && ph.dataset.view === 'today', details: 'tablet rules (768px+, meals two to a row): ' + tablet + '; computer rules (1024px+, navigation rail, food and timings side by side): ' + desk + '; the app tells the layout which screen is open: ' + ph.dataset.view};
+  });
+  test('N8', 'Live screen: redraws itself when a shown time passes, not again for times already past', function () {
+    JJ.app.profile = Object.assign({created: today}, base()); JJ.app.render();
+    var em = document.createElement('em'); em.dataset.until = String(Date.now() - 60000); document.getElementById('app').appendChild(em);
+    var past = JJ.app.boundaryPassed();
+    var em2 = document.createElement('em'); em2.dataset.refreshAt = String(Date.now() + 50); document.getElementById('app').appendChild(em2);
+    var start = Date.now(); while (Date.now() - start < 80) {}
+    var hit = JJ.app.boundaryPassed();
+    em.remove(); em2.remove();
+    return {ok: !past && hit, details: 'a time that had already passed causes no redraw: ' + !past + '; a time reached since the last check redraws the screen: ' + hit + '; checks every 15 s and whenever the app comes back into view'};
+  });
   // ---- report ----
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById('sum').textContent = pass + ' of ' + results.length + ' tests passed · ' + new Date().toLocaleString() + ' · ' + JJ.astro.name();
