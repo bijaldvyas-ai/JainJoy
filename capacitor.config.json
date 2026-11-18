@@ -1,0 +1,8 @@
+{
+  "appId": "com.bijaldvyas.jainjoy",
+  "appName": "JainJoy",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#f6f3fb"
+  }
+}

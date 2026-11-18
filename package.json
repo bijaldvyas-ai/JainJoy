@@ -1,0 +1,17 @@
+{
+  "name": "jainjoy",
+  "version": "3.6.2",
+  "private": true,
+  "description": "JainJoy - Jain Meal Planner (web app and Android app)",
+  "scripts": {
+    "build:web": "node scripts/copy-web.js",
+    "android:sync": "npm run build:web && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0"
+  }
+}

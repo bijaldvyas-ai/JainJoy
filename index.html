@@ -84,7 +84,7 @@
 JJ.boot().then(function () { JJ.analytics.start(); try { if (sessionStorage.getItem('jainjoy.updated')) { sessionStorage.removeItem('jainjoy.updated'); JJ.app.toast(JJ.app.t('app_updated')); } } catch (e) {} }).catch(function (e) {
   document.getElementById('app').innerHTML = '<div class="phone"><main class="splash gx"><p>JainJoy could not start: ' + String(e && e.message || e).replace(/</g, '&lt;') + '</p></main></div>';
 });
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
   // Auto refresh: look for a new version on open, when the app comes back to the screen and every 30 minutes;
   // when one is installed the page reloads itself once, so everyone always has the latest JainJoy.
   window.addEventListener('load', function () {
