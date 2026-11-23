@@ -3,6 +3,16 @@
 'use strict';
 var K = {
 // navigation
+wisdom_title:['Jain Wisdom of the Day','आज का जैन विचार','આજનો જૈન વિચાર'],
+wisdom_share:['Share','शेयर करें','શેર કરો'],
+wisdom_all:['All quotes','सभी विचार','બધા વિચાર'],
+wisdom_lib_title:['Jain Quotes','जैन विचार','જૈન વિચાર'],
+wisdom_lib_sub:['30 teachings · a new one each day','30 उपदेश · हर दिन एक नया','30 ઉપદેશ · દરરોજ એક નવો'],
+wisdom_note:['Only sayings found in Jain scriptures and prayers carry a scripture source. Popular maxims and modern mottos are labelled as such.','केवल जैन शास्त्रों और प्रार्थनाओं के वचनों के साथ ग्रंथ का नाम है। प्रचलित सूक्तियाँ और आधुनिक नारे अलग से चिह्नित हैं।','માત્ર જૈન શાસ્ત્રો અને પ્રાર્થનાઓનાં વચનો સાથે ગ્રંથનું નામ છે. પ્રચલિત સૂક્તિઓ અને આધુનિક સૂત્રો અલગથી દર્શાવ્યાં છે.'],
+kind_scripture:['Scripture','शास्त्र','શાસ્ત્ર'],
+kind_prayer:['Prayer','प्रार्थना','પ્રાર્થના'],
+kind_maxim:['Traditional maxim','प्रचलित सूक्ति','પ્રચલિત સૂક્તિ'],
+kind_motto:['Modern motto','आधुनिक नारा','આધુનિક સૂત્ર'],
 with_soup:['+ Soup: {name}','+ सूप: {name}','+ સૂપ: {name}'],
 with_morning:['+ Winter morning: {name}','+ सर्दी की सुबह: {name}','+ શિયાળાની સવાર: {name}'],
 serve_with_dinner:['Serve this soup with tonight’s dinner','यह सूप आज रात के खाने के साथ परोसें','આ સૂપ આજ રાતના જમણ સાથે પીરસો'],

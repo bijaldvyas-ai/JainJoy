@@ -763,6 +763,31 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     document.querySelector('[data-a="back"]') && document.querySelector('[data-a="back"]').click();
     return {ok: inCard && onPage, details: d + ': dinner card shows "+ Soup: ' + sn + '": ' + inCard + '; dinner recipe page shows the soup: ' + onPage};
   });
+  test('Q1', 'Jain Wisdom: 30 quotations, each with original wording, meaning in 3 languages and a source', function () {
+    var bad = JJ.WISDOM.filter(function (q) { return !(q.orig && q.roman && q.en && q.hi && q.gu && q.src && JJ.WISDOM_THEMES[q.theme] && /^(scripture|prayer|maxim|motto)$/.test(q.kind)); });
+    var themes = ['ahimsa', 'aparigraha', 'anekanta', 'forgiveness', 'compassion', 'maitri', 'jivdaya'].filter(function (k) { return !JJ.WISDOM.some(function (q) { return q.theme === k; }); });
+    var mottoOk = JJ.WISDOM.filter(function (q) { return q.kind === 'motto' || q.kind === 'maxim'; }).every(function (q) { return !/Sutra|Mahavir/.test(q.src); });
+    return {ok: JJ.WISDOM.length >= 30 && !bad.length && !themes.length && mottoOk, details: JJ.WISDOM.length + ' quotations; incomplete: ' + (bad.map(function (q) { return q.id; }).join(',') || 'none') + '; missing themes: ' + (themes.join(',') || 'none') + '; mottos/maxims never credited to a scripture: ' + mottoOk};
+  });
+  test('Q2', 'Jain Wisdom: no quotation repeats within 30 days (checked over a year)', function () {
+    var worst = 99;
+    for (var i = 0; i < 365; i++) { var a = JJ.wisdomFor(addDays(today, i)).id; for (var j = 1; j < 30; j++) if (JJ.wisdomFor(addDays(today, i + j)).id === a) { worst = Math.min(worst, j); break; } }
+    return {ok: worst >= 30, details: 'shortest gap before a repeat: ' + (worst === 99 ? '≥30' : worst) + ' days'};
+  });
+  test('Q3', 'Jain Wisdom shows on Today above the menu, shares the quote, and the library lists all quotations', function () {
+    JJ.app.render(); var sb0 = document.createElement('button'); sb0.dataset.a = 'sel'; sb0.dataset.v = today; document.getElementById('app').appendChild(sb0); sb0.click();
+    var app = document.getElementById('app'), card = document.getElementById('wisdom-card'), first = app.querySelector('.wisdom-card, .special-card, .meal');
+    var q = JJ.wisdomFor(today), shown = !!card && card.innerText.indexOf(q.orig) >= 0 && first === card;
+    var sent = '', ns = navigator.share; navigator.share = function (o) { sent = o.text; return Promise.resolve(); };
+    var sb = card && card.querySelector('[data-a="wqshare"]'); sb && sb.click(); navigator.share = ns;
+    var shared = sent.indexOf(q.orig) >= 0 && sent.indexOf(q.src) >= 0;
+    var lb = card && card.querySelector('[data-v="wisdom"]'); lb && lb.click();
+    var n = app.querySelectorAll('.wq-item').length, hi = app.querySelectorAll('.wq-item.is-today').length;
+    document.querySelector('[data-a="back"]') && document.querySelector('[data-a="back"]').click();
+    var keys = ['wisdom_title', 'wisdom_share', 'wisdom_all', 'wisdom_lib_title', 'kind_scripture', 'kind_motto'], miss = [];
+    ['en', 'hi', 'gu'].forEach(function (l) { keys.forEach(function (k) { if (!JJ.I18N[l][k]) miss.push(l + ':' + k); }); });
+    return {ok: shown && shared && n === JJ.WISDOM.length && hi === 1 && !miss.length, details: 'card first on Today with today’s quote: ' + shown + '; share text has quote and source: ' + shared + '; library cards: ' + n + ' (today highlighted: ' + hi + '); missing texts: ' + (miss.join(',') || 'none')};
+  });
   // ---- report ----
   Promise.all(pendingTests).then(report);
   function report() {

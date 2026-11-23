@@ -469,7 +469,7 @@ function render() {
   else if (locked()) body = viewPaywall(false); // trial over and not paid: only the subscription page
   else if (!P) body = viewProfile(true);
   else if (top) body = ({day: viewDayPushed, recipe: viewRecipe, thali: viewThali, profile: function () { return viewProfile(false); }, library: viewLibrary, glossary: viewGlossary,
-    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount, subscribe: function () { return viewPaywall(true); }, legal: viewLegal, invite: viewInvite, visitors: viewVisitors})[top.k](top);
+    admin: viewAdmin, edit: viewEdit, about: viewAbout, glists: viewSavedLists, glist: viewSavedList, pantry: viewPantry, account: viewAccount, subscribe: function () { return viewPaywall(true); }, legal: viewLegal, wisdom: viewWisdom, invite: viewInvite, visitors: viewVisitors})[top.k](top);
   else body = tab === 'today' ? viewToday() : tab === 'explore' ? viewExplore() : tab === 'cal' ? viewCal() : tab === 'pan' ? viewPan() : tab === 'chog' ? viewChog() : tab === 'pk' ? viewPachkhan() : tab === 'shop' ? viewShop() : viewProfileHome();
   var view = !P ? 'onb' : top ? top.k : tab, hasNav = P && !gate && !locked() && JJ.account.known;
   app.innerHTML = '<div class="phone' + (hasNav ? ' has-nav' : '') + '" data-view="' + view + '">' + withCredit(body) + (P && !gate && !locked() && JJ.account.known ? tabbar() : '') + sheetHTML() + '</div>';
@@ -726,11 +726,38 @@ function replanAfter(iso, ids) {
 }
 function timeText(r) { return (r.prep || 0) >= 240 ? t('min_soak', {n: r.cook || 0}) : t('min_total', {n: (r.prep || 0) + (r.cook || 0)}); }
 function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hist">' + ic('lock') + esc(t('status_hist')) + '</span>' : st === 'plan' ? '<span class="status-pill st-plan">' + ic('check') + esc(t('status_plan')) + '</span>' : st === 'prev' ? '<span class="status-pill st-prev">' + esc(t('status_prev')) + '</span>' : ''; }
+/* ---------------- Jain Wisdom of the Day ---------------- */
+function qMeaning(q) { return LANG === 'hi' ? q.hi : LANG === 'gu' ? q.gu : q.en; }
+function qTheme(q) { var th = JJ.WISDOM_THEMES[q.theme] || [q.theme]; return th[LANG === 'hi' ? 1 : LANG === 'gu' ? 2 : 0] || th[0]; }
+function wisdomText(q) {
+  return '\u{1FAB7} ' + t('wisdom_title') + '\n\n' + q.orig + '\n(' + q.roman + ')\n\n' + qMeaning(q) + (LANG === 'en' ? '' : '\n' + q.en) + '\n\n— ' + q.src + '\n\nhttps://bijaldvyas-ai.github.io/JainJoy/?s=wa';
+}
+function wisdomBody(q) {
+  return '<div class="wq-top"><span class="wq-chip">' + esc(qTheme(q)) + '</span><span class="wq-kind k-' + q.kind + '">' + esc(t('kind_' + q.kind)) + '</span></div>' +
+    '<p class="wq-orig" lang="sa">' + esc(q.orig) + '</p><p class="wq-roman">' + esc(q.roman) + '</p><p class="wq-mean">' + esc(qMeaning(q)) + '</p>' +
+    '<p class="wq-src">— ' + esc(q.src) + '</p>';
+}
+function wisdomCard(iso) {
+  if (!JJ.WISDOM) return '';
+  var q = JJ.wisdomFor(iso);
+  return '<section class="card wisdom-card" id="wisdom-card"><div class="wq-motif" aria-hidden="true"></div><p class="eyebrow wq-eye">' + esc(t('wisdom_title')) + '</p>' + wisdomBody(q) +
+    '<div class="row wq-actions"><button class="btn small wa" data-a="wqshare" data-v="' + q.id + '">' + WA_ICON + esc(t('wisdom_share')) + '</button><button class="btn small ghost" data-a="push" data-v="wisdom">' + esc(t('wisdom_all')) + ' ›</button></div></section>';
+}
+function viewWisdom() {
+  // newest first: today's quotation, then the ones from the past 29 days with the day they were shown
+  var td = today(), list = '';
+  for (var i = 0; i < JJ.WISDOM.length; i++) {
+    var d = JJ.addDays(td, -i), q = JJ.wisdomFor(d);
+    list += '<article class="card wisdom-card wq-item' + (i ? '' : ' is-today') + '"><p class="wq-when">' + esc(i ? dShort(d) : t('today')) + '</p>' + wisdomBody(q) + '<div class="row wq-actions"><button class="btn small wa" data-a="wqshare" data-v="' + q.id + '">' + WA_ICON + esc(t('wisdom_share')) + '</button></div></article>';
+  }
+  return backBar(t('wisdom_lib_title'), t('wisdom_lib_sub')) + '<main class="scroll gx" id="scroll"><p class="fine wq-note">' + esc(t('wisdom_note')) + '</p>' + list + '</main>';
+}
 function dayBody(iso, isToday, root) {
   // order: timings, then the 4 meals right away, then the tithi rules, quick links and nutrition
   // order: the essentials (Navkarsi, Chauvihar, today's food rule), then the chosen meals, then tomorrow,
   // then everything extra folded away. Discovery and history live in Explore, Calendar and Profile.
   var menu = menuFor(iso), b = '';
+  b += wisdomCard(iso); // a quiet thought above the day's food
   if (menu && !menu.legacy) b += specialCard(iso, menu); // the day's food is the first thing people see
   b += essentials(iso, isToday);
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
@@ -1975,6 +2002,7 @@ app.addEventListener('click', function (e) {
       a2.href = URL.createObjectURL(blob); a2.download = 'jainjoy-parva-reminders.ics'; document.body.appendChild(a2); a2.click(); a2.remove();
       toast(t('ics_done')); break;
     }
+    case 'wqshare': shareText(wisdomText(JJ.WISDOM.filter(function (q) { return q.id === v; })[0])); break;
     case 'wa': shareText(v === 'list' ? listText(currentGroups(el.dataset.list)) : menuText(v)); break;
     case 'acc': ui.acc.mode = v; ui.acc.errs = []; if (!top || top.k !== 'account') stack.push({k: 'account'}); render(); break;
     case 'accmode': ui.acc.mode = v; ui.acc.errs = []; render(); break;

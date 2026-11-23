@@ -649,3 +649,19 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .with-line span{min-width:0;overflow-wrap:anywhere}
 .meal .mtxt{min-width:0}
 .with-line{border-radius:16px}
+/* v3.8 Jain Wisdom of the Day: a calm glass card with a faint lotus */
+.wisdom-card{position:relative;overflow:hidden;background:linear-gradient(145deg,color-mix(in srgb,var(--saffron-soft) 70%,transparent),color-mix(in srgb,var(--saffron-soft) 25%,transparent));backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border:1px solid color-mix(in srgb,var(--saffron) 22%,transparent);text-align:center;padding:18px 18px 14px}
+.wq-motif{position:absolute;right:-26px;top:-26px;width:120px;height:120px;opacity:.12;pointer-events:none;background:radial-gradient(circle at 50% 50%,transparent 30%,var(--saffron) 31%,var(--saffron) 33%,transparent 34%),conic-gradient(from 0deg,var(--saffron) 0 8%,transparent 8% 12.5%,var(--saffron) 12.5% 20.5%,transparent 20.5% 25%,var(--saffron) 25% 33%,transparent 33% 37.5%,var(--saffron) 37.5% 45.5%,transparent 45.5% 50%,var(--saffron) 50% 58%,transparent 58% 62.5%,var(--saffron) 62.5% 70.5%,transparent 70.5% 75%,var(--saffron) 75% 83%,transparent 83% 87.5%,var(--saffron) 87.5% 95.5%,transparent 95.5%);border-radius:50%;-webkit-mask:radial-gradient(circle,#000 62%,transparent 63%);mask:radial-gradient(circle,#000 62%,transparent 63%)}
+.wq-eye{letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--saffron);margin:0 0 8px}
+.wq-top{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
+.wq-chip,.wq-kind{font-size:11px;padding:2px 9px;border-radius:99px;background:color-mix(in srgb,var(--saffron) 14%,transparent);color:var(--saffron)}
+.wq-kind{background:transparent;border:1px solid currentColor;opacity:.85}
+.wq-kind.k-maxim,.wq-kind.k-motto{color:var(--muted,#888)}
+.wq-orig{font-family:"Noto Serif Devanagari","Tiro Devanagari Sanskrit",serif;font-size:21px;line-height:1.5;margin:4px 0;overflow-wrap:anywhere}
+.wq-roman{font-style:italic;font-size:13px;opacity:.75;margin:0 0 8px;overflow-wrap:anywhere}
+.wq-mean{font-family:Georgia,"Noto Serif",serif;font-size:16px;line-height:1.5;margin:0 0 8px}
+.wq-src{font-size:12px;opacity:.7;margin:0 0 10px}
+.wq-actions{justify-content:center;gap:8px}
+.wq-item{margin-bottom:12px}.wq-item.is-today{box-shadow:0 0 0 2px var(--saffron)}
+.wq-when{font-size:12px;font-weight:700;color:var(--saffron);margin:0 0 8px}
+.wq-note{margin:4px 2px 12px}
