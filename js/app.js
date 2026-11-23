@@ -673,6 +673,13 @@ function winterCard(iso, k, menu) {
   }
   return h + '</div>';
 }
+/* the winter item that goes with a meal, shown inside that meal's card: dinner + soup, breakfast + morning item */
+function withLine(menu, k) {
+  var w = {d: 'w', b: 'm'}[k]; if (!w || menu.legacy || !menu.winter) return '';
+  var x = JJ.chosenMeal(menu, w); if (!x || !x.id) return '';
+  var r = JJ.recipeFor(menu, x.id);
+  return '<span class="with-line">' + plate(r, 26) + '<span>' + esc(t(w === 'w' ? 'with_soup' : 'with_morning', {name: rName(r)})) + '</span></span>';
+}
 function mealCard(iso, k, menu) {
   var x = chosen(menu, k), tagCls = {b: 'b', l: 'l', s: 's', d: 'd'}[k];
   var pb = menu.rules && menu.rules.parva ? '<span class="tag ok">' + esc(t('parva_ok')) + '</span>' : '';
@@ -687,7 +694,7 @@ function mealCard(iso, k, menu) {
   if (!x.id) return '<div class="meal"><span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(t('no_match')) + '</b><small>' + esc(t('no_match_hint')) + '</small></span></div>';
   var r = JJ.recipeFor(menu, x.id);
   var extra = k === 'd' ? '<span class="warn-line" style="color:var(--saffron)">' + esc(t('finish_before', {time: hm(JJ.timings(pan(iso), {navkarsi: P.navkarsi, chauvihar: P.chauvihar}).chauvihar)})) + '</span>' : '';
-  return '<button class="meal" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(timeText(r)) + ' · ' + JJ.recipeNutrition(r, x.drop)[0] + ' ' + esc(t('kcal')) + (x.drop && x.drop.length ? ' · ' + esc(t('adjusted_today')) : '') + '</small>' + extra + pb + '</span>' + ic('next', 'chev') + '</button>';
+  return '<button class="meal" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt"><span class="mtag mt-' + tagCls + '">' + esc(t('meal_' + k)) + '</span><b>' + esc(rName(r)) + '</b><small>' + esc(timeText(r)) + ' · ' + JJ.recipeNutrition(r, x.drop)[0] + ' ' + esc(t('kcal')) + (x.drop && x.drop.length ? ' · ' + esc(t('adjusted_today')) : '') + '</small>' + extra + withLine(menu, k) + pb + '</span>' + ic('next', 'chev') + '</button>';
 }
 /* Today's special: the most inviting dish of the day (one with a real photo first: dinner, lunch's main
    bowl, breakfast, snack), shown big with its name, so the day's food is the first thing people see. */
@@ -841,6 +848,8 @@ function menuText(iso) {
   MEALS.forEach(function (k) {
     if (k === 'l') s += '🍛 ' + t('meal_l') + ': ' + (m.legacy ? m.meals.l.items : JJ.chosenItems(m)).filter(function (it) { return it.id; }).map(function (it) { return rName(JJ.recipeFor(m, it.id)); }).join(', ') + '\n';
     else { var x = chosen(m, k); s += ({b: '🌅 ', s: '☕ ', d: '🌇 '})[k] + t('meal_' + k) + ': ' + (x && x.id ? rName(JJ.recipeFor(m, x.id)) : '—') + '\n'; }
+    var wk = {b: 'm', d: 'w'}[k], wx = wk && m.winter && !m.legacy ? JJ.chosenMeal(m, wk) : null;
+    if (wx && wx.id) s += (wk === 'w' ? '🍲 ' : '🥜 ') + t('winter_' + wk) + ': ' + rName(JJ.recipeFor(m, wx.id)) + '\n';
   });
   festiveFor(iso).forEach(function (f) { s += '🪔 ' + t(f.k) + ': ' + f.special.concat(f.nasto).map(function (id) { return rName(JJ.catalog.byId[id]); }).join(', ') + '\n'; });
   var tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar});
@@ -963,6 +972,11 @@ function viewRecipe(top) {
     (comp.tags.leafy ? '<span class="badge b-plain">' + ic('leaf') + esc(t('has_leafy')) + '</span>' : '<span class="badge b-warn">' + ic('noleaf') + esc(t('aatham_safe')) + '</span>') +
     (!comp.tags.green ? '<span class="badge b-warn">' + esc(t('green_free')) + '</span>' : '') +
     '<span class="badge b-plain">' + esc(mealKey) + '</span>' + (cu ? '<span class="badge b-plain">' + esc(nm(cu)) + '</span>' : '') + '<span class="badge b-season">' + esc(seasonText(r)) + '</span></div>';
+  // a dinner opened from a winter day shows tonight's soup with it (a breakfast, the morning item)
+  if (menu && menu.winter && !menu.legacy) [['d', 'w'], ['b', 'm']].forEach(function (pr) {
+    var main = JJ.chosenMeal(menu, pr[0]), wx = JJ.chosenMeal(menu, pr[1]);
+    if (main && main.id === r.id && wx && wx.id) { var wr = JJ.recipeFor(menu, wx.id); b += '<button class="meal winter-card wc-' + pr[1] + '" data-a="recipe" data-d="' + top.date + '" data-id="' + wx.id + '" style="margin:6px 0 12px">' + plate(wr, 56) + '<span class="mtxt"><span class="mtag mt-' + pr[1] + '">' + esc(t('winter_' + pr[1])) + '</span><b>' + esc(rName(wr)) + '</b><small>' + esc(t(pr[1] === 'w' ? 'serve_with_dinner' : 'serve_with_breakfast')) + '</small></span>' + ic('next', 'chev') + '</button>'; }
+  });
   b += '<div class="nut"><div><b>' + (r.prep || 0) + '</b><small>' + esc(t('prep_min')) + '</small></div><div><b>' + (r.cook || 0) + '</b><small>' + esc(t('cook_min')) + '</small></div><div><b>' + hh + '</b><small>' + esc(t('serves')) + '</small></div><div><b>' + (r.serves || 4) + '</b><small>' + esc(t('base_serves')) + '</small></div></div>';
   var rn = JJ.recipeNutrition(r, drop);
   b += '<section class="card glass"><h3>' + esc(t('per_serving')) + '</h3>' + nutriGrid(rn) + splitBar(rn) + '</section>';

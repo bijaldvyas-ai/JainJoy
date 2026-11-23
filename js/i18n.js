@@ -3,6 +3,10 @@
 'use strict';
 var K = {
 // navigation
+with_soup:['+ Soup: {name}','+ सूप: {name}','+ સૂપ: {name}'],
+with_morning:['+ Winter morning: {name}','+ सर्दी की सुबह: {name}','+ શિયાળાની સવાર: {name}'],
+serve_with_dinner:['Serve this soup with tonight’s dinner','यह सूप आज रात के खाने के साथ परोसें','આ સૂપ આજ રાતના જમણ સાથે પીરસો'],
+serve_with_breakfast:['Have a small portion with this breakfast','इस नाश्ते के साथ थोड़ा-सा लें','આ નાસ્તા સાથે થોડું લો'],
 winter_m:['Winter Morning Goodness','सर्दी की सुबह की सेहत','શિયાળાની સવારની તંદુરસ્તી'],
 winter_w:['Tonight’s Winter Soup','आज रात का सर्दी का सूप','આજ રાતનો શિયાળુ સૂપ'],
 winter_m_sub:['A small portion with breakfast','नाश्ते के साथ थोड़ा-सा','નાસ્તા સાથે થોડું'],

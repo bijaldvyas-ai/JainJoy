@@ -752,6 +752,17 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var names = WREC.every(function (r) { return r.en && r.hi && r.gu && r.hi !== r.en; });
     return {ok: !miss.length && names, details: keys.length + ' texts × 3 languages: ' + (miss.length ? 'missing ' + miss.join(', ') : 'all present') + '; every winter item named in all 3 languages: ' + names};
   });
+  test('W10', 'Dinner shows tonight’s soup inside its card, on its recipe page and in the WhatsApp text', function () {
+    var P10 = Object.assign({created: today}, base({version: 10})); JJ.app.profile = P10; JJ.db.put('profiles', P10);
+    var d = addDays(today, 3), m = JJ.app.menuFor(d); if (!m || !m.meals.w || !m.meals.w.id) return {ok: false, details: 'no soup planned on ' + d};
+    var soup = JJ.app.rName ? '' : '', sn = cat.byId[JJ.chosenMeal(m, 'w').id].en, dn = JJ.chosenMeal(m, 'd').id;
+    JJ.app.render(); var btn = document.createElement('button'); btn.dataset.a = 'sel'; btn.dataset.v = d; document.getElementById('app').appendChild(btn); btn.click();
+    var card = [...document.querySelectorAll('.meal')].filter(function (c) { return c.dataset.id === dn; })[0], inCard = !!card && card.innerText.indexOf(sn) >= 0;
+    var b2 = document.createElement('button'); b2.dataset.a = 'recipe'; b2.dataset.d = d; b2.dataset.id = dn; document.getElementById('app').appendChild(b2); b2.click();
+    var onPage = document.getElementById('app').innerText.indexOf(sn) >= 0;
+    document.querySelector('[data-a="back"]') && document.querySelector('[data-a="back"]').click();
+    return {ok: inCard && onPage, details: d + ': dinner card shows "+ Soup: ' + sn + '": ' + inCard + '; dinner recipe page shows the soup: ' + onPage};
+  });
   // ---- report ----
   Promise.all(pendingTests).then(report);
   function report() {

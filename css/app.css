@@ -644,3 +644,8 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .wopt small{font-size:11px;opacity:.75}
 .wopt.on{border-color:var(--pink,#e5195e);box-shadow:0 0 0 2px rgba(229,25,94,.15)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .winter-card.wc-m,:root:not([data-theme="light"]) .winter-card.wc-w{background:var(--card)}}
+.with-line{display:flex;align-items:center;gap:6px;margin-top:6px;padding:4px 10px 4px 4px;border-radius:999px;background:rgba(230,110,60,.12);font-size:12.5px;font-weight:700;color:#a23c1c;width:fit-content;max-width:100%}
+.with-line .plate,.with-line .dishpic{flex:none}
+.with-line span{min-width:0;overflow-wrap:anywhere}
+.meal .mtxt{min-width:0}
+.with-line{border-radius:16px}
