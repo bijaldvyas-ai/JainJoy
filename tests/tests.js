@@ -777,16 +777,16 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
   test('Q3', 'Jain Wisdom shows on Today above the menu, shares the quote, and the library lists all quotations', function () {
     JJ.app.render(); var sb0 = document.createElement('button'); sb0.dataset.a = 'sel'; sb0.dataset.v = today; document.getElementById('app').appendChild(sb0); sb0.click();
     var app = document.getElementById('app'), card = document.getElementById('wisdom-card'), first = app.querySelector('.wisdom-card, .special-card, .meal');
-    var q = JJ.wisdomFor(today), shown = !!card && card.innerText.indexOf(q.orig) >= 0 && first === card;
+    var q = JJ.wisdomFor(today), ml = JJ.app.lang === 'hi' ? q.hi : JJ.app.lang === 'gu' ? q.gu : q.en, shown = !!card && card.innerText.indexOf(ml) >= 0 && card.innerText.indexOf(q.orig) < 0 && first === card;
     var sent = '', ns = navigator.share; navigator.share = function (o) { sent = o.text; return Promise.resolve(); };
     var sb = card && card.querySelector('[data-a="wqshare"]'); sb && sb.click(); navigator.share = ns;
-    var shared = sent.indexOf(q.orig) >= 0 && sent.indexOf(q.src) >= 0;
+    var shared = sent.indexOf(ml) >= 0 && sent.indexOf(q.src) >= 0;
     var lb = card && card.querySelector('[data-v="wisdom"]'); lb && lb.click();
     var n = app.querySelectorAll('.wq-item').length, hi = app.querySelectorAll('.wq-item.is-today').length;
     document.querySelector('[data-a="back"]') && document.querySelector('[data-a="back"]').click();
     var keys = ['wisdom_title', 'wisdom_share', 'wisdom_all', 'wisdom_lib_title', 'kind_scripture', 'kind_motto'], miss = [];
     ['en', 'hi', 'gu'].forEach(function (l) { keys.forEach(function (k) { if (!JJ.I18N[l][k]) miss.push(l + ':' + k); }); });
-    return {ok: shown && shared && n === JJ.WISDOM.length && hi === 1 && !miss.length, details: 'card first on Today with today’s quote: ' + shown + '; share text has quote and source: ' + shared + '; library cards: ' + n + ' (today highlighted: ' + hi + '); missing texts: ' + (miss.join(',') || 'none')};
+    return {ok: shown && shared && n === JJ.WISDOM.length && hi === 1 && !miss.length, details: 'card first on Today, one line in the app language, no Sanskrit: ' + shown + '; share text has quote and source: ' + shared + '; library cards: ' + n + ' (today highlighted: ' + hi + '); missing texts: ' + (miss.join(',') || 'none')};
   });
   // ---- report ----
   Promise.all(pendingTests).then(report);

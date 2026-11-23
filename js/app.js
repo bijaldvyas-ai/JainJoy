@@ -730,18 +730,16 @@ function statusPill(st) { return st === 'hist' ? '<span class="status-pill st-hi
 function qMeaning(q) { return LANG === 'hi' ? q.hi : LANG === 'gu' ? q.gu : q.en; }
 function qTheme(q) { var th = JJ.WISDOM_THEMES[q.theme] || [q.theme]; return th[LANG === 'hi' ? 1 : LANG === 'gu' ? 2 : 0] || th[0]; }
 function wisdomText(q) {
-  return '\u{1FAB7} ' + t('wisdom_title') + '\n\n' + q.orig + '\n(' + q.roman + ')\n\n' + qMeaning(q) + (LANG === 'en' ? '' : '\n' + q.en) + '\n\n— ' + q.src + '\n\nhttps://bijaldvyas-ai.github.io/JainJoy/?s=wa';
+  return '\u{1FAB7} ' + t('wisdom_title') + '\n\n“' + qMeaning(q) + '”\n— ' + q.src + '\n\nhttps://bijaldvyas-ai.github.io/JainJoy/?s=wa';
 }
+/* one line: the teaching in the app's language, then a small source */
 function wisdomBody(q) {
-  return '<div class="wq-top"><span class="wq-chip">' + esc(qTheme(q)) + '</span><span class="wq-kind k-' + q.kind + '">' + esc(t('kind_' + q.kind)) + '</span></div>' +
-    '<p class="wq-orig" lang="sa">' + esc(q.orig) + '</p><p class="wq-roman">' + esc(q.roman) + '</p><p class="wq-mean">' + esc(qMeaning(q)) + '</p>' +
-    '<p class="wq-src">— ' + esc(q.src) + '</p>';
+  return '<p class="wq-line">“' + esc(qMeaning(q)) + '”</p><p class="wq-src">— ' + esc(q.src) + '</p>';
 }
 function wisdomCard(iso) {
   if (!JJ.WISDOM) return '';
   var q = JJ.wisdomFor(iso);
-  return '<section class="card wisdom-card" id="wisdom-card"><div class="wq-motif" aria-hidden="true"></div><p class="eyebrow wq-eye">' + esc(t('wisdom_title')) + '</p>' + wisdomBody(q) +
-    '<div class="row wq-actions"><button class="btn small wa" data-a="wqshare" data-v="' + q.id + '">' + WA_ICON + esc(t('wisdom_share')) + '</button><button class="btn small ghost" data-a="push" data-v="wisdom">' + esc(t('wisdom_all')) + ' ›</button></div></section>';
+  return '<section class="card wisdom-card" id="wisdom-card"><div class="wq-motif" aria-hidden="true"></div><div class="wq-head"><p class="eyebrow wq-eye">' + esc(t('wisdom_title')) + '</p><span class="wq-links"><button class="wq-a" data-a="wqshare" data-v="' + q.id + '">' + esc(t('wisdom_share')) + '</button><button class="wq-a" data-a="push" data-v="wisdom">' + esc(t('wisdom_all')) + ' ›</button></span></div>' + wisdomBody(q) + '</section>';
 }
 function viewWisdom() {
   // newest first: today's quotation, then the ones from the past 29 days with the day they were shown
@@ -1953,6 +1951,8 @@ function sheetHTML() {
 }
 
 /* ---------------- events ---------------- */
+/* first visit: the phone's own language when it is Hindi or Gujarati */
+function phoneLang() { var l = ((navigator.languages && navigator.languages[0]) || navigator.language || 'en').slice(0, 2).toLowerCase(); return l === 'hi' || l === 'gu' ? l : 'en'; }
 function setLang(l) { LANG = l; if (P) { P.lang = l; saveProfile(); } if (draft) draft.lang = l; try { localStorage.setItem('jainjoy.lang', l); } catch (e) {} render(); }
 function pickCity(id) {
   var c = JJ.CITIES[id]; draft.cityId = id; draft.custom = null;
@@ -2207,7 +2207,7 @@ JJ.boot = function () {
     JJ.customSynonyms = (JJ.db.get('meta', 'custom_synonyms') || {list: []}).list; JJ.rebuildIngredientIndex();
     JJ.loadCatalog(JJ.recipesFromDb()); if (JJ.attachVisuals) JJ.attachVisuals();
     P = JJ.db.get('profiles', 'local') || null;
-    try { LANG = (P && P.lang) || localStorage.getItem('jainjoy.lang') || 'en'; } catch (e) { LANG = (P && P.lang) || 'en'; }
+    try { LANG = (P && P.lang) || localStorage.getItem('jainjoy.lang') || phoneLang(); } catch (e) { LANG = (P && P.lang) || 'en'; }
     if (P && !P.obsProfile) { P.obsProfile = 'strict'; P.parvaFruit = false; JJ.app.applyProfileChange(); }
     if (P) { lastDay = today(); freezeHistory(); maybeEveningReminder(); }
     render();

@@ -665,3 +665,12 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .wq-item{margin-bottom:12px}.wq-item.is-today{box-shadow:0 0 0 2px var(--saffron)}
 .wq-when{font-size:12px;font-weight:700;color:var(--saffron);margin:0 0 8px}
 .wq-note{margin:4px 2px 12px}
+/* v3.8.1 compact one-line wisdom */
+.wisdom-card{text-align:left;padding:12px 14px}
+.wq-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.wq-head .wq-eye{margin:0;font-size:10px}
+.wq-links{display:flex;gap:10px;flex-shrink:0}
+.wq-a{background:none;border:0;padding:4px 0;font:inherit;font-size:12px;font-weight:700;color:var(--saffron);cursor:pointer}
+.wq-line{font-family:Georgia,"Noto Serif",serif;font-size:16px;line-height:1.4;margin:0}
+.wisdom-card .wq-src{margin:3px 0 0;font-size:11px}
+.wq-motif{width:80px;height:80px;right:-20px;top:-20px}
