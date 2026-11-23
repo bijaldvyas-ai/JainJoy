@@ -629,3 +629,18 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .loc-found{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--green-soft,rgba(40,160,90,.1));border:1px solid var(--line)}
 .loc-found b{font-size:15px}
 .loc-found small{display:block;font-size:12px;color:var(--muted)}
+
+/* v3.7 winter specials */
+.mt-m{color:#9a5a12;background:rgba(240,170,60,.18)}
+.mt-w{color:#a23c1c;background:rgba(230,110,60,.16)}
+.rhero.mt-m{background:rgba(240,170,60,.16)}.rhero.mt-w{background:rgba(230,110,60,.14)}
+.winter-card{position:relative;overflow:hidden}
+.winter-card.wc-m{background:linear-gradient(135deg,rgba(255,236,200,.75),rgba(255,248,236,.6))}
+.winter-card.wc-w{background:linear-gradient(135deg,rgba(255,220,200,.75),rgba(255,244,236,.6))}
+.winter-card::after{content:"❄";position:absolute;right:38px;top:8px;font-size:14px;opacity:.35}
+.winter-opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.wopt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:16px;border:1.5px solid var(--line);background:var(--glass,rgba(255,255,255,.6));color:inherit;font:inherit;text-align:center;cursor:pointer}
+.wopt b{font-size:12.5px;line-height:1.25}
+.wopt small{font-size:11px;opacity:.75}
+.wopt.on{border-color:var(--pink,#e5195e);box-shadow:0 0 0 2px rgba(229,25,94,.15)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .winter-card.wc-m,:root:not([data-theme="light"]) .winter-card.wc-w{background:var(--card)}}

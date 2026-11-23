@@ -91,6 +91,8 @@ JJ.altCuisine = function (iso, prof) { var l = JJ.cuisineCycle(prof); return l[(
    chillas, two drinks) and no shared dish or main-ingredient word in the name. */
 var NAME_SKIP = /^(masala|jain|with|style|plain|sweet|instant|vegetable|mixed|parva|tithi|ayambil|rajasthani|gujarati|punjabi|bengali|kerala|south|indian|maharashtrian|kathiyawadi|malwi|andhra|mysore|udupi|phulka|roti|rotli|rice|papad|ghee|curd|dahi|fresh|green|whole|spicy|dal|shaak|sabzi|sabji|bhaji|curry|raita|rasam|sambar|salad|poriyal|kootu|saaru|quick|healthy|homestyle|style|bowl|plate|nu|ni|na|ka|ki|ke|and)$/;
 function nameWords(r) { return (r.en || '').toLowerCase().replace(/\(.*?\)/g, ' ').split(/[^a-z]+/).filter(function (w) { return w.length > 2 && !NAME_SKIP.test(w); }); }
+/* same recipe, or the names share a dish word: never acceptable as two options of one meal */
+JJ.sameDishName = function (a, b) { if (!a || !b) return false; if (a.id === b.id) return true; var wb = nameWords(b); return nameWords(a).some(function (w) { return wb.indexOf(w) >= 0; }); };
 JJ.looksAlike = function (a, b) {
   if (!a || !b) return false;
   if (a.id === b.id) return true;
@@ -207,6 +209,55 @@ function mainIng(r) {
   return best;
 }
 var SEASON_NOW = null; // set by genDay while it builds a day
+
+/* ---------------- winter specials ---------------- */
+/* In local winter every day gets a Winter Morning Goodness item (meal 'm', beside breakfast) and a
+   Winter Soup (meal 'w', beside dinner), each with two alternatives. Both follow the day's Jain and
+   Parva Tithi rules and the household's allergies and exclusions. None comes back within 30 days: when
+   every allowed item was used in the last 30 days, the card is left empty and the menu says so in
+   menu.winterShort (never a silent repeat). Outside winter the menu has neither. */
+JJ.WINTER_MEALS = ['m', 'w'];
+function winterSpecials(menu, iso, prof, rules, order, ctx) {
+  delete menu.meals.m; delete menu.meals.w; menu.winterShort = []; menu.winterV = 1;
+  menu.winter = ctx.season === 'winter';
+  if (!menu.winter) return menu;
+  menu.choice = Object.assign({b: 0, l: 0, s: 0, d: 0}, menu.choice, {m: 0, w: 0});
+  var budget = ctx.budget; ctx.budget = null; // small portions: the meal time and calorie limits do not apply
+  JJ.WINTER_MEALS.forEach(function (meal) {
+    var c = candidates(function (r) { return r.meal === meal; }, rules, prof, order);
+    var fresh = freshOnly(c, ctx);
+    // Parva-safe soups are kept for Parva Tithis (few soups have no vegetables): other days use them
+    // only when the vegetable soups have run out
+    if (meal === 'w' && !ctx.parva) { var veg = fresh.filter(function (x) { return !JJ.levelB(x.r); }); if (veg.length >= 3) fresh = veg; }
+    if (!fresh.length) { menu.winterShort.push(meal); menu.meals[meal] = {id: null, alts: []}; return; }
+    var main = pick(fresh, ctx, iso, 'w' + meal), alts = [];
+    function more(strict) {
+      fresh.forEach(function (x) {
+        if (alts.length >= 2 || x.r.id === main.r.id || alts.some(function (a) { return a.r.id === x.r.id; })) return;
+        if (strict && (JJ.looksAlike(x.r, main.r) || alts.some(function (a) { return JJ.looksAlike(x.r, a.r); }))) return;
+        alts.push(x);
+      });
+    }
+    var rest = fresh.slice().sort(function (a, b) { return (a.base + hash(iso + meal + a.r.id) % 13) - (b.base + hash(iso + meal + b.r.id) % 13); });
+    fresh = rest; more(true); more(false);
+    ctx.recent[main.r.id] = ctx.dn; // only what is served counts as used; alternatives stay free
+    menu.meals[meal] = {id: main.r.id, drop: main.drop, alts: alts.map(function (a) { return {id: a.r.id, drop: a.drop}; })};
+  });
+  ctx.budget = budget;
+  return menu;
+}
+/* Add (or remove) the winter specials on a menu that was planned before this feature or before the
+   season changed. recent: recipe id -> day number of its last use. */
+JJ.addWinterSpecials = function (menu, prof, recent) {
+  if (!menu || menu.legacy) return menu;
+  var city = JJ.profileCity(prof), p = JJ.panchang(menu.date, city, prof), rules = JJ.dayRules(p, prof);
+  var ctx = {recent: recent || {}, dn: dayNum(menu.date), month: +menu.date.slice(5, 7), season: JJ.seasonOf(menu.date, city), parva: !!(rules.parva || rules.noGreen), seed: prof.seed || 0, todayMain: [], week: JJ.newWeek(weekKey(dayNum(menu.date)))};
+  SEASON_NOW = {season: ctx.season, month: ctx.month};
+  winterSpecials(menu, menu.date, prof, rules, cuisineOrder(menu.cuisine || JJ.dayCuisine(menu.date, prof)), ctx);
+  SEASON_NOW = null;
+  menu.winterV = 1;
+  return menu;
+};
 function candidates(filter, rules, prof, order) {
   var out = [];
   JJ.catalog.list.forEach(function (r) {
@@ -306,6 +357,7 @@ JJ.genDay = function (iso, prof, ctx) {
   menu.meals.l = {items: items};
   menu.meals.s = single('s');
   menu.meals.d = single('d');
+  winterSpecials(menu, iso, prof, rules, order, ctx);
   // only the dishes that will be cooked count as used; an unused option 2 stays free for later days
   SEASON_NOW = null;
   return menu;
@@ -371,13 +423,14 @@ JJ.menuRecipeIds = function (menu) {
   function add(id) { if (id && ids.indexOf(id) < 0) ids.push(id); }
   ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x) { add(x.id); if (x.alt) add(x.alt.id); } });
   (menu.meals.l.items || []).forEach(function (it) { add(it.id); if (it.alt) add(it.alt.id); });
+  JJ.WINTER_MEALS.forEach(function (m) { var x = menu.meals[m]; if (x) { add(x.id); (x.alts || []).forEach(function (a) { add(a.id); }); } });
   return ids;
 };
 /* The recipe ids that will actually be cooked on a day (the chosen option of each meal). */
 JJ.chosenIds = function (menu) {
   var ids = [];
   if (!menu || menu.legacy) return ids;
-  ['b', 's', 'd'].forEach(function (m) { var x = JJ.chosenMeal(menu, m); if (x && x.id) ids.push(x.id); });
+  ['b', 's', 'd', 'm', 'w'].forEach(function (m) { var x = JJ.chosenMeal(menu, m); if (x && x.id) ids.push(x.id); });
   JJ.chosenItems(menu).forEach(function (it) { if (it.id && ids.indexOf(it.id) < 0) ids.push(it.id); });
   return ids;
 };
@@ -389,7 +442,12 @@ JJ.usedIds = function (menu) {
   return ids;
 };
 /* The option the household picked for a meal (0 = option 1, 1 = option 2). */
-JJ.chosenMeal = function (menu, m) { var x = menu.meals[m]; if (!x) return null; return (menu.choice && menu.choice[m] === 1 && x.alt) ? x.alt : x; };
+JJ.chosenMeal = function (menu, m) {
+  var x = menu.meals[m]; if (!x) return null;
+  var c = menu.choice && menu.choice[m];
+  if (x.alts) return c && x.alts[c - 1] ? x.alts[c - 1] : x; // winter specials: planned item or one of two alternatives
+  return (c === 1 && x.alt) ? x.alt : x;
+};
 JJ.chosenItems = function (menu) {
   var two = menu.choice && menu.choice.l === 1;
   return (menu.meals.l.items || []).map(function (it) { return two && it.alt ? Object.assign({}, it, {id: it.alt.id, drop: it.alt.drop}) : it; });
@@ -413,7 +471,7 @@ JJ.grocery = function (menus) {
       var f = hh / (r.serves || 4);
       r.ings.forEach(function (x) { if ((drop || []).indexOf(x.id) >= 0) return; add(x.id, x.q * f); });
     }
-    ['b', 's', 'd'].forEach(function (m) { var x = menu.legacy ? menu.meals[m] : JJ.chosenMeal(menu, m); if (x && x.id) addRecipe(x.id, x.drop); });
+    ['b', 's', 'd', 'm', 'w'].forEach(function (m) { var x = menu.legacy ? menu.meals[m] : JJ.chosenMeal(menu, m); if (x && x.id) addRecipe(x.id, x.drop); });
     (menu.legacy ? (menu.meals.l.items || []) : JJ.chosenItems(menu)).forEach(function (it) {
       if (it.id) addRecipe(it.id, it.drop);
       else if (it.acc) JJ.parseIngs(JJ.ACCOMP[it.acc].ings).forEach(function (x) { add(x.id, x.q * hh); });
@@ -465,6 +523,7 @@ JJ.dayNutrition = function (menu) {
     for (var i = 0; i < 4; i++) l[i] += v[i];
   });
   acc('l', round(l));
+  JJ.WINTER_MEALS.forEach(function (m) { var x = !menu.legacy && JJ.chosenMeal(menu, m); if (x && x.id) acc(m, JJ.recipeNutrition(JJ.recipeFor(menu, x.id), x.drop)); });
   out.total = round(tot);
   out.legacy = !!menu.legacy;
   return out;
@@ -490,7 +549,8 @@ JJ.menuViolations = function (menu, prof) {
     var drop = JJ.allowed(Object.assign({}, r, {status: 'approved'}), rules, prof);
     if (!drop) out.push(where + ':' + id);
   }
-  ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x && x.id) { check(x.id, m); if (x.alt) { check(x.alt.id, m + '2'); if (JJ.looksAlike(JJ.catalog.byId[x.id], JJ.catalog.byId[x.alt.id])) out.push(m + ':same-option'); } } });
+  ['b', 's', 'd'].forEach(function (m) { var x = menu.meals[m]; if (x && x.id) { check(x.id, m); if (x.alt) { check(x.alt.id, m + '2'); if (JJ.sameDishName(JJ.catalog.byId[x.id], JJ.catalog.byId[x.alt.id])) out.push(m + ':same-option'); } } });
+  JJ.WINTER_MEALS.forEach(function (m) { var x = menu.meals[m]; if (x && x.id) { check(x.id, m); (x.alts || []).forEach(function (a) { check(a.id, m + '2'); }); } });
   (menu.meals.l.items || []).forEach(function (it) {
     if (it.id) check(it.id, 'l'); if (it.alt) check(it.alt.id, 'l2');
     if (it.acc && !JJ.accAllowed(it.acc, rules, prof)) out.push('acc:' + it.acc);

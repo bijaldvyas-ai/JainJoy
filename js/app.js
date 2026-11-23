@@ -102,7 +102,18 @@ function freezeHistory() {
 }
 /* Every stored menu is re-checked against the current rules before it is shown.
    Today and future days that fail are rebuilt at once; past days stay as recorded but are marked. */
+/* A menu planned before the winter specials existed gets them added (today and later only; past
+   days stay as they were): nothing else on it changes. */
+function withWinter(iso, m) {
+  if (!m || m.legacy || m.winterV === 1 || iso < today()) return m;
+  var w = JJ.addWinterSpecials(JSON.parse(JSON.stringify(m)), P, recentFor(iso));
+  if (w.status === 'history') JJ.db.put('menu_history', w);
+  else if (w.status === 'planned') JJ.db.put('daily_menus', w);
+  else previewCache.set(iso, w);
+  return w;
+}
 function checked(iso, m) {
+  m = withWinter(iso, m);
   if (!m || m.legacy || !JJ.menuViolations(m, P).length) return m;
   var td = today();
   if (iso < td) return Object.assign({}, m, {ruleWarning: true});
@@ -188,6 +199,10 @@ function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^=
    A real photo wins when one is listed here: PHOTOS['recipe_id'] = 'img/recipes/recipe_id.webp' */
 var PHOTOS = {};
 var DISH_RULES = [
+  ['drink', /doodh|ragi malt/],
+  ['sweetbowl', /kheer \(small cup\)/],
+  ['sweet', /laddoo|ladoo|ladu|goli|revdi|til papdi|bites\b|\bpak\b|chikki/],
+  ['dryfruit', /almond|walnut|raisin|kishmish|pista|badam|cashew|khajur with|dates with|kala chana|gud chana|gud singdana|chana and til/],
   ['rice', /pulao|biryani|bisi bele/],
   ['salad', /kosambari|koshimbir/],
   ['sabzi', /(sev|papad).*(shaak|sabzi)|mangodi/],
@@ -210,7 +225,7 @@ var DISH_RULES = [
   ['sweetbowl', /kesari|kheer|payas|basundi|halwa|sheera|lapsi|kansar|shiro|rabdi|d(oo|u)dh ?pak|sevaiyan/],
   ['sweet', /laddoo|ladoo|ladu|barfi|mohanthal|sukhdi|\bpak\b|chikki|peda|mithai|gulab|jalebi|mysore|ghughra|magas|halwasan|energy ball/],
   ['porridge', /raab|porridge|daliya|dalia|\boats\b|ragi malt|ambli/],
-  ['upma', /ukadpendi|\bbath\b|sevai|upma|uppit|rava|semolina|sooji|suji/],
+  ['upma', /panjiri|ukadpendi|\bbath\b|sevai|upma|uppit|rava|semolina|sooji|suji/],
   ['rice', /rice|pulao|bhaat|bhath|biryani|tahri|bisi bele|chitranna/],
   ['fritter', /kothimbir vadi|pakod|bhajia|bhajiya|\bvada\b|wada|tikki|cutlet|kachori|bonda|fritter|gota|kofta balls/],
   ['legume', /kabuli|kadala|sundal|kala chana|usal|misal|chole|chana masala|kathol|matki|rajma|lobia|chawli|\bvaal\b|sprout|ragda|dana|whole moong|akha mag/],
@@ -220,7 +235,7 @@ var DISH_RULES = [
   ['salad', /bhel|salad|kachumber|chaat|koshimbir|kosambari/],
   ['corn', /bhutte|corn|bhutta|makai/],
   ['sabzi', /shaak|sabzi|subzi|bhaji|poriyal|curry|kofta|masala|thoran|kootu|stir|fry|bharta|\bdum\b|jhol|ghassi|kosha|gojju|palya|ringan/],
-  ['fruit', /fruit|banana|apple|papaya|chikoo|guava|\bmango\b|pomegranate|melon/]
+  ['fruit', /amla|fruit|banana|apple|papaya|chikoo|guava|\bmango\b|pomegranate|melon/]
 ];
 var COMP_KIND = {dal: 'dal', rice: 'rice', bread: 'bread', sabzi: 'sabzi', kadhi: 'kadhi', sambar: 'soup', rasam: 'soup', raita: 'curd', salad: 'salad', sweet: 'sweet', farsan: 'fritter'};
 function dishKind(r) {
@@ -248,7 +263,7 @@ var STEAM = '<g class="steam" fill="none" stroke="#ffffff" stroke-width="2.6" st
 function vegCols(r) {
   var c = [];
   (r.ings || []).forEach(function (x) { var g = JJ.ING[x.id]; if (!g || (g.cat !== 'veg' && g.cat !== 'leafy' && g.cat !== 'fruit')) return; var p = PAL[g.cat] || PAL.veg; var col = p[hash(x.id) % p.length]; if (c.indexOf(col) < 0) c.push(col); });
-  return c.length ? c : ['#8fbf6a', '#e04b36'];
+  return c.length ? c : (r.meal === 'w' || r.comp === 'dal' || r.comp === 'rasam') ? [] : ['#8fbf6a', '#e04b36']; // a soup or dal without vegetables shows none
 }
 /* shared pieces */
 function dPlate() { return '<circle cx="50" cy="53" r="46" fill="var(--plate-shadow)"/><circle cx="50" cy="50" r="46" fill="var(--plate)" stroke="var(--plate-line)" stroke-width="1.5"/><circle cx="50" cy="50" r="37" fill="var(--plate-in)"/>'; }
@@ -256,7 +271,8 @@ function dBowl(fill) { return '<circle cx="50" cy="53" r="45" fill="var(--plate-
 function dCup(cx, cy, rr, fill) { return '<circle cx="' + cx + '" cy="' + (cy + 1.5) + '" r="' + (rr + 1.5) + '" fill="var(--plate-shadow)"/><circle cx="' + cx + '" cy="' + cy + '" r="' + (rr + 1.5) + '" fill="#d5dbe1"/><circle cx="' + cx + '" cy="' + cy + '" r="' + rr + '" fill="' + fill + '"/>'; }
 function dots(k, n, rad, col, rr, op) { var s = ''; for (var i = 0; i < n; i++) { var p = k.pt('dt' + col + i, rad); s += '<circle cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" r="' + (rr * (0.7 + k.rnd('dr' + col + i) * 0.6)).toFixed(2) + '" fill="' + col + '"' + (op ? ' opacity="' + op + '"' : '') + '/>'; } return s; }
 function flecks(k, n, rad, cols, rx, ry) { var s = ''; for (var i = 0; i < n; i++) { var p = k.pt('fl' + i, rad), c = cols[i % cols.length]; s += '<ellipse cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" rx="' + rx + '" ry="' + ry + '" fill="' + c + '" transform="rotate(' + Math.round(k.rnd('fr' + i) * 180) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; } return s; }
-function chunks(k, n, rad, cols, sz) { var s = ''; for (var i = 0; i < n; i++) { var p = k.pt('ch' + i, rad), c = cols[i % cols.length], w = sz * (0.8 + k.rnd('cw' + i) * 0.5); s += '<rect x="' + k.f(p[0] - w / 2) + '" y="' + k.f(p[1] - w / 2) + '" width="' + k.f(w) + '" height="' + k.f(w * 0.85) + '" rx="' + k.f(w * 0.3) + '" fill="' + c + '" transform="rotate(' + Math.round(k.rnd('cr' + i) * 90) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; } return s; }
+function chunks(k, n, rad, cols, sz) { if (!cols || !cols.length) return ''; var s = ''; for (var i = 0; i < n; i++) { var p = k.pt('ch' + i, rad), c = cols[i % cols.length], w = sz * (0.8 + k.rnd('cw' + i) * 0.5); s += '<rect x="' + k.f(p[0] - w / 2) + '" y="' + k.f(p[1] - w / 2) + '" width="' + k.f(w) + '" height="' + k.f(w * 0.85) + '" rx="' + k.f(w * 0.3) + '" fill="' + c + '" transform="rotate(' + Math.round(k.rnd('cr' + i) * 90) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; } return s; }
+function herbs(k) { return (k.r.ings || []).some(function (x) { var g = JJ.ING[x.id]; return g && g.L; }); }
 function chutney(cx, cy, col) { return dCup(cx, cy, 8, col) + '<circle cx="' + (cx - 2) + '" cy="' + (cy - 2) + '" r="2" fill="#ffffff" opacity=".25"/>'; }
 function lemon(cx, cy) { return '<path d="M' + (cx - 8) + ' ' + cy + 'a8 8 0 0 0 16 0z" fill="#f4e04d" stroke="#e2c52f" stroke-width="1"/><path d="M' + (cx - 5.5) + ' ' + (cy + 0.6) + 'a5.5 5.5 0 0 0 11 0z" fill="#fbf1a8"/>'; }
 function tadka(k, rad) { return dots(k, 9, rad, '#3b2a1a', 0.9) + flecks(k, 3, rad, ['#c0392b'], 3.2, 1.2); }
@@ -267,7 +283,7 @@ var DRAW = {
       flecks(k, 9, 22, ['#f0a52b'], 3.4, 0.6) + lemon(64, 66);
   },
   upma: function (k) {
-    var sweet = /sheera|halwa|kesari/.test(k.n);
+    var sweet = /sheera|halwa|kesari|panjiri/.test(k.n);
     return dPlate() + '<ellipse cx="50" cy="51" rx="29" ry="25" fill="' + (sweet ? '#e8b25a' : '#efdca8') + '"/><ellipse cx="46" cy="45" rx="16" ry="10" fill="#ffffff" opacity=".18"/>' +
       dots(k, 60, 25, sweet ? '#d39a3e' : '#e1c483', 0.8) + (sweet ? '' : dots(k, 6, 20, '#6cb94a', 1.8) + dots(k, 3, 18, '#e04b36', 1.6)) + lemon(70, 72);
   },
@@ -319,9 +335,9 @@ var DRAW = {
   },
   dal: function (k) {
     var n = k.n, col = /masoor/.test(n) ? '#e7853a' : /chana/.test(n) ? '#e6b94a' : /moong|mag/.test(n) ? '#ecc63e' : /urad|dal makhani/.test(n) ? '#8a5a3c' : /palak|methi/.test(n) ? '#9fae3c' : '#e5b22f';
-    return dBowl(col) + '<path d="M26 52q12-9 24 0t24 0" stroke="#ffffff" stroke-width="1.8" fill="none" opacity=".25"/><circle cx="44" cy="44" r="6" fill="#ffd95e" opacity=".55"/>' + tadka(k, 26) + dots(k, 5, 22, '#3f9c3a', 1.1);
+    return dBowl(col) + '<path d="M26 52q12-9 24 0t24 0" stroke="#ffffff" stroke-width="1.8" fill="none" opacity=".25"/><circle cx="44" cy="44" r="6" fill="#ffd95e" opacity=".55"/>' + tadka(k, 26) + (herbs(k) ? dots(k, 5, 22, '#3f9c3a', 1.1) : '');
   },
-  kadhi: function (k) { return dBowl(/sindhi|tomato/.test(k.n) ? '#e0a03c' : '#f3dc8a') + '<path d="M26 52q12-8 24 0t24 0" stroke="#ffffff" stroke-width="1.8" fill="none" opacity=".35"/>' + (/pakod/.test(k.n) ? dots(k, 6, 22, '#d98d2b', 4) : '') + tadka(k, 26) + dots(k, 4, 22, '#3f9c3a', 1.1); },
+  kadhi: function (k) { return dBowl(/sindhi|tomato/.test(k.n) ? '#e0a03c' : '#f3dc8a') + '<path d="M26 52q12-8 24 0t24 0" stroke="#ffffff" stroke-width="1.8" fill="none" opacity=".35"/>' + (/pakod/.test(k.n) ? dots(k, 6, 22, '#d98d2b', 4) : '') + tadka(k, 26) + (herbs(k) ? dots(k, 4, 22, '#3f9c3a', 1.1) : ''); },
   curd: function (k) {
     var n = k.n, shri = /shrikhand|matho/.test(n), col = shri ? (/mango|aamra/.test(n) ? '#f5c24a' : '#f6e3a8') : '#fbf8f1';
     return dBowl(col) + '<path d="M30 48q10-6 20 0t20 0" stroke="#ffffff" stroke-width="2" fill="none" opacity=".6"/>' + (shri ? flecks(k, 6, 22, ['#e07a1f'], 3, 0.5) + dots(k, 8, 22, '#7fb35c', 1.4) : chunks(k, 8, 24, /boondi/.test(n) ? ['#e9b44c'] : k.cols, 3.4) + dots(k, 10, 26, '#b5462a', 0.6));
@@ -337,7 +353,7 @@ var DRAW = {
   },
   sweet: function (k) {
     var n = k.n, s = dPlate();
-    if (/ladd|ladu|energy ball|magas/.test(n)) { var col = /besan|magas/.test(n) ? '#e9a83a' : /til|sesame/.test(n) ? '#c9a06a' : /coconut/.test(n) ? '#f7efdc' : '#d99a4a'; [[38, 38], [62, 38], [38, 62], [62, 62], [50, 50]].forEach(function (c, i) { s += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="11" fill="' + col + '" stroke="#b8741f" stroke-width=".8"/><circle cx="' + (c[0] - 3) + '" cy="' + (c[1] - 4) + '" r="3" fill="#ffffff" opacity=".3"/>'; }); return s + dots(k, 20, 24, '#a8661f', 0.6, '.6'); }
+    if (/ladd|ladu|energy ball|magas|goli|revdi|bites/.test(n)) { var col = /besan|magas/.test(n) ? '#e9a83a' : /til|sesame/.test(n) ? '#c9a06a' : /coconut/.test(n) ? '#f7efdc' : '#d99a4a'; [[38, 38], [62, 38], [38, 62], [62, 62], [50, 50]].forEach(function (c, i) { s += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="11" fill="' + col + '" stroke="#b8741f" stroke-width=".8"/><circle cx="' + (c[0] - 3) + '" cy="' + (c[1] - 4) + '" r="3" fill="#ffffff" opacity=".3"/>'; }); return s + dots(k, 20, 24, '#a8661f', 0.6, '.6'); }
     var c2 = /mohanthal|besan/.test(n) ? '#d9a046' : /sukhdi|gol|jaggery/.test(n) ? '#b8742e' : /chikki/.test(n) ? '#c98a32' : '#f0e2c0';
     [[30, 32], [52, 32], [30, 54], [52, 54]].forEach(function (c) { s += '<rect x="' + c[0] + '" y="' + c[1] + '" width="18" height="18" rx="2.5" fill="' + c2 + '" stroke="#b8862f" stroke-width=".8"/>'; });
     return s + flecks(k, 10, 24, ['#f5e6c8', '#7fb35c'], 2.4, 0.9);
@@ -352,7 +368,7 @@ var DRAW = {
   },
   legume: function (k) {
     var n = k.n, grain = /chole|chana|kabuli|ragda/.test(n) ? '#d9b36b' : /rajma/.test(n) ? '#8e2f2a' : /moong|mag|sprout/.test(n) ? '#7a9a3a' : /vaal|lobia|chawli/.test(n) ? '#e7d3a8' : '#9a6a3a';
-    return dBowl(/chole|chana|rajma/.test(n) ? '#a5502a' : '#b8742e') + dots(k, 26, 28, grain, 2.6) + dots(k, 26, 28, '#ffffff', 0.7, '.35') + tadka(k, 24) + dots(k, 5, 22, '#3f9c3a', 1.1);
+    return dBowl(/chole|chana|rajma/.test(n) ? '#a5502a' : '#b8742e') + dots(k, 26, 28, grain, 2.6) + dots(k, 26, 28, '#ffffff', 0.7, '.35') + tadka(k, 24) + (herbs(k) ? dots(k, 5, 22, '#3f9c3a', 1.1) : '');
   },
   paneer: function (k) {
     var n = k.n, col = /palak|saag/.test(n) ? '#3d7a35' : /butter|makhani|shahi|tikka masala/.test(n) ? '#e0702f' : /bhurji/.test(n) ? '#f2d48a' : /capsicum|kadai|tomato/.test(n) ? '#d0552b' : '#d86a2e';
@@ -381,6 +397,25 @@ var DRAW = {
     if (/bhind|bhend|okra|vendakkai|dharosh/.test(n)) { for (var i = 0; i < 12; i++) { var p = k.pt('bh' + i, 24); s += '<ellipse cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" rx="6.5" ry="3.2" fill="#5f9a3a" stroke="#3f7a2a" transform="rotate(' + Math.round(k.rnd('bhr' + i) * 180) + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>'; } return s + dots(k, 18, 24, '#e9f2c9', 0.7); }
     if (/gavar|beans|fansi|tindora|tondli/.test(n)) return s + flecks(k, 26, 26, ['#6e9c4a', '#5a9e45', '#7fb35c'], 6, 1.6) + dots(k, 10, 24, '#e04b36', 1);
     return s + chunks(k, 16, 26, k.cols, 6) + dots(k, 8, 26, '#3f9c3a', 1) + dots(k, 6, 24, '#2b2b2b', 0.6);
+  },
+  dryfruit: function (k) {
+    var has = {}; k.r.ings.forEach(function (x) { has[x.id] = 1; });
+    var s = dPlate() + '<circle cx="50" cy="50" r="30" fill="#f3e3c8" opacity=".55"/>', i, p;
+    var kinds = [['almonds', '#a8642f', 7, 4.2], ['walnuts', '#c9a06a', 5, 5.5], ['cashews', '#efd9a8', 6, 4.5], ['pista', '#9db86a', 6, 3.2], ['raisins', '#5b2a3a', 9, 2.4], ['dates', '#5a2d1a', 5, 5], ['peanuts', '#d9a66a', 9, 2.6], ['roastchana', '#e8c25a', 12, 2.3], ['kalachana', '#4a2e1f', 12, 2.3], ['makhana', '#f6eedb', 6, 4]];
+    var use = kinds.filter(function (q) { return has[q[0]]; }); if (!use.length) use = [kinds[0], kinds[4]];
+    use.forEach(function (q, qi) {
+      for (i = 0; i < q[2]; i++) {
+        p = k.pt(q[0] + i, 24);
+        var rot = Math.round(k.rnd(q[0] + 'r' + i) * 180);
+        if (q[0] === 'cashews') s += '<path d="M' + k.f(p[0] - 4) + ' ' + k.f(p[1]) + 'a4.5 4.5 0 0 0 9 0a3 3 0 0 1 -9 0z" fill="' + q[1] + '" stroke="#c9a46a" stroke-width=".6" transform="rotate(' + rot + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>';
+        else if (q[0] === 'walnuts') s += '<circle cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" r="' + q[3] + '" fill="' + q[1] + '" stroke="#8a6438" stroke-width=".8"/><path d="M' + k.f(p[0] - 3) + ' ' + k.f(p[1]) + 'q1.5 -2 3 0t3 0" stroke="#8a6438" fill="none" stroke-width=".7"/>';
+        else if (q[0] === 'makhana') s += '<circle cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" r="' + q[3] + '" fill="' + q[1] + '" stroke="#e1d2ad"/><circle cx="' + k.f(p[0] + 1.3) + '" cy="' + k.f(p[1] + 1) + '" r="1.2" fill="#b98a54" opacity=".6"/>';
+        else s += '<ellipse cx="' + k.f(p[0]) + '" cy="' + k.f(p[1]) + '" rx="' + q[3] + '" ry="' + (q[3] * 0.62).toFixed(1) + '" fill="' + q[1] + '" transform="rotate(' + rot + ' ' + k.f(p[0]) + ' ' + k.f(p[1]) + ')"/>';
+      }
+    });
+    if (has.jaggery) s += chunks(k, 4, 20, ['#c68a2e'], 5);
+    if (has.sesame) s += dots(k, 20, 26, '#f4ead2', 0.7);
+    return s;
   },
   fruit: function (k) {
     var s = dPlate();
@@ -522,6 +557,7 @@ function tomorrowSummary() {
     if (k === 'l') return t('meal_l') + ': ' + JJ.chosenItems(m).filter(function (it) { return it.id; }).slice(0, 3).map(function (it) { return rName(JJ.recipeFor(m, it.id)); }).join(', ');
     var x = JJ.chosenMeal(m, k); return t('meal_' + k) + ': ' + (x && x.id ? rName(JJ.recipeFor(m, x.id)) : '—');
   }) : [];
+  if (m && m.winter) ['m', 'w'].forEach(function (k) { var x = JJ.chosenMeal(m, k); if (x && x.id) names.push(t('meal_' + k) + ': ' + rName(JJ.recipeFor(m, x.id))); });
   return {date: d, p: p, r: r, names: names, soak: m ? soakTonight(m) : []};
 }
 /* what must go into water tonight for tomorrow's chosen dishes: overnight soaks, long soaks (6 h+),
@@ -618,6 +654,25 @@ function optionPair(iso, k, menu) {
     (parva ? '<span class="tag ok">' + esc(t('parva_ok')) + '</span>' : '') + '<span class="opt-hint">' + esc(t(locked ? 'option_locked' : 'tap_to_choose')) + '</span></div>' +
     '<div class="opt-pair" role="group" aria-label="' + esc(t('choose_option')) + '">' + card(0) + card(1) + '</div>' + dinner;
 }
+/* Winter Morning Goodness (beside breakfast) and Tonight's Winter Soup (beside dinner): shown only
+   when the day's menu is a winter menu. "Change" offers the two alternatives; picking one updates the
+   grocery list at once. */
+function winterCard(iso, k, menu) {
+  if (menu.legacy || !menu.winter || !menu.meals[k]) return '';
+  var x = JJ.chosenMeal(menu, k), head = '<span class="mtag mt-' + k + '">' + esc(t('winter_' + k)) + '</span>';
+  if (!x || !x.id) return '<div class="meal-wrap"><div class="meal winter-card wc-' + k + '"><span class="mtxt">' + head + '<b>' + esc(t('winter_short_title')) + '</b><small>' + esc(t('winter_short_' + k)) + '</small></span></div></div>';
+  var r = JJ.recipeFor(menu, x.id), key = iso + '|' + k, open = ui.chg === key, locked = menu.status === 'history' && iso !== today();
+  var h = '<div class="meal-wrap"><button class="meal winter-card wc-' + k + '" data-a="recipe" data-d="' + iso + '" data-id="' + x.id + '">' + plate(r, 64) + '<span class="mtxt">' + head + '<b>' + esc(rName(r)) + '</b><small>' + esc(t(k === 'm' ? 'winter_m_sub' : 'winter_w_sub') + ' · ' + timeText(r)) + '</small></span>' + ic('next', 'chev') + '</button>';
+  var x0 = menu.meals[k], opts = [x0].concat(x0.alts || []);
+  if (!locked && opts.length > 1) {
+    h += '<button class="change-meal" data-a="chg" data-v="' + key + '" aria-expanded="' + open + '">' + ic('swap') + esc(t(open ? 'change_meal_close' : 'winter_change')) + '</button>';
+    if (open) h += '<div class="alt-pick"><div class="winter-opts">' + opts.map(function (o, i) {
+      var ro = JJ.recipeFor(menu, o.id), on = ((menu.choice && menu.choice[k]) || 0) === i;
+      return '<button class="wopt' + (on ? ' on' : '') + '" data-a="choose" data-d="' + iso + '" data-m="' + k + '" data-v="' + i + '" aria-pressed="' + on + '">' + plate(ro, 56) + '<b>' + esc(rName(ro)) + '</b><small>' + esc(timeText(ro)) + '</small></button>';
+    }).join('') + '</div></div>';
+  }
+  return h + '</div>';
+}
 function mealCard(iso, k, menu) {
   var x = chosen(menu, k), tagCls = {b: 'b', l: 'l', s: 's', d: 'd'}[k];
   var pb = menu.rules && menu.rules.parva ? '<span class="tag ok">' + esc(t('parva_ok')) + '</span>' : '';
@@ -674,7 +729,7 @@ function dayBody(iso, isToday, root) {
   if (!menu) { b += '<div class="empty"><b>' + esc(t('no_plan_day')) + '</b>' + esc(t('plan_started', {date: dLong(P.created)})) + '</div>'; return b; }
   if (isToday && ui.showcase) b += '<div class="showcase" id="showcase"><b>🎉 ' + esc(t('plan_ready')) + '</b><small>' + esc(t('plan_ready_sub')) + '</small></div>';
   if (!menu.legacy && menu.season) b += '<p class="menu-line">' + esc(seasonIcon(menu.season) + ' ' + t('season_menu', {s: t('season_' + menu.season), c: nm(JJ.CUISINES[menu.cuisine] || JJ.CUISINES.gen)})) + '</p>';
-  b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + changeMeal(iso, k, menu) + '</div>'; }).join('') + '</div>';
+  b += '<div class="meals">' + MEALS.map(function (k) { return '<div class="meal-wrap">' + mealCard(iso, k, menu) + changeMeal(iso, k, menu) + '</div>' + (k === 'b' ? winterCard(iso, 'm', menu) : k === 'd' ? winterCard(iso, 'w', menu) : ''); }).join('') + '</div>';
   if (menu.repeats && menu.repeats.length) b += '<p class="fine">' + esc(t('repeat_note', {list: menu.repeats.map(function (x) { return rName(JJ.recipeFor(menu, x.id)); }).join(', ')})) + '</p>';
   if (menu.shortages && menu.shortages.length) b += '<div class="alert">' + esc(t('shortage_note')) + '</div>';
   if (menu.ruleWarning) b += '<div class="alert">' + esc(t('old_rules_note')) + '</div>';
@@ -2101,7 +2156,7 @@ document.addEventListener('visibilitychange', function () { if (document.visibil
 
 /* ---------------- boot ---------------- */
 JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
-  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, boundaryPassed: function () { return boundaryPassed(); }, networkLocation: networkLocation, nearestCity: nearestCity, stateFromName: stateFromName};
+  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, boundaryPassed: function () { return boundaryPassed(); }, networkLocation: networkLocation, nearestCity: nearestCity, stateFromName: stateFromName, winterCard: winterCard};
 JJ.boot = function () {
   // an invite link (…/JainJoy/?ref=AB12CD) is remembered until this phone signs up
   try { var ref = (location.search.match(/[?&]ref=([A-Za-z0-9]{6})/) || [])[1]; if (ref) localStorage.setItem('jainjoy.ref', ref.toUpperCase()); } catch (e) {}

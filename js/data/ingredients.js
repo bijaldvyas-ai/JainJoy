@@ -49,6 +49,7 @@ JJ.ING_ROWS = [
 ['coriander','Coriander leaves','हरा धनिया','કોથમીર','leafy','g','G L'],
 ['curry','Curry leaves','करी पत्ता','મીઠો લીમડો','leafy','g','G L pg:1'],
 ['mint','Mint (pudina)','पुदीना','ફુદીનો','leafy','g','G L'],
+['tulsi','Basil (tulsi)','तुलसी','તુલસી','leafy','g','G L'],
 ['suva','Dill (suva)','सोआ','સુવાની ભાજી','leafy','g','G L s:11-2'],
 ['chawli','Amaranth leaves (chawli)','चौलाई','તાંદળજો','leafy','g','G L'],
 ['sarson','Mustard greens (sarson)','सरसों का साग','સરસવની ભાજી','leafy','g','G L s:11-2'],
@@ -73,6 +74,7 @@ JJ.ING_ROWS = [
 ['oats','Rolled oats','ओट्स','ઓટ્સ','grain','g',''],
 ['samo','Barnyard millet (samo)','सामा के चावल','સામો','grain','g',''],
 ['rajgira','Amaranth flour (rajgira)','राजगिरा आटा','રાજગરાનો લોટ','grain','g',''],
+['rajgirapop','Popped amaranth (rajgira)','राजगिरा के फूले दाने','રાજગરાની ધાણી','grain','g',''],
 ['khakhra','Khakhra','खाखरा','ખાખરા','grain','pc','a:gluten pg:20'],
 ['handvoflour','Handvo flour (rice and dal mix)','हांडवो का आटा','હાંડવાનો લોટ','grain','g','P'],
 // ---------- pulses (dwidal) ----------
@@ -106,6 +108,7 @@ JJ.ING_ROWS = [
 ['khoya','Khoya (mawa)','खोया','માવો','dairy','g','a:dairy'],
 // ---------- fruit (fresh produce) ----------
 ['apple','Apple','सेब','સફરજન','fruit','pc','G pg:170'],
+['amla','Indian gooseberry (amla)','आंवला','આમળાં','fruit','g','G s:11-2'],
 ['banana','Banana','केला','કેળાં','fruit','pc','G pg:110'],
 ['papaya','Papaya','पपीता','પપૈયું','fruit','g','G'],
 ['pomegranate','Pomegranate','अनार','દાડમ','fruit','g','G s:9-3'],
@@ -119,6 +122,8 @@ JJ.ING_ROWS = [
 ['almonds','Almonds','बादाम','બદામ','nuts','g','a:nuts'],
 ['cashews','Cashews','काजू','કાજુ','nuts','g','a:nuts'],
 ['pista','Pistachios','पिस्ता','પિસ્તા','nuts','g','a:nuts'],
+['walnuts','Walnuts','अखरोट','અખરોટ','nuts','g','a:nuts'],
+['gond','Edible gum (gond)','गोंद','ગુંદર','pantry','g',''],
 ['raisins','Raisins','किशमिश','કિસમિસ','nuts','g',''],
 ['dates','Dates (khajur)','खजूर','ખજૂર','nuts','g',''],
 ['drycoconut','Desiccated coconut','सूखा नारियल','સૂકું ટોપરું','nuts','g','a:coconut'],

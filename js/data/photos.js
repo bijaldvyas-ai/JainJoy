@@ -16,3 +16,16 @@ M.split(' ').forEach(function (p) {
   JJ.PHOTO_INFO[kv[0]] = {src: f[1] ? THUMB + f[0] + '/500px-' + name : BASE + f[0], big: f[1] ? THUMB + f[0] + '/960px-' + name : BASE + f[0], page: 'https://commons.wikimedia.org/wiki/File:' + name, license: f[2], author: f[3]};
 });
 })(window.JJ = window.JJ || {});
+
+/* Winter specials (v3.7): same checks. Left out after looking: a corn soup photo with mushrooms, a
+   cauliflower soup with cheese, and photos that were not the dish. */
+(function (JJ) {
+'use strict';
+var F = [["7/7d/Raisins_01.jpg", 1, "CC BY-SA 3.0", "Paweł Kuźniar (Jojo_1, Jojo)"], ["0/0e/Foxnut_Makhana_-_Nawada_District_-_Bihar_-_1.jpg", 1, "CC BY-SA 4.0", "FacetsOfNonStickPans"], ["b/b7/White_sesame_ladoo.jpg", 1, "CC BY-SA 4.0", "Vidya pmysore"], ["6/6c/Peanut_Chikki.JPG", 1, "CC BY-SA 4.0", "Zeel Patel"], ["b/bf/DryFruit_Laddu-Home-AndhraPradesh-012.jpg", 1, "CC BY-SA 4.0", "M N Swarna"], ["0/04/Khajur_Pak.jpg", 1, "CC BY-SA 4.0", "Sushant savla"], ["8/81/Gond_%28edible_gum%29_ke_ladoo.JPG", 1, "CC BY-SA 4.0", "Vashisthapathak2015"], ["e/e5/Panjeeri..JPG", 1, "CC0", "Miansari66"], ["a/a9/Meetha_is_the_Law_here.JPG", 1, "CC BY-SA 4.0", "Manna16"], ["a/a4/Murir_Moa_Or_Puffed_Rice_Laddu%E2%80%93_Bengali_Sweets%2C_Kolkata_-_West_Bengal_-_DSC_0029.jpg", 1, "CC BY-SA 4.0", "TAPAS KUMAR HALDER"], ["8/8e/Coconut_ladoo%2C_Assam.jpg", 1, "CC BY-SA 4.0", "Baby Devi 26"], ["d/d9/Walnuts_pistachios_cashew_almonds.jpg", 1, "CC0", "piviso.com"], ["2/2a/Bapatla_Badam_Milk.jpg", 1, "CC BY-SA 4.0", "Saiphani02"], ["9/95/Groundnut_ladoo.JPG", 1, "CC BY-SA 4.0", "MariappanSanthy"], ["4/40/Cashew_and_raisins%2C_photographed_in_West_Bengal%2C_India%2C_February_11%2C_2024.jpg", 1, "CC0", "Billjones94"], ["6/63/Choorma_ladoo.jpg", 1, "CC BY-SA 4.0", "Pushpendra Payal"], ["2/28/Khajur.jpg", 1, "CC BY-SA 4.0", "Gaurav Dhwaj Khadka"], ["3/30/Roasted_Chickpea_Chana_with_Salt_and_Turmeric.jpg", 1, "CC BY-SA 4.0", "Nizil Shah"], ["b/b5/Tomato_soup%2C_Turkish_style.jpg", 1, "CC BY-SA 4.0", "E4024"], ["e/e6/Tomato_Shorba.jpg", 1, "CC BY-SA 4.0", "Kabirsabri"], ["9/92/Cream_of_spinach_soup_%28rotated%29.jpg", 1, "CC BY 2.0", "Cynthia Closkey from Butler, PA, USA"], ["1/1e/x", 1, "", ""], ["c/c2/x", 1, "", ""], ["e/eb/Spring_pea_soup_with_cr%C3%A8me_fra%C3%AEche_and_bread.jpg", 1, "CC BY 2.0", "Sara Goldsmith"], ["7/7c/Zucchini_soup.JPG", 1, "CC BY-SA 4.0", "Sb2s3"], ["0/0d/Tomatoche_Saar.jpg", 1, "CC BY-SA 4.0", "Sulabha prabhune"], ["b/b9/Basil_and_Organic_Tomato_Soup.jpg", 1, "CC BY-SA 3.0", "SirNico"], ["6/65/Mercimek_%C3%A7orbasi.jpg", 1, "CC BY-SA 4.0", "E4024"]];
+var M = "m03:0 m06:1 m07:2 m09:3 m10:4 m11:5 m12:6 m13:7 m18:9 m19:10 m21:11 m24:12 m31:13 m32:14 m36:15 m40:16 m45:17 w01:18 w02:19 w03:20 w09:23 w11:24 w17:25 w21:26 w31:27";
+var BASE = 'https://upload.wikimedia.org/wikipedia/commons/', THUMB = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/';
+M.split(' ').forEach(function (p) {
+  var kv = p.split(':'), f = F[+kv[1]], name = f[0].split('/').pop();
+  JJ.PHOTO_INFO[kv[0]] = {src: f[1] ? THUMB + f[0] + '/500px-' + name : BASE + f[0], big: f[1] ? THUMB + f[0] + '/960px-' + name : BASE + f[0], page: 'https://commons.wikimedia.org/wiki/File:' + name, license: f[2], author: f[3]};
+});
+})(window.JJ = window.JJ || {});

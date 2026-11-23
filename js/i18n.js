@@ -3,6 +3,15 @@
 'use strict';
 var K = {
 // navigation
+winter_m:['Winter Morning Goodness','सर्दी की सुबह की सेहत','શિયાળાની સવારની તંદુરસ્તી'],
+winter_w:['Tonight’s Winter Soup','आज रात का सर्दी का सूप','આજ રાતનો શિયાળુ સૂપ'],
+winter_m_sub:['A small portion with breakfast','नाश्ते के साथ थोड़ा-सा','નાસ્તા સાથે થોડું'],
+winter_w_sub:['A warm bowl with dinner','खाने के साथ गरम कटोरी','જમણ સાથે ગરમ વાટકી'],
+winter_change:['See 2 alternatives','2 विकल्प देखें','2 વિકલ્પ જુઓ'],
+winter_short_title:['Nothing new left for today','आज के लिए कुछ नया नहीं बचा','આજ માટે કંઈ નવું બાકી નથી'],
+winter_short_m:['Every morning item that fits your rules was served in the last 30 days, so none is repeated today.','आपके नियमों के अनुसार हर सुबह की चीज़ पिछले 30 दिनों में परोसी जा चुकी है, इसलिए आज दोहराई नहीं गई।','તમારા નિયમ પ્રમાણેની દરેક સવારની વસ્તુ છેલ્લા 30 દિવસમાં પીરસાઈ ગઈ છે, તેથી આજે ફરી નથી આપી.'],
+winter_short_w:['Every soup that fits today’s rules was served in the last 30 days, so none is repeated tonight.','आज के नियमों के अनुसार हर सूप पिछले 30 दिनों में परोसा जा चुका है, इसलिए आज रात दोहराया नहीं गया।','આજના નિયમ પ્રમાણેનો દરેક સૂપ છેલ્લા 30 દિવસમાં પીરસાઈ ગયો છે, તેથી આજે રાત્રે ફરી નથી આપ્યો.'],
+meal_m:['Winter morning','सर्दी की सुबह','શિયાળાની સવાર'], meal_w:['Winter soup','सर्दी का सूप','શિયાળુ સૂપ'],
 loc_how_auto:['Found automatically from your current location','आपकी मौजूदा लोकेशन से अपने-आप पता चला','તમારા હાલના સ્થાનથી આપમેળે શોધ્યું'],
 loc_how_gps:['Found from your phone’s location','फ़ोन की लोकेशन से पता चला','ફોનના લોકેશનથી શોધ્યું'],
 loc_how_search:['Chosen by you','आपने चुना','તમે પસંદ કર્યું'],

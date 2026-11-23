@@ -243,13 +243,13 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var got = JJ.recipeNutrition(r, []), recOk = Math.abs(got[0] - exp[0]) <= 1 && Math.abs(got[1] - exp[1]) <= 0.1;
     var days = genRange(Pg, today, 30), sumBad = 0, range = [1e9, 0];
     days.forEach(function (m) {
-      var n = JJ.dayNutrition(m), s = n.b[0] + n.l[0] + n.s[0] + n.d[0];
+      var n = JJ.dayNutrition(m), s = n.b[0] + n.l[0] + n.s[0] + n.d[0] + (n.m ? n.m[0] : 0) + (n.w ? n.w[0] : 0);
       if (Math.abs(s - n.total[0]) > 2) sumBad++;
       range[0] = Math.min(range[0], n.total[0]); range[1] = Math.max(range[1], n.total[0]);
     });
     var zero = approved.filter(function (x) { return JJ.recipeNutrition(x, [])[0] <= 0; }).length;
     return {ok: !missing.length && recOk && !sumBad && !zero && range[0] > 900 && range[1] < 4000,
-      details: 'Ingredients without values: ' + (missing.join(', ') || 'none') + '; Jain Poha per serving ' + got.join('/') + ' (kcal/protein/carbs/fat), hand-computed ' + exp.map(function (v) { return Math.round(v * 10) / 10; }).join('/') + '; day total equals sum of 4 meals on 30/30 days: ' + !sumBad + '; daily range per person ' + range[0] + '–' + range[1] + ' kcal; recipes with zero energy: ' + zero};
+      details: 'Ingredients without values: ' + (missing.join(', ') || 'none') + '; Jain Poha per serving ' + got.join('/') + ' (kcal/protein/carbs/fat), hand-computed ' + exp.map(function (v) { return Math.round(v * 10) / 10; }).join('/') + '; day total equals the sum of its meals (with the winter specials) on 30/30 days: ' + !sumBad + '; daily range per person ' + range[0] + '–' + range[1] + ' kcal; recipes with zero energy: ' + zero};
   });
 
   test(19, 'Choghadiya follows sunrise, sunset and the weekday', function () {
@@ -644,7 +644,7 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
   });
   test('N6', 'Real food photos replace the drawing where available; the drawing stays as fallback', function () {
     var ids = Object.keys(JJ.PHOTO_INFO), missing = ids.filter(function (id) { return !cat.byId[id]; });
-    var lic = ids.every(function (id) { return /^(CC BY|CC BY-SA|Public domain)/.test(JJ.PHOTO_INFO[id].license) && /wikimedia\.org/.test(JJ.PHOTO_INFO[id].src) && JJ.PHOTO_INFO[id].author; });
+    var lic = ids.every(function (id) { return /^(CC0|CC BY|CC BY-SA|Public domain)/.test(JJ.PHOTO_INFO[id].license) && /wikimedia\.org/.test(JJ.PHOTO_INFO[id].src) && JJ.PHOTO_INFO[id].author; });
     var poha = JJ.dish.plate(cat.byId.b073, 64), noPhoto = approved.filter(function (r) { return !JJ.PHOTO_INFO[r.id]; })[0], np = JJ.dish.plate(noPhoto, 64);
     var fallback = /<svg[^>]*dish-poha/.test(poha) && /<img class="dishphoto"[^>]*Indori_Poha/.test(poha) && /onerror="this.remove\(\)"/.test(poha);
     return {ok: ids.length >= 85 && !missing.length && lic && fallback && !/<img/.test(np), details: ids.length + ' recipes with a checked, freely licensed real photo (credit shown on the recipe page); unknown ids: ' + missing.length + '; Indori Poha shows its photo over its drawing, drawing shown if the photo cannot load: ' + fallback + '; recipes without a photo keep their own drawing (' + noPhoto.en + ')'};
@@ -681,6 +681,76 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     var gj = JJ.app.stateFromName('Gujarat'), dl = JJ.app.stateFromName('NCT of Delhi'), tn = JJ.app.stateFromName('Tamil Nadu'), mh = JJ.app.stateFromName('Maharashtra');
     var near = JJ.app.nearestCity(19.07, 72.88), c = JJ.CITIES[near.id];
     return {ok: gj === 'GJ' && !!dl && !!tn && mh === 'MH' && /Mumbai/.test(c.en), details: 'state names from the location service → Gujarat ' + gj + ', NCT of Delhi ' + dl + ', Tamil Nadu ' + tn + ', Maharashtra ' + mh + '; a spot in Mumbai → ' + c.en + ', ' + JJ.STATES.IN[c.state].en + '; the state then sets the cuisine and calendar'};
+  });
+
+  // ---- v3.7 winter specials: acceptance criteria ----
+  function runW(prof, from, n) { var out = []; for (var i = 0; i < n; i++) { var d = addDays(from, i), rec = {}; out.slice(-30).forEach(function (h) { JJ.usedIds(h).forEach(function (id) { rec[id] = JJ.dayNum(h.date); }); }); out.push(JJ.genDay(d, prof, {recent: rec})); } return out; }
+  var WIN = runW(Pg, '2026-11-01', 90), NUT = runW(base({allergies: ['nuts']}), '2026-11-01', 90), SUM = runW(Pg, '2026-04-01', 60);
+  var WREC = approved.filter(function (r) { return r.meal === 'm' || r.meal === 'w'; });
+  test('W1', 'In local winter every day has one morning item and one soup; in summer and monsoon neither appears', function () {
+    var full = WIN.filter(function (m) { return m.winter && m.meals.m && m.meals.m.id && m.meals.w && m.meals.w.id; }).length;
+    var off = SUM.filter(function (m) { return !m.winter && !m.meals.m && !m.meals.w; }).length;
+    var mon = runW(Pg, '2026-07-10', 20).filter(function (m) { return !m.meals.m && !m.meals.w; }).length;
+    return {ok: full === 90 && off === 60 && mon === 20, details: 'Ahmedabad Nov–Jan: ' + full + ' of 90 days with both cards; April–May (summer): ' + off + ' of 60 days with neither; July (monsoon): ' + mon + ' of 20 days with neither'};
+  });
+  test('W2', 'Seasons by location: Ahmedabad December winter, Chennai December winter, Sydney December summer', function () {
+    var a = JJ.seasonOf('2026-12-10', JJ.CITIES['in-ahmedabad']), c = JJ.seasonOf('2026-12-10', {lat: 13.08}), sy = JJ.seasonOf('2026-12-10', {lat: -33.87});
+    var syd = Object.keys(JJ.CITIES).filter(function (k) { return JJ.CITIES[k].lat < -20; })[0], sm = syd ? JJ.genDay('2026-12-10', base({country: JJ.CITIES[syd].country, state: '', cityId: syd}), {recent: {}}) : null;
+    return {ok: a === 'winter' && c === 'winter' && sy === 'summer' && (!sm || !sm.meals.m), details: 'Ahmedabad ' + a + ', Chennai ' + c + ' (south India: Dec–Feb), Sydney ' + sy + (sm ? '; a household in ' + JJ.CITIES[syd].en + ' gets no winter cards in December: ' + !sm.meals.m : '')};
+  });
+  test('W3', 'No soup or morning item repeats within 30 days over 90 days; a shortage shows a visible message', function () {
+    function dups(ms) { var last = {}, d = []; ms.forEach(function (m) { var dn = JJ.dayNum(m.date); ['m', 'w'].forEach(function (k) { var x = JJ.chosenMeal(m, k); if (!x || !x.id) return; if (last[x.id] != null && dn - last[x.id] < 30) d.push(m.date + ' ' + x.id); last[x.id] = dn; }); }); return d; }
+    var d1 = dups(WIN), d2 = dups(NUT);
+    // a day with nothing left shows the message, never a repeat
+    var fake = JSON.parse(JSON.stringify(WIN[20])); fake.meals.w = {id: null, alts: []}; fake.winterShort = ['w'];
+    JJ.app.profile = Object.assign({created: today}, base());
+    var html = JJ.app.winterCard ? JJ.app.winterCard(fake.date, 'w', fake) : '';
+    var msg = html.indexOf(JJ.app.t('winter_short_w')) >= 0;
+    return {ok: !d1.length && !d2.length && msg, details: 'repeats within 30 days: everyday household ' + d1.length + ', nut-allergy household ' + d2.length + ' (90 days each); when every item was used recently the card says so: ' + msg};
+  });
+  test('W4', 'Each card offers 2 alternatives, different from the main item and from each other', function () {
+    var bad = [], n = 0;
+    WIN.concat(NUT).forEach(function (m) { ['m', 'w'].forEach(function (k) { var x = m.meals[k]; if (!x || !x.id) return; n++; var ids = [x.id].concat(x.alts.map(function (a) { return a.id; })); if (x.alts.length !== 2 || ids[0] === ids[1] || ids[0] === ids[2] || ids[1] === ids[2]) bad.push(m.date + ' ' + k); }); });
+    return {ok: n === 360 && !bad.length, details: n + ' cards over 180 days: each with 2 different alternatives: ' + (bad.length ? 'no, ' + bad.slice(0, 4).join('; ') : 'yes')};
+  });
+  test('W5', 'Parva Tithi days: no fresh vegetables, leaves, herbs or sprouts in any winter item; never onion, garlic, roots, Kaddu or Alavi', function () {
+    var bad = [], pd = 0, kinds = {};
+    var run = runW(Object.assign(base(), {obsProfile: 'strict'}), '2026-11-01', 120);
+    run.concat(WIN).forEach(function (m) {
+      if (m.rules.parva) { pd++; (m.rules.parvaKeys || []).forEach(function (k) { kinds[k] = 1; }); }
+      ['m', 'w'].forEach(function (k) { var x = m.meals[k]; if (!x || !x.id) return; [x].concat(x.alts).forEach(function (o) { cat.byId[o.id].ings.forEach(function (g) { var ing = JJ.ING[g.id]; if (ing.banned || ing.isRoot) bad.push(m.date + ' ' + o.id + ' ' + g.id); if (m.rules.parva && (ing.isFreshVeg || ing.L || ing.isSprout || ing.isHerb)) bad.push(m.date + ' parva ' + o.id + ' ' + g.id); }); }); });
+    });
+    return {ok: !bad.length && pd >= 15 && Object.keys(kinds).length >= 4, details: pd + ' Parva days checked (' + Object.keys(kinds).join(', ') + '), every item and alternative: ' + (bad.length ? bad.slice(0, 4).join('; ') : 'compliant')};
+  });
+  test('W6', 'A household with a nut allergy is never offered a nut item; a replacement is shown instead', function () {
+    var bad = [], shown = 0;
+    NUT.forEach(function (m) { ['m', 'w'].forEach(function (k) { var x = m.meals[k]; if (!x) return; if (x.id) shown++; [x].concat(x.alts || []).forEach(function (o) { if (!o.id) return; cat.byId[o.id].ings.forEach(function (g) { if ((o.drop || []).indexOf(g.id) >= 0) return; if ((JJ.ING[g.id].alg || []).indexOf('nuts') >= 0) bad.push(m.date + ' ' + o.id + ' ' + g.id); }); }); }); });
+    var anyNutEveryday = WIN.some(function (m) { var x = m.meals.m; return x && x.id && cat.byId[x.id].ings.some(function (g) { return (JJ.ING[g.id].alg || []).indexOf('nuts') >= 0; }); });
+    return {ok: !bad.length && shown === 180 && anyNutEveryday, details: 'nut-allergy household, 90 days: nut ingredients offered ' + bad.length + (bad.length ? ' (' + bad.slice(0, 3).join('; ') + ')' : '') + '; a card shown every day: ' + (shown === 180) + ' (nuts that are only a garnish are left out of the dish)'};
+  });
+  test('W7', 'Every winter item stores its picture (image_url, gif_url); pictures match the item; a broken photo falls back', function () {
+    JJ.attachVisuals();
+    var none = WREC.filter(function (r) { return !r.image_url; }), photos = WREC.filter(function (r) { return JJ.PHOTO_INFO[r.id]; }).length;
+    var soup = JJ.dish.plate(cat.byId.w03, 60), nuts = JJ.dish.plate(cat.byId.m20, 60), noPh = JJ.dish.plate(cat.byId.w30, 60);
+    var fields = WREC.every(function (r) { return r.ings.length && r.ings.every(function (g) { return g.q > 0; }) && r.steps.length && (r.prep + r.cook) > 0 && r.hi && r.gu && r.cu.length && Array.isArray(JJ.recipeSeasons(r)) && (r.gif_url === null || typeof r.gif_url === 'string'); });
+    return {ok: !none.length && /Cream_of_spinach/.test(soup) && /onerror="this.remove\(\)"/.test(soup) && /dish-dryfruit/.test(nuts) && /dish-soup/.test(noPh) && fields, details: WREC.length + ' winter items (' + WREC.filter(function (r) { return r.meal === 'm'; }).length + ' morning, ' + WREC.filter(function (r) { return r.meal === 'w'; }).length + ' soups), all with image_url; ' + photos + ' with a checked real photo, the rest their own dish drawing (soup bowl, dry-fruit plate, laddoos...); ingredients with quantities, steps, time, season, cuisine and 3-language names: ' + fields};
+  });
+  test('W8', 'Changing a soup or morning item updates the grocery list on the same screen, without reloading', function () {
+    var P8 = Object.assign({created: today}, base({version: 8})); JJ.app.profile = P8; JJ.db.put('profiles', P8);
+    var d = addDays(today, 2), m = JJ.app.menuFor(d);
+    if (!m || !m.meals.w || !m.meals.w.id) return {ok: false, details: 'no winter soup on ' + d};
+    var g1 = JSON.stringify(JJ.grocery([m])), href = location.href;
+    JJ.app.render();
+    var btn = document.createElement('button'); btn.dataset.a = 'choose'; btn.dataset.d = d; btn.dataset.m = 'w'; btn.dataset.v = '1'; document.getElementById('app').appendChild(btn); btn.click();
+    var m2 = JJ.app.menuFor(d), g2 = JSON.stringify(JJ.grocery([m2]));
+    var same = location.href === href, picked = JJ.chosenMeal(m2, 'w').id === m.meals.w.alts[0].id;
+    return {ok: picked && g1 !== g2 && same, details: d + ': soup changed to ' + cat.byId[m.meals.w.alts[0].id].en + ': ' + picked + '; grocery list changed: ' + (g1 !== g2) + '; page not reloaded: ' + same};
+  });
+  test('W9', 'Winter texts exist in English, Hindi and Gujarati', function () {
+    var keys = ['winter_m', 'winter_w', 'winter_m_sub', 'winter_w_sub', 'winter_change', 'winter_short_title', 'winter_short_m', 'winter_short_w', 'meal_m', 'meal_w'], miss = [];
+    ['en', 'hi', 'gu'].forEach(function (l) { keys.forEach(function (k) { if (!JJ.I18N[l][k]) miss.push(l + ':' + k); }); });
+    var names = WREC.every(function (r) { return r.en && r.hi && r.gu && r.hi !== r.en; });
+    return {ok: !miss.length && names, details: keys.length + ' texts × 3 languages: ' + (miss.length ? 'missing ' + miss.join(', ') : 'all present') + '; every winter item named in all 3 languages: ' + names};
   });
   // ---- report ----
   Promise.all(pendingTests).then(report);
