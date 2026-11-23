@@ -739,7 +739,7 @@ function wisdomBody(q) {
 function wisdomCard(iso) {
   if (!JJ.WISDOM) return '';
   var q = JJ.wisdomFor(iso);
-  return '<section class="card wisdom-card" id="wisdom-card"><div class="wq-motif" aria-hidden="true"></div><div class="wq-head"><p class="eyebrow wq-eye">' + esc(t('wisdom_title')) + '</p><span class="wq-links"><button class="wq-a" data-a="wqshare" data-v="' + q.id + '">' + esc(t('wisdom_share')) + '</button><button class="wq-a" data-a="push" data-v="wisdom">' + esc(t('wisdom_all')) + ' ›</button></span></div>' + wisdomBody(q) + '</section>';
+  return '<section class="card wisdom-card" id="wisdom-card"><div class="wq-motif" aria-hidden="true"></div><div class="wq-head"><p class="eyebrow wq-eye">' + esc(t('wisdom_title')) + '</p><span class="wq-links"><button class="wq-a wq-share" data-a="wqshare" data-v="' + q.id + '">' + WA_ICON + esc(t('wisdom_share')) + '</button><button class="wq-a" data-a="push" data-v="wisdom">' + esc(t('wisdom_all')) + ' ›</button></span></div>' + wisdomBody(q) + '</section>';
 }
 function viewWisdom() {
   // newest first: today's quotation, then the ones from the past 29 days with the day they were shown

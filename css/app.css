@@ -674,3 +674,8 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .wq-line{font-family:Georgia,"Noto Serif",serif;font-size:16px;line-height:1.4;margin:0}
 .wisdom-card .wq-src{margin:3px 0 0;font-size:11px}
 .wq-motif{width:80px;height:80px;right:-20px;top:-20px}
+/* v3.8.2 highlighted share, bold quote */
+.wq-links{align-items:center}
+.wq-a.wq-share{display:inline-flex;align-items:center;gap:4px;background:#25d366;color:#fff;padding:5px 12px;border-radius:99px;box-shadow:0 2px 8px rgba(37,211,102,.35)}
+.wq-a.wq-share svg{width:14px;height:14px;fill:currentColor}
+.wq-line{font-weight:700}
