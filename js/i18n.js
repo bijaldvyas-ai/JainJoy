@@ -3,6 +3,20 @@
 'use strict';
 var K = {
 // navigation
+dash_online:['Using now','अभी इस्तेमाल कर रहे','અત્યારે વાપરે છે'],
+dash_total:['Total users','कुल यूज़र','કુલ યુઝર'],
+dash_last:['Last {n}','पिछले {n}','છેલ્લા {n}'],
+dash_days:['{n} days','{n} दिन','{n} દિવસ'],
+dash_month:['month','महीना','મહિનો'],
+dash_people:['people','लोग','લોકો'],
+dash_vs:['before: {n}','पहले: {n}','પહેલાં: {n}'],
+dash_new:['New','नया','નવું'],
+dash_chart:['People per day','प्रतिदिन लोग','દરરોજ લોકો'],
+dash_this:['Last {n} days','पिछले {n} दिन','છેલ્લા {n} દિવસ'],
+dash_before:['{n} days before','उससे पहले के {n} दिन','તેના પહેલાંના {n} દિવસ'],
+dash_new_people:['{n} first-time users in this period','इस अवधि में {n} नए यूज़र','આ સમયમાં {n} નવા યુઝર'],
+dash_live:['live · updates every 10 seconds','लाइव · हर 10 सेकंड अपडेट','લાઇવ · દર 10 સેકન્ડે અપડેટ'],
+dash_setup:['Live dashboard needs a one-time setup: run db/migrations/004_live_dashboard.sql in Supabase → SQL Editor.','लाइव डैशबोर्ड के लिए एक बार Supabase → SQL Editor में db/migrations/004_live_dashboard.sql चलाएँ।','લાઇવ ડેશબોર્ડ માટે એક વાર Supabase → SQL Editor માં db/migrations/004_live_dashboard.sql ચલાવો.'],
 wisdom_title:['Jain Wisdom of the Day','आज का जैन विचार','આજનો જૈન વિચાર'],
 wisdom_share:['Share','शेयर करें','શેર કરો'],
 wisdom_all:['All quotes','सभी विचार','બધા વિચાર'],

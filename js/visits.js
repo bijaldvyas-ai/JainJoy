@@ -40,6 +40,15 @@ JJ.visits = {
     return fetch(c.supabaseUrl + '/rest/v1/rpc/visitor_summary', {method: 'POST', headers: {apikey: c.supabaseKey, Authorization: 'Bearer ' + c.supabaseKey, 'Content-Type': 'application/json'}, body: '{}'})
       .then(function (r) { return r.ok ? r.json() : null; }, function () { return null; });
   },
+  /* "still here": once a minute while the app is on screen, so the owner sees who is using it right now */
+  ping: function () {
+    var c = JJ.CONFIG || {};
+    if (!c.supabaseUrl || !c.supabaseKey || c.countVisits === false || document.hidden) return;
+    if (window.JJ_DB_NAME || /^(localhost|127\.|\[::1\])/.test(location.hostname)) return;
+    fetch(c.supabaseUrl + '/rest/v1/rpc/visit_ping', {method: 'POST', keepalive: true,
+      headers: {apikey: c.supabaseKey, Authorization: 'Bearer ' + c.supabaseKey, 'Content-Type': 'application/json'},
+      body: JSON.stringify({p_device: deviceId()})}).catch(function () {});
+  },
   /* record one open of the app; p = the household profile (or null before setup) */
   log: function (p) {
     var c = JJ.CONFIG || {};
@@ -54,4 +63,5 @@ JJ.visits = {
     }).then(function (r) { return r.ok; }, function () { return false; });
   }
 };
+setInterval(function () { JJ.visits.ping(); }, 60000);
 })(window.JJ = window.JJ || {});

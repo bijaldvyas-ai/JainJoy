@@ -127,6 +127,8 @@ JJ.account = {
   /* owner mode on this phone (the owner's Visitors page) */
   ownerMode: function () { forced = true; },
   /* visitor numbers for the owner: {total, today, week, month, new_today, opens_today, opens_total, planners, days, cities, sources} */
+  /* live dashboard: {now, online, today, total, growth:[{days,cur,prev,new}], series:[{day,people,new}]} */
+  visitorDashboard: function () { if (!sb || !admin) return Promise.resolve({error: 'admin'}); return sb.rpc('visitor_dashboard').then(function (r) { return r.error ? {error: r.error.message} : {dash: r.data}; }, function () { return {error: 'offline'}; }); },
   visitorStats: function () { if (!sb || !admin) return Promise.resolve({error: 'admin'}); return sb.rpc('visitor_stats').then(function (r) { return r.error ? {error: r.error.message} : {stats: r.data}; }, function () { return {error: 'offline'}; }); },
   /* the household profile travels with the account, so signing in on a new phone brings it back */
   saveProfile: function (p) { if (!sb || !me) return Promise.resolve(); return sb.rpc('save_profile', {p: p}).then(function () {}, function () {}); },

@@ -788,6 +788,15 @@ deleteTestDb().then(function () { return JJ.boot(); }).then(function () {
     ['en', 'hi', 'gu'].forEach(function (l) { keys.forEach(function (k) { if (!JJ.I18N[l][k]) miss.push(l + ':' + k); }); });
     return {ok: shown && shared && n === JJ.WISDOM.length && hi === 1 && !miss.length, details: 'card first on Today, one line in the app language, no Sanskrit: ' + shown + '; share text has quote and source: ' + shared + '; library cards: ' + n + ' (today highlighted: ' + hi + '); missing texts: ' + (miss.join(',') || 'none')};
   });
+  test('D1', 'Owner dashboard: live users, total, 7/15/30-day growth in % and a chart', function () {
+    var series = []; for (var i = 59; i >= 0; i--) series.push({day: addDays(today, -i), people: i < 7 ? 12 : 10, new: 1});
+    var d = {online: 3, today: 12, total: 250, growth: [{days: 7, cur: 60, prev: 50, new: 7}, {days: 15, cur: 90, prev: 100, new: 15}, {days: 30, cur: 140, prev: 0, new: 30}], series: series};
+    var h = JJ.app.dashPreview(d, 15), div = document.createElement('div'); div.innerHTML = h;
+    var pct = [JJ.app.growthPct(d.growth[0]), JJ.app.growthPct(d.growth[1]), JJ.app.growthPct(d.growth[2])];
+    var bars = div.querySelectorAll('.dc-bar').length, txt = div.innerText || div.textContent;
+    var ok = pct[0] === 20 && pct[1] === -10 && pct[2] === null && bars === 15 && /\+20%/.test(txt) && /-10%/.test(txt) && txt.indexOf('250') >= 0 && !!div.querySelector('.dash-live') && !!div.querySelector('.dc-prev');
+    return {ok: ok, details: 'growth 7/15/30: ' + pct.join(' / ') + '%; chart bars for 15 days: ' + bars + '; previous-period line: ' + !!div.querySelector('.dc-prev')};
+  });
   // ---- report ----
   Promise.all(pendingTests).then(report);
   function report() {

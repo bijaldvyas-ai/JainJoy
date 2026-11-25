@@ -1570,10 +1570,43 @@ window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault()
 /* ---------------- Visitors: how many people have opened the link (owner only) ---------------- */
 var visitT = null;
 function loadVisitors() {
+  JJ.account.visitorDashboard().then(function (r) {
+    ui.dash = r.dash || null; ui.dashErr = r.error && r.error !== 'admin' ? r.error : null; ui.dashAt = Date.now();
+    if (stack.length && stack[stack.length - 1].k === 'visitors') render();
+  });
   JJ.account.visitorStats().then(function (r) {
     ui.vis = r.stats || null; ui.visErr = r.error && r.error !== 'admin' ? r.error : null;
     if (stack.length && stack[stack.length - 1].k === 'visitors') render();
   });
+}
+/* growth in % against the period before; null when there is nothing to compare with */
+function growthPct(g) { return g.prev ? Math.round((g.cur - g.prev) * 1000 / g.prev) / 10 : null; }
+function pctBadge(v) {
+  if (v === null) return '<span class="gp gp-new">' + esc(t('dash_new')) + '</span>';
+  return '<span class="gp ' + (v > 0 ? 'gp-up' : v < 0 ? 'gp-down' : 'gp-flat') + '">' + (v > 0 ? '▲ +' : v < 0 ? '▼ ' : '') + v + '%</span>';
+}
+function dashChart(series, n) {
+  // people per day for the chosen period (bars) with the same days of the period before (dotted line)
+  var cur = series.slice(-n), prev = series.slice(-2 * n, -n), W = 320, H = 140, pad = 18;
+  var max = Math.max.apply(null, [1].concat(cur.map(function (d) { return d.people; }), prev.map(function (d) { return d.people; })));
+  var bw = (W - pad) / n, y = function (v) { return H - 16 - v * (H - 30) / max; };
+  var bars = cur.map(function (d, i) { var h = H - 16 - y(d.people); return '<rect x="' + (pad + i * bw + bw * .15).toFixed(1) + '" y="' + y(d.people).toFixed(1) + '" width="' + (bw * .7).toFixed(1) + '" height="' + Math.max(h, d.people ? 2 : 0).toFixed(1) + '" rx="2" class="dc-bar"><title>' + esc(dShort(d.day)) + ': ' + d.people + '</title></rect>'; }).join('');
+  var line = prev.length === n ? '<polyline class="dc-prev" points="' + prev.map(function (d, i) { return (pad + i * bw + bw / 2).toFixed(1) + ',' + y(d.people).toFixed(1); }).join(' ') + '"/>' : '';
+  var lab = function (i) { return '<text x="' + (pad + i * bw + bw / 2).toFixed(1) + '" y="' + (H - 3) + '" text-anchor="middle">' + esc(dfmt(cur[i].day, {day: 'numeric', month: 'short'})) + '</text>'; };
+  return '<svg class="dash-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(t('dash_chart')) + '"><line x1="' + pad + '" x2="' + W + '" y1="' + (H - 16) + '" y2="' + (H - 16) + '" class="dc-axis"/><text x="0" y="' + (y(max) + 4).toFixed(1) + '">' + max + '</text>' + bars + line + lab(0) + lab(Math.floor((n - 1) / 2)) + lab(n - 1) + '</svg>' +
+    '<p class="dash-legend"><span class="lg-bar"></span>' + esc(t('dash_this', {n: n})) + ' <span class="lg-line"></span>' + esc(t('dash_before', {n: n})) + '</p>';
+}
+function dashBlock() {
+  var d = ui.dash;
+  if (!d) return ui.dashErr ? '<div class="note" style="margin-top:10px">' + esc(t('dash_setup')) + '</div>' : '';
+  var per = ui.dashPer || 7, g = d.growth.filter(function (x) { return x.days === per; })[0] || d.growth[0];
+  var secs = Math.round((Date.now() - (ui.dashAt || Date.now())) / 1000);
+  return '<section class="card glass dash">' +
+    '<div class="dash-top"><div class="dash-live"><span class="live-dot"></span><b>' + d.online + '</b><small>' + esc(t('dash_online')) + '</small></div><div><b>' + d.total + '</b><small>' + esc(t('dash_total')) + '</small></div><div><b>' + d.today + '</b><small>' + esc(t('vis_today')) + '</small></div></div>' +
+    '<div class="dash-growth">' + d.growth.map(function (x) {
+      return '<button class="dg' + (x.days === per ? ' on' : '') + '" data-a="dashper" data-v="' + x.days + '"><small>' + esc(t('dash_last', {n: x.days === 30 ? t('dash_month') : t('dash_days', {n: x.days})})) + '</small>' + pctBadge(growthPct(x)) + '<span>' + x.cur + ' ' + esc(t('dash_people')) + ' · ' + esc(t('dash_vs', {n: x.prev})) + '</span></button>';
+    }).join('') + '</div>' + dashChart(d.series, per) +
+    '<p class="fine">' + esc(t('dash_new_people', {n: g.new})) + ' · <span class="live-dot"></span>' + esc(t('dash_live')) + '</p></section>';
 }
 function viewVisitors() {
   var b = '';
@@ -1586,6 +1619,7 @@ function viewVisitors() {
       '<button class="btn primary" type="submit" style="width:100%;margin-top:6px"' + (ui.acc.busy ? ' disabled' : '') + '>' + esc(t(ui.acc.busy ? 'acc_wait' : 'vis_open')) + '</button></form>';
     return backBar(t('vis_title')) + '<main class="scroll gx" id="scroll">' + b + '</main>';
   }
+  b += dashBlock();
   var s = ui.vis;
   if (!s) { if (!ui.visLoading) { ui.visLoading = true; loadVisitors(); } b = '<p class="fine" style="margin-top:12px">' + esc(t(ui.visErr ? 'cust_error' : 'cust_loading')) + '</p>'; }
   else {
@@ -1621,7 +1655,7 @@ function ownerSubmit() {
   }, function () { a.busy = false; a.errs = [{field: '', key: 'acc_err_offline'}]; render(); });
 }
 /* while the Visitors page is open the numbers refresh every 30 seconds */
-setInterval(function () { if (stack.length && stack[stack.length - 1].k === 'visitors' && JJ.account.isAdmin) loadVisitors(); }, 30000);
+setInterval(function () { if (stack.length && stack[stack.length - 1].k === 'visitors' && JJ.account.isAdmin && !document.hidden) loadVisitors(); }, 10000); // live: every 10 s
 
 /* ---------------- admin: customers (live) ---------------- */
 var custPoll = null, custUnwatch = null;
@@ -2023,7 +2057,8 @@ app.addEventListener('click', function (e) {
     case 'custyear': if (window.confirm(t('cust_add_year_confirm', {name: el.dataset.n}))) JJ.account.grantYear(v).then(function (r) { toast(r.error ? t('cust_error') : t('cust_year_added')); custRefresh(); }); break;
     case 'custpw': if (window.confirm(t('cust_reset_confirm', {name: el.dataset.n}))) { var tpw = 'Jain' + (1000 + Math.floor(Math.random() * 9000)) + String.fromCharCode(97 + Math.floor(Math.random() * 26)) + String.fromCharCode(97 + Math.floor(Math.random() * 26)); JJ.account.resetPassword(v, tpw).then(function (r) { if (r.error) { toast(t('cust_error')); return; } ui.tempPw = {id: v, pw: tpw}; custPaint(); }); } break;
     case 'custcsv': custCsv(); break;
-    case 'visrefresh': ui.vis = null; ui.visLoading = false; render(); break;
+    case 'dashper': ui.dashPer = +v; render(); break;
+    case 'visrefresh': ui.vis = null; ui.dash = null; ui.visLoading = false; render(); break;
     case 'ownerout': JJ.account.signOut().then(function () { try { localStorage.removeItem('jainjoy.owner'); } catch (e) {} ui.vis = null; ui.visLoading = false; stack.pop(); render(); toast(t('acc_logged_out')); }); break;
     case 'pantryclear': JJ.db.put('meta', {key: 'pantry', have: {}}); render(); break;
     case 'ayambil': ui.ayambil = ui.ayambil === v ? null : v; render(); break;
@@ -2198,7 +2233,7 @@ document.addEventListener('visibilitychange', function () { if (document.visibil
 
 /* ---------------- boot ---------------- */
 JJ.app = {render: render, toast: toast, gateHTML: function (mode) { ui.acc.mode = mode; if (!ui.loc) ui.loc = {state: 'ok'}; draft = null; var h = viewGate(); draft = null; return h; }, festiveFor: festiveFor, menuText: menuText, listText: listText, splitPantry: splitPantry, isOli: isOli, soakTonight: soakTonight, menuFor: menuFor, parvaIcs: parvaIcs, generateMonth: generateMonth, freezeHistory: freezeHistory, applyProfileChange: applyProfileChange,
-  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, boundaryPassed: function () { return boundaryPassed(); }, networkLocation: networkLocation, nearestCity: nearestCity, stateFromName: stateFromName, winterCard: winterCard};
+  get profile() { return P; }, set profile(v) { P = v; }, setLang: function (l) { LANG = l; }, get lang() { return LANG; }, today: today, pan: pan, t: t, previewCache: previewCache, boundaryPassed: function () { return boundaryPassed(); }, networkLocation: networkLocation, nearestCity: nearestCity, stateFromName: stateFromName, winterCard: winterCard, growthPct: growthPct, dashPreview: function (d, per) { var o = [ui.dash, ui.dashPer]; ui.dash = d; ui.dashPer = per; ui.dashAt = Date.now(); var h = dashBlock(); ui.dash = o[0]; ui.dashPer = o[1]; return h; }};
 JJ.boot = function () {
   // an invite link (…/JainJoy/?ref=AB12CD) is remembered until this phone signs up
   try { var ref = (location.search.match(/[?&]ref=([A-Za-z0-9]{6})/) || [])[1]; if (ref) localStorage.setItem('jainjoy.ref', ref.toUpperCase()); } catch (e) {}
