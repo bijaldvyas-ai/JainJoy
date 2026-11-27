@@ -516,8 +516,8 @@ function parvaBox(r) {
     '<ul>' + list.map(function (k) { return '<li>' + esc(t(k)) + '</li>'; }).join('') + '</ul><small>' + esc(t(r.noFruit ? 'parva_fruit_no' : 'parva_fruit_ok')) + ' ' + esc(t('parva_applies')) + '</small></div>';
 }
 /* Next-day reminder: tomorrow's tithi rule and planned meals, with phone-calendar and evening reminders */
-function tomorrowSummary() {
-  var d = JJ.addDays(today(), 1), p = pan(d), r = JJ.dayRules(p, P), m = menuFor(d);
+function tomorrowSummary(from) {
+  var d = JJ.addDays(from || today(), 1), p = pan(d), r = JJ.dayRules(p, P), m = menuFor(d);
   var names = m ? MEALS.map(function (k) {
     if (k === 'l') return t('meal_l') + ': ' + JJ.chosenItems(m).filter(function (it) { return it.id; }).slice(0, 3).map(function (it) { return rName(JJ.recipeFor(m, it.id)); }).join(', ');
     var x = JJ.chosenMeal(m, k); return t('meal_' + k) + ': ' + (x && x.id ? rName(JJ.recipeFor(m, x.id)) : '—');
@@ -551,10 +551,43 @@ function tomorrowCard() {
     (s.r.parva ? '<p class="fine" style="margin:6px 0 0">' + esc(t('tomorrow_parva_tip')) + '</p>' : '') +
     '<div class="row" style="flex-wrap:wrap;margin-top:10px"><button class="btn small" data-a="day" data-v="' + s.date + '">' + esc(t('see_tomorrow')) + '</button><button class="btn small" data-a="ics">' + esc(t('add_reminders')) + '</button><button class="btn small" data-a="notify">' + esc(t(notifyState() === 'on' ? 'evening_on' : 'evening_reminder')) + '</button></div></section>';
 }
-function notifyState() { try { return localStorage.getItem('jainjoy.notify') === '1' && window.Notification && Notification.permission === 'granted' ? 'on' : 'off'; } catch (e) { return 'off'; } }
+/* Inside the Android app, reminders are real phone notifications that arrive even when JainJoy is closed. */
+function nativeLN() { var C = window.Capacitor; return C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.LocalNotifications || null; }
+function notifyState() {
+  try {
+    if (nativeLN()) return localStorage.getItem('jainjoy.notify') === '1' ? 'on' : 'off';
+    return localStorage.getItem('jainjoy.notify') === '1' && window.Notification && Notification.permission === 'granted' ? 'on' : 'off';
+  } catch (e) { return 'off'; }
+}
+/* Plans the next 7 days: Navkarsi time, 15 minutes before Chauvihar, and tomorrow's tithi and menu at 7 pm.
+   Planned again each time the app opens, so a changed city, tradition or menu is picked up. */
+function scheduleNativeReminders() {
+  var LN = nativeLN(); if (!LN || !P) return Promise.resolve();
+  return LN.getPending().then(function (r) {
+    var old = (r && r.notifications || []).map(function (n) { return {id: n.id}; });
+    return old.length ? LN.cancel({notifications: old}) : null;
+  }).then(function () {
+    if (notifyState() !== 'on') return null;
+    var list = [], now = Date.now() + 60000, td = today();
+    for (var k = 0; k < 7; k++) {
+      var d = JJ.addDays(td, k), p = pan(d), tm = JJ.timings(p, {navkarsi: P.navkarsi, chauvihar: P.chauvihar});
+      if (tm.navkarsi > now) list.push({id: 1000 + k * 10 + 1, title: t('rem_navkarsi_t', {time: hm(tm.navkarsi)}), body: t('rem_navkarsi_b') + ' · ' + JJ.tithiName(p.t, LANG), schedule: {at: new Date(tm.navkarsi), allowWhileIdle: true}});
+      var ch = tm.chauvihar - 15 * 6e4;
+      if (ch > now) list.push({id: 1000 + k * 10 + 2, title: t('rem_chauvihar_t', {time: hm(tm.chauvihar)}), body: t('rem_chauvihar_b'), schedule: {at: new Date(ch), allowWhileIdle: true}});
+      var eve = new Date(d + 'T19:00:00').getTime();
+      if (eve > now) {
+        try {
+          var s = tomorrowSummary(d), title = t('tomorrow') + ': ' + (s.r.parva ? s.r.parvaKeys.map(function (x) { return t(x); }).join(', ') + ' – ' + t('parva_no_veg') : JJ.tithiName(s.p.t, LANG));
+          list.push({id: 1000 + k * 10 + 3, title: title, body: (s.soak.length ? '💧 ' + t('soak_tonight') + ': ' + soakLines(s).join('; ') + '\n' : '') + s.names.join('\n'), schedule: {at: new Date(eve), allowWhileIdle: true}});
+        } catch (e) {}
+      }
+    }
+    return list.length ? LN.schedule({notifications: list}) : null;
+  }).catch(function () {});
+}
 /* Shown once per day after 5 pm while the app is open (phones do not allow scheduled alarms without a server). */
 function maybeEveningReminder() {
-  if (!P || notifyState() !== 'on') return;
+  if (!P || nativeLN() || notifyState() !== 'on') return;
   var now = new Date(), key = 'jainjoy.notified.' + today();
   if (now.getHours() < 17) return;
   try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) { return; }
@@ -1931,6 +1964,16 @@ app.addEventListener('click', function (e) {
     case 'pantryclear': JJ.db.put('meta', {key: 'pantry', have: {}}); render(); break;
     case 'ayambil': ui.ayambil = ui.ayambil === v ? null : v; render(); break;
     case 'notify': {
+      var LN = nativeLN();
+      if (LN) {
+        if (notifyState() === 'on') { try { localStorage.removeItem('jainjoy.notify'); } catch (e) {} scheduleNativeReminders(); render(); toast(t('notify_off')); break; }
+        LN.requestPermissions().then(function (r) {
+          if (r && r.display === 'granted') { try { localStorage.setItem('jainjoy.notify', '1'); } catch (e) {} scheduleNativeReminders(); toast(t('notify_on_app')); }
+          else toast(t('notify_denied'));
+          render();
+        }).catch(function () { toast(t('notify_denied')); });
+        break;
+      }
       if (!window.Notification) { toast(t('notify_unsupported')); break; }
       if (notifyState() === 'on') { try { localStorage.removeItem('jainjoy.notify'); } catch (e) {} render(); toast(t('notify_off')); break; }
       Notification.requestPermission().then(function (perm) {
@@ -2112,7 +2155,7 @@ JJ.boot = function () {
     P = JJ.db.get('profiles', 'local') || null;
     try { LANG = (P && P.lang) || localStorage.getItem('jainjoy.lang') || 'en'; } catch (e) { LANG = (P && P.lang) || 'en'; }
     if (P && !P.obsProfile) { P.obsProfile = 'strict'; P.parvaFruit = false; JJ.app.applyProfileChange(); }
-    if (P) { lastDay = today(); freezeHistory(); maybeEveningReminder(); }
+    if (P) { lastDay = today(); freezeHistory(); maybeEveningReminder(); scheduleNativeReminders(); }
     render();
     try { if (localStorage.getItem('jainjoy.owner') === '1') JJ.account.ownerMode(); } catch (e) {}
     JJ.account.init(function () { render(); }); // optional customer account (only when Supabase is set up)
