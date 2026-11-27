@@ -697,3 +697,8 @@ details.fold[open] .fold-chev{transform:rotate(90deg)}
 .dc-prev{fill:none;stroke:var(--muted);stroke-width:1.5;stroke-dasharray:3 3}
 .dash-legend{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:4px 0}
 .lg-bar{width:10px;height:10px;border-radius:2px;background:var(--saffron)}.lg-line{width:14px;border-top:2px dashed var(--muted)}
+/* v3.9.1 tablets and computers: rows in Today's grid always fit their content (the wisdom card was squeezed to a strip);
+   plain colours first for older Android browsers without color-mix */
+.phone[data-view="today"] .scroll,.phone[data-view="day"] .scroll{grid-auto-rows:max-content}
+.wisdom-card{min-height:max-content;flex-shrink:0;background-color:#fff4e6;border-color:#f3d9b8}
+.dash-top>div{background-color:#fff4e6}
